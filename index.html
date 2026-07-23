@@ -129,28 +129,55 @@
   const STORE_KEY = 'kiosk-data';
   let state = null;
   let screen = 'idle'; // idle, register, menu, take, return, confirm, report
-  let currentPerson = null; // {code,name}
-  let pendingCode = null;
-  let takeSelection = null; // {itemId, qty, expectedHours}
+  let currentPerson = null; // {code,name,role}
+  let pendingRole = null;
+  let takeSelection = null; // {itemId, qty, expectedHours, category}
+  let takeCategory = null; // 'tool' or 'consumable'
   let takeError = null;
   let pendingReturnTx = null; // tx id awaiting confirmation
   let confirmInfo = null;
   let reportTab = 'open';
 
+  const PLACEHOLDER_TOOL_QTY = 5;
+  const PLACEHOLDER_ASSET_QTY = 15;
+
   const seed = () => ({
     employees: {},
     items: [
-      {id:'T-001', name:'Cordless Drill', type:'tool', total:4},
-      {id:'T-002', name:'Impact Wrench', type:'tool', total:2},
-      {id:'T-003', name:'Ladder 6ft', type:'tool', total:2},
-      {id:'T-004', name:'Digital Multimeter', type:'tool', total:3},
-      {id:'T-005', name:'Extension Cord 50ft', type:'tool', total:5},
-      {id:'A-001', name:'HDMI Cable 6ft', type:'consumable', total:20},
-      {id:'A-002', name:'Ethernet Cable Cat6', type:'consumable', total:30},
-      {id:'A-003', name:'USB-C Cable', type:'consumable', total:25},
-      {id:'A-004', name:'Webcam', type:'consumable', total:8},
-      {id:'A-005', name:'Office Chair', type:'consumable', total:6},
-      {id:'A-006', name:'Monitor Stand', type:'consumable', total:10}
+      // ---- TOOLS (checkout & return) ----
+      {id:'T-001', name:'Screwdriver', type:'tool', icon:'🪛', total:PLACEHOLDER_TOOL_QTY},
+      {id:'T-002', name:'Zip Ties Cutter', type:'tool', icon:'✂️', total:PLACEHOLDER_TOOL_QTY},
+      {id:'T-003', name:'Scissors', type:'tool', icon:'✂️', total:PLACEHOLDER_TOOL_QTY},
+      {id:'T-004', name:'Knife (Cutter)', type:'tool', icon:'🔪', total:PLACEHOLDER_TOOL_QTY},
+      {id:'T-005', name:'Measuring Tape', type:'tool', icon:'📏', total:PLACEHOLDER_TOOL_QTY},
+
+      // ---- ONE-WAY ITEMS (taken = -1, no return) — real station inventory ----
+      {id:'A-001', name:'Ethernet Cable', type:'consumable', icon:'🌐', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-002', name:'Head Camera Cable (USB-C)', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-003', name:'Head Camera Cable (C-C)', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-004', name:'Environmental Camera Cable', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-005', name:'Power Cable (PC/Monitor)', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-006', name:'Control Box Power Cable', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-007', name:'Monitor Power Supply', type:'consumable', icon:'⚡', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-008', name:'Switch Power Supply', type:'consumable', icon:'⚡', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-009', name:'HDMI Cable', type:'consumable', icon:'📺', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-010', name:'DP Monitor Cable', type:'consumable', icon:'🖥️', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-011', name:'Head Camera', type:'consumable', icon:'📷', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-012', name:'Wrist Camera', type:'consumable', icon:'📷', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-013', name:'Environmental Camera', type:'consumable', icon:'📷', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-014', name:'Monitor (Screen)', type:'consumable', icon:'🖥️', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-015', name:'Keyboard', type:'consumable', icon:'⌨️', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-016', name:'Mouse', type:'consumable', icon:'🖱️', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-017', name:'Power Socket', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-018', name:'Arm Power Cable', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-019', name:'Gripper Power Supply', type:'consumable', icon:'⚡', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-020', name:'Station Monitor Touchpad Cable', type:'consumable', icon:'🔌', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-021', name:'Emergency Button', type:'consumable', icon:'🛑', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-022', name:'Franka Arm', type:'consumable', icon:'🦾', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-023', name:'Control Box', type:'consumable', icon:'📦', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-024', name:'PC', type:'consumable', icon:'🖥️', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-025', name:'Screws', type:'consumable', icon:'🔩', total:PLACEHOLDER_ASSET_QTY},
+      {id:'A-026', name:'Zip Ties', type:'consumable', icon:'🔗', total:PLACEHOLDER_ASSET_QTY}
     ],
     transactions: []
   });
@@ -177,6 +204,11 @@
     if(item.type==='consumable') return item.total;
     const out = state.transactions.filter(t=>t.itemId===itemId && !t.returnedAt).reduce((s,t)=>s+t.qty,0);
     return item.total - out;
+  }
+
+  function iconFor(itemId){
+    const item = state.items.find(i=>i.id===itemId);
+    return item && item.icon ? item.icon : '';
   }
 
   function openCheckoutsFor(code){
@@ -214,82 +246,98 @@
 
   function renderStage(){
     const stage = document.getElementById('stage');
-    if(screen==='idle') return stageIdle(stage);
-    if(screen==='register') return stageRegister(stage);
+    if(screen==='idle') return stageRoleSelect(stage);
+    if(screen==='nameSelect') return stageNameSelect(stage);
+    if(screen==='operatorId') return stageOperatorId(stage);
     if(screen==='menu') return stageMenu(stage);
+    if(screen==='takeCategory') return stageTakeCategory(stage);
     if(screen==='take') return stageTake(stage);
     if(screen==='return') return stageReturn(stage);
     if(screen==='confirm') return stageConfirm(stage);
     if(screen==='report') return stageReport(stage);
   }
 
-  function stageIdle(stage){
+  const ROLES = {
+    maintenance: { label: 'Maintenance Team', icon: '🔧', kind: 'names', names: ['Marwan','Houcem','Hamza','Ahmed','Felix','Yie'] },
+    management:  { label: 'Management Team', icon: '📋', kind: 'names', names: ['Rosa','Clarissa','Bingie'] },
+    supervisor:  { label: 'Supervisor', icon: '🧭', kind: 'operatorId' },
+    teleoperator:{ label: 'Tele-operator', icon: '🎮', kind: 'operatorId' }
+  };
+
+  function stageRoleSelect(stage){
     stage.innerHTML = `
-      <div class="reader-wrap">
-        <div class="slot"><div class="scanline"></div>
-          <input id="badgeInput" placeholder="ENTER BADGE CODE" maxlength="12" autofocus />
-        </div>
-        <div class="hint">Tap or type your badge code to begin</div>
-        <button class="go-btn" id="goBtn">Sign In</button>
-        <div class="quick-codes">
-          <span style="color:var(--text-dim);font-size:11px;font-family:'IBM Plex Mono',monospace;align-self:center;">DEMO CODES:</span>
-          <button data-c="1042">1042</button>
-          <button data-c="2087">2087</button>
-          <button data-c="3311">3311 (new)</button>
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div class="hint" style="margin-top:0;margin-bottom:18px;">Who's checking in?</div>
+        <div class="menu-grid" style="max-width:520px;">
+          ${Object.keys(ROLES).map(key=>`
+            <div class="menu-card" data-role="${key}">
+              <div class="big">${ROLES[key].icon}</div>
+              <div class="label">${ROLES[key].label}</div>
+            </div>
+          `).join('')}
         </div>
       </div>
     `;
-    const input = document.getElementById('badgeInput');
-    const go = document.getElementById('goBtn');
-    input.focus();
-    const submit = ()=>{
-      const code = input.value.trim();
-      if(!code) return;
-      handleBadge(code);
-    };
-    go.onclick = submit;
-    input.onkeydown = (e)=>{ if(e.key==='Enter') submit(); };
-    stage.querySelectorAll('.quick-codes button[data-c]').forEach(b=>{
-      b.onclick = ()=>{ input.value = b.getAttribute('data-c'); submit(); };
+    stage.querySelectorAll('.menu-card[data-role]').forEach(card=>{
+      card.onclick = ()=>{
+        const key = card.getAttribute('data-role');
+        pendingRole = key;
+        screen = ROLES[key].kind === 'names' ? 'nameSelect' : 'operatorId';
+        renderStage();
+      };
     });
   }
 
-  function handleBadge(code){
-    const name = state.employees[code];
-    if(!name){
-      pendingCode = code;
-      screen = 'register';
-      renderStage();
-      return;
-    }
-    currentPerson = {code, name};
-    screen = 'menu';
-    renderStage();
-  }
-
-  function stageRegister(stage){
+  function stageNameSelect(stage){
+    const role = ROLES[pendingRole];
     stage.innerHTML = `
-      <div class="reader-wrap">
-        <div class="hint" style="margin-top:0;">New badge <span class="tag">${esc(pendingCode)}</span> — what's your name?</div>
-        <div class="form-row" style="margin-top:18px;">
-          <input type="text" id="nameInput" placeholder="Full name" style="font-family:'Inter',sans-serif;letter-spacing:normal;font-size:15px;" />
+      <span class="back-link" id="back">&larr; Back</span>
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div class="hint" style="margin-top:0;margin-bottom:18px;">${role.icon} ${esc(role.label)} — who are you?</div>
+        <div class="menu-grid" style="max-width:520px;grid-template-columns:1fr 1fr 1fr;">
+          ${role.names.map(n=>`<div class="menu-card" data-name="${esc(n)}" style="padding:18px 10px;">
+            <div class="label" style="font-size:13px;">${esc(n)}</div>
+          </div>`).join('')}
         </div>
-        <button class="go-btn" id="regBtn">Save &amp; Continue</button>
       </div>
     `;
-    const input = document.getElementById('nameInput');
+    document.getElementById('back').onclick = ()=>{ pendingRole=null; screen='idle'; renderStage(); };
+    stage.querySelectorAll('.menu-card[data-name]').forEach(card=>{
+      card.onclick = ()=>{
+        const name = card.getAttribute('data-name');
+        currentPerson = { code: role.label + ':' + name, name, role: role.label };
+        pendingRole = null;
+        screen = 'menu';
+        renderStage();
+      };
+    });
+  }
+
+  function stageOperatorId(stage){
+    const role = ROLES[pendingRole];
+    stage.innerHTML = `
+      <span class="back-link" id="back">&larr; Back</span>
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div class="hint" style="margin-top:0;">${role.icon} ${esc(role.label)} — enter your operator ID</div>
+        <div class="slot" style="margin-top:16px;">
+          <input id="opIdInput" placeholder="OPERATOR ID (numbers)" inputmode="numeric" maxlength="6" />
+        </div>
+        <button class="go-btn" id="opGoBtn">Sign In</button>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ pendingRole=null; screen='idle'; renderStage(); };
+    const input = document.getElementById('opIdInput');
     input.focus();
     const submit = ()=>{
-      const name = input.value.trim();
-      if(!name) return;
-      state.employees[pendingCode] = name;
-      save();
-      currentPerson = {code: pendingCode, name};
-      pendingCode = null;
+      const num = input.value.trim().replace(/\D/g,'');
+      if(!num) return;
+      const name = 'Operator-' + num;
+      currentPerson = { code: 'operator-' + num, name, role: role.label };
+      pendingRole = null;
       screen = 'menu';
       renderStage();
     };
-    document.getElementById('regBtn').onclick = submit;
+    document.getElementById('opGoBtn').onclick = submit;
     input.onkeydown = (e)=>{ if(e.key==='Enter') submit(); };
   }
 
@@ -299,7 +347,7 @@
     stage.innerHTML = `
       <div class="greet">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
-        <div class="code">BADGE ${esc(currentPerson.code)}</div>
+        <div class="code">${esc(currentPerson.role)}</div>
       </div>
       <div class="menu-grid">
         <div class="menu-card" id="takeCard">
@@ -316,32 +364,63 @@
       ${anyOpen ? `<div class="open-list"><h3>Currently checked out to you</h3>
         ${opens.map(t=>`
           <div class="open-row ${isOverdue(t)?'overdue':''}">
-            <span><span class="tag">${esc(t.itemId)}</span> &nbsp;${esc(t.itemName)} × ${t.qty}</span>
+            <span><span class="tag">${esc(t.itemId)}</span> &nbsp;${iconFor(t.itemId)} ${esc(t.itemName)} × ${t.qty}</span>
             <span class="due">${isOverdue(t)?'OVERDUE · ':'due '}${fmtDate(t.expectedReturn)}</span>
           </div>`).join('')}
         </div>` : ''}
       <div style="text-align:center;margin-top:22px;"><span class="back-link" id="signOut">Sign out</span></div>
     `;
-    document.getElementById('takeCard').onclick = ()=>{ takeSelection = {itemId:null, qty:1, hours:24}; screen='take'; renderStage(); };
+    document.getElementById('takeCard').onclick = ()=>{ screen='takeCategory'; renderStage(); };
     if(anyOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnSelection = null; screen='return'; renderStage(); };
     }
     document.getElementById('signOut').onclick = ()=>{ currentPerson=null; screen='idle'; renderStage(); };
   }
 
-  function stageTake(stage){
-    const selected = takeSelection.itemId;
+  function stageTakeCategory(stage){
     stage.innerHTML = `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you taking?</div></div>
+      <div class="menu-grid">
+        <div class="menu-card" id="toolsCard">
+          <div class="big">🧰</div>
+          <div class="label">Tools</div>
+          <div class="sub">Borrow &amp; bring back</div>
+        </div>
+        <div class="menu-card" id="partsCard">
+          <div class="big">🔌</div>
+          <div class="label">Station Parts</div>
+          <div class="sub">Cables, cameras, monitors &amp; more — one-time use</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ screen='menu'; renderStage(); };
+    document.getElementById('toolsCard').onclick = ()=>{
+      takeCategory = 'tool';
+      takeSelection = {itemId:null, qty:1, hours:24};
+      screen='take'; renderStage();
+    };
+    document.getElementById('partsCard').onclick = ()=>{
+      takeCategory = 'consumable';
+      takeSelection = {itemId:null, qty:1, hours:24};
+      screen='take'; renderStage();
+    };
+  }
+
+  function stageTake(stage){
+    const selected = takeSelection.itemId;
+    const items = state.items.filter(it=>it.type===takeCategory);
+    stage.innerHTML = `
+      <span class="back-link" id="back">&larr; Back</span>
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${takeCategory==='tool' ? 'Which tool?' : 'Which part?'}</div></div>
       <div class="item-list">
-        ${state.items.map(it=>{
+        ${items.map(it=>{
           const avail = availableOf(it.id);
           const low = it.type==='consumable' && avail <= it.total*0.2;
           return `<div class="item-row ${selected===it.id?'selected':''}" data-id="${it.id}">
             <div>
               <span class="tag">${it.id}</span>
-              <div class="item-name" style="margin-top:5px;">${esc(it.name)}</div>
+              <div class="item-name" style="margin-top:5px;">${it.icon||''} ${esc(it.name)}</div>
               <div class="item-meta">${it.type==='tool' ? 'Checkout &amp; return' : 'One-time use'}</div>
             </div>
             <div class="stock ${low?'low':''}">${avail} avail</div>
@@ -364,7 +443,7 @@
         <button class="go-btn" id="confirmTake" style="width:100%;">Confirm</button>
       </div>
     `;
-    document.getElementById('back').onclick = ()=>{ takeError=null; screen='menu'; renderStage(); };
+    document.getElementById('back').onclick = ()=>{ takeError=null; screen='takeCategory'; renderStage(); };
     stage.querySelectorAll('.item-row').forEach(row=>{
       row.onclick = ()=>{
         takeSelection.itemId = row.getAttribute('data-id');
@@ -397,6 +476,7 @@
       id: 'tx_' + Date.now() + '_' + Math.floor(Math.random()*1000),
       code: currentPerson.code,
       name: currentPerson.name,
+      role: currentPerson.role,
       itemId: item.id,
       itemName: item.name,
       type: item.type,
@@ -413,7 +493,7 @@
     confirmInfo = {
       icon: item.type==='tool' ? '🧰' : '✅',
       msg: item.type==='tool' ? 'Checked out' : 'Taken from inventory',
-      detail: `${qty} × ${item.name}` + (tx.expectedReturn ? ` — return by ${fmtDate(tx.expectedReturn)}` : ' — logged as used, no return needed')
+      detail: `${item.icon||''} ${qty} × ${item.name}` + (tx.expectedReturn ? ` — return by ${fmtDate(tx.expectedReturn)}` : ' — logged as used, no return needed')
     };
     screen='confirm';
     renderStage();
@@ -430,7 +510,7 @@
           <div class="item-row ${pendingReturnTx===t.id?'selected':''}" data-id="${t.id}">
             <div>
               <span class="tag">${t.itemId}</span>
-              <div class="item-name" style="margin-top:5px;">${esc(t.itemName)} × ${t.qty}</div>
+              <div class="item-name" style="margin-top:5px;">${iconFor(t.itemId)} ${esc(t.itemName)} × ${t.qty}</div>
               <div class="item-meta">taken ${fmtDate(t.takenAt)}</div>
             </div>
             <div class="stock ${isOverdue(t)?'low':''}">${isOverdue(t)?'OVERDUE':('due '+fmtDate(t.expectedReturn))}</div>
@@ -438,7 +518,7 @@
       </div>
       ${pendingTx ? `
         <div class="confirm-panel">
-          <div class="q">Confirm you're returning <strong>${pendingTx.qty} × ${esc(pendingTx.itemName)}</strong>?</div>
+          <div class="q">Confirm you're returning <strong>${iconFor(pendingTx.itemId)} ${pendingTx.qty} × ${esc(pendingTx.itemName)}</strong>?</div>
           <div class="confirm-actions">
             <button class="no" id="cancelReturn">Cancel</button>
             <button class="yes" id="okReturn">Yes, returned</button>
@@ -456,7 +536,7 @@
         pendingTx.returnedAt = new Date().toISOString();
         save();
         pendingReturnTx = null;
-        confirmInfo = { icon:'✅', msg:'Returned', detail: `${pendingTx.qty} × ${pendingTx.itemName} is back in the supply room` };
+        confirmInfo = { icon:'✅', msg:'Returned', detail: `${iconFor(pendingTx.itemId)} ${pendingTx.qty} × ${pendingTx.itemName} is back in the supply room` };
         screen='confirm';
         renderStage();
       };
@@ -500,7 +580,7 @@
             const pct = Math.round((it.total / seedTotal(it.id)) * 100);
             const low = pct <= 20;
             return `<div class="stockbar">
-              <span><span class="tag">${it.id}</span> &nbsp;${esc(it.name)}</span>
+              <span><span class="tag">${it.id}</span> &nbsp;${it.icon||''} ${esc(it.name)}</span>
               <span class="stock ${low?'low':''}">${it.total} left${low?' — reorder soon':''}</span>
             </div>`;
           }).join('')}
@@ -512,8 +592,8 @@
           <tbody>
             ${rows.map(t=>`
               <tr class="${(t.type==='tool' && !t.returnedAt && isOverdue(t)) ? 'overdue':''}">
-                <td>${esc(t.name)} <span style="color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:10.5px;">(${esc(t.code)})</span></td>
-                <td><span class="tag">${t.itemId}</span> ${esc(t.itemName)}</td>
+                <td>${esc(t.name)} <span style="color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:10.5px;">(${esc(t.role||'')})</span></td>
+                <td><span class="tag">${t.itemId}</span> ${iconFor(t.itemId)} ${esc(t.itemName)}</td>
                 <td>${t.qty}</td>
                 <td>${fmtDate(t.takenAt)}</td>
                 <td>${t.expectedReturn ? fmtDate(t.expectedReturn) : '—'}</td>
