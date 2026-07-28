@@ -155,6 +155,8 @@
   let pendingReturnMatches = null;
   let confirmInfo = null;
   let reportTab = 'open';
+  let basket = [];
+  let basketIdCounter = 0;
   let scanBuffer = '';
   let lastScanKeyTime = 0;
   let scanNotice = null;
@@ -274,7 +276,7 @@
       <div class="stage" id="stage"></div>
     `;
     document.getElementById('reportBtn').onclick = async ()=>{
-      if(screen==='report'){ screen='idle'; currentPerson=null; renderStage(); return; }
+      if(screen==='report'){ screen='idle'; currentPerson=null; basket=[]; renderStage(); return; }
       screen = 'report';
       currentPerson = null;
       await withLoading(refreshRemote);
@@ -316,6 +318,7 @@
     if(screen==='scanPrompt') return stageScanPrompt(stage, banner);
     if(screen==='scanConfirm') return stageScanConfirm(stage, banner);
     if(screen==='scanTakeDetail') return stageScanTakeDetail(stage, banner);
+    if(screen==='basketReview') return stageBasketReview(stage, banner);
     if(screen==='takeCategory') return stageTakeCategory(stage, banner);
     if(screen==='take') return stageTake(stage, banner);
     if(screen==='return') return stageReturn(stage, banner);
@@ -479,21 +482,42 @@
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ pendingReturnTx=null; returnFirstError=null; screen='returnScanFirst'; renderStage(); };
     }
-    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; screen='idle'; renderStage(); };
+    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; basket=[]; screen='idle'; renderStage(); };
   }
 
   function stageScanPrompt(stage, banner){
-    stage.innerHTML = banner + `
+    let flash = '';
+    if(lastScanAdded){
+      flash = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">✅ Added: ${esc(lastScanAdded)} — keep scanning, or review below</div>`;
+      lastScanAdded = null;
+    }
+    stage.innerHTML = banner + flash + `
       <span class="back-link" id="back">&larr; Back to menu</span>
-      <div class="reader-wrap" style="padding-top:6px;">
+      <div class="reader-wrap" style="padding-top:6px;padding-bottom:0;">
         <div class="big" style="font-size:48px;">📷</div>
-        <div class="hint" style="margin-top:10px;font-size:15px;">Scan the QR code on the item</div>
+        <div class="hint" style="margin-top:10px;font-size:15px;">Scan as many items as you need — they'll add up below</div>
         ${scanNotFoundError ? `<div class="error-msg" style="margin-top:12px;">${esc(scanNotFoundError)}</div>` : ''}
-        <button class="btn-ghost" id="manualBtn" style="margin-top:120px;">Or choose manually</button>
+        <button class="btn-ghost" id="manualBtn" style="margin-top:24px;">Or choose manually</button>
       </div>
+      ${basket.length ? `
+        <div class="open-list" style="max-width:600px;">
+          <h3>In your list (${basket.length})</h3>
+          ${basket.map(b=>`
+            <div class="open-row">
+              <span>${iconForItem(b.itemName)} ${esc(b.itemName)} ${b.qty>1?('× '+b.qty):''}</span>
+              <span class="due">${b.category==='Tools' ? 'return '+hoursLabel(b.hours) : ''}</span>
+            </div>`).join('')}
+        </div>
+        <div style="text-align:center;margin-top:18px;">
+          <button class="go-btn" id="reviewBtn">Review &amp; Confirm (${basket.length})</button>
+        </div>
+      ` : ''}
     `;
     document.getElementById('back').onclick = ()=>{ scanNotFoundError=null; screen='menu'; renderStage(); };
     document.getElementById('manualBtn').onclick = ()=>{ scanNotFoundError=null; screen='takeCategory'; renderStage(); };
+    if(basket.length){
+      document.getElementById('reviewBtn').onclick = ()=>{ screen='basketReview'; renderStage(); };
+    }
   }
 
   function stageScanConfirm(stage, banner){
@@ -568,7 +592,7 @@
       </div>
     `;
     document.getElementById('back').onclick = ()=>{ takeError=null; screen='scanPrompt'; renderStage(); };
-    document.getElementById('confirmTake').onclick = async ()=>{
+    document.getElementById('confirmTake').onclick = ()=>{
       let qty = 1;
       let finalItemName = itemName;
       if(isOther){
@@ -579,15 +603,13 @@
         if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
       } else if(takeCategory==='Station Parts'){
         qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
-        const avail = availableOf(itemName);
+        const avail = availableOf(itemName) - basketQtyFor(itemName);
         if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
-        if(qty > avail){ takeError = 'Only ' + avail + ' available right now.'; renderStage(); return; }
+        if(qty > avail){ takeError = 'Only ' + avail + ' available right now (accounting for items already in your list).'; renderStage(); return; }
       }
       const hours = (takeCategory==='Tools' && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
       takeError = null;
-      document.getElementById('confirmTake').textContent = 'Saving…';
-      document.getElementById('confirmTake').disabled = true;
-      await submitTake(finalItemName, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
+      addToBasketAndReview(finalItemName, takeCategory, qty, hours);
     };
   }
 
@@ -649,6 +671,88 @@
     };
     screen='confirm';
     renderStage();
+  }
+
+  function hoursLabel(hours){
+    if(hours===4) return 'end of day';
+    if(hours===24) return 'tomorrow';
+    if(hours===72) return '3 days';
+    if(hours===168) return '1 week';
+    return hours + ' hrs';
+  }
+
+  function basketQtyFor(itemName){
+    return basket.filter(b=>b.itemName===itemName).reduce((s,b)=>s+b.qty,0);
+  }
+
+  function addToBasketAndReview(itemName, category, qty, hours){
+    basket.push({ id: ++basketIdCounter, itemName, category, qty, hours });
+    screen = 'basketReview';
+    renderStage();
+  }
+
+  let basketError = null;
+
+  function stageBasketReview(stage, banner){
+    stage.innerHTML = banner + `
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Your items (${basket.length})</div></div>
+      <table>
+        <thead><tr><th>Item</th><th>Qty</th><th>Detail</th><th></th></tr></thead>
+        <tbody>
+          ${basket.length ? basket.map(b=>`
+            <tr>
+              <td>${iconForItem(b.itemName)} ${esc(b.itemName)}</td>
+              <td>${b.qty}</td>
+              <td>${b.category==='Tools' ? 'Return ' + hoursLabel(b.hours) : (b.category==='Station Parts' ? 'One-time use' : '')}</td>
+              <td><button class="btn-ghost" data-remove="${b.id}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
+            </tr>
+          `).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No items added yet.</td></tr>`}
+        </tbody>
+      </table>
+      ${basketError ? `<div class="error-msg" style="margin-top:14px;">${esc(basketError)}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:22px;max-width:460px;margin-left:auto;margin-right:auto;">
+        <button class="btn-ghost" id="addMoreBtn" style="flex:1;padding:12px;">➕ Add another item</button>
+        <button class="go-btn" id="confirmAllBtn" style="flex:1;margin-top:0;" ${!basket.length?'disabled':''}>Confirm &amp; Take (${basket.length})</button>
+      </div>
+      <div style="text-align:center;margin-top:16px;"><span class="back-link" id="cancelBasket">Cancel, back to menu</span></div>
+    `;
+    document.getElementById('addMoreBtn').onclick = ()=>{ basketError=null; screen='scanPrompt'; renderStage(); };
+    document.getElementById('cancelBasket').onclick = ()=>{ basket=[]; basketError=null; screen='menu'; renderStage(); };
+    stage.querySelectorAll('[data-remove]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = parseInt(btn.getAttribute('data-remove'),10);
+        basket = basket.filter(b=>b.id!==id);
+        renderStage();
+      };
+    });
+    if(basket.length){
+      document.getElementById('confirmAllBtn').onclick = async ()=>{
+        document.getElementById('confirmAllBtn').textContent = 'Saving…';
+        document.getElementById('confirmAllBtn').disabled = true;
+        basketError = null;
+        const takenSummary = [];
+        for(const b of basket){
+          const expectedReturn = b.hours ? new Date(Date.now() + b.hours*3600*1000).toISOString() : null;
+          const result = await postAction({
+            action:'take', person: currentPerson.name, role: currentPerson.role,
+            item: b.itemName, category: b.category, qty: b.qty, expectedReturn
+          });
+          if(!result.ok){
+            basketError = `Saved ${takenSummary.length} of ${basket.length} — stopped at "${b.itemName}". Check your connection and try again.`;
+            basket = basket.filter(x => !takenSummary.includes(x.id));
+            renderStage();
+            return;
+          }
+          takenSummary.push(b.id);
+        }
+        await refreshRemote();
+        const detailLines = basket.map(b=>`${b.qty} × ${b.itemName}`).join(', ');
+        confirmInfo = { icon:'✅', msg: `${basket.length} item(s) recorded`, detail: detailLines };
+        basket = [];
+        screen = 'confirm';
+        renderStage();
+      };
+    }
   }
 
   const OTHER_SENTINEL = '__OTHER__';
@@ -737,7 +841,7 @@
       };
     });
     if(selected){
-      document.getElementById('confirmTake').onclick = async ()=>{
+      document.getElementById('confirmTake').onclick = ()=>{
         let qty = 1;
         let finalItemName = selected;
         if(isOther){
@@ -748,15 +852,13 @@
           if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
         } else if(takeCategory==='Station Parts'){
           qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
-          const avail = availableOf(selected);
+          const avail = availableOf(selected) - basketQtyFor(selected);
           if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
-          if(qty > avail){ takeError = 'Only ' + avail + ' available right now.'; renderStage(); return; }
+          if(qty > avail){ takeError = 'Only ' + avail + ' available right now (accounting for items already in your list).'; renderStage(); return; }
         }
         const hours = (takeCategory==='Tools' && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
         takeError = null;
-        document.getElementById('confirmTake').textContent = 'Saving…';
-        document.getElementById('confirmTake').disabled = true;
-        await submitTake(finalItemName, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
+        addToBasketAndReview(finalItemName, takeCategory, qty, hours);
       };
     }
   }
@@ -943,8 +1045,8 @@
         <button class="go-btn" id="doneBtn" style="margin-top:26px;">Done</button>
       </div>
     `;
-    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; screen='idle'; renderStage(); };
-    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; screen='idle'; renderStage(); } }, 6000);
+    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; basket=[]; screen='idle'; renderStage(); };
+    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; basket=[]; screen='idle'; renderStage(); } }, 6000);
   }
 
   // ---------- manager report ----------
@@ -1020,6 +1122,8 @@
     return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
+  let lastScanAdded = null;
+
   function tryHandleScan(text){
     if(!currentPerson) return; // must be signed in first
     if(screen === 'returnScanPrompt') return tryHandleReturnScan(text);
@@ -1046,10 +1150,18 @@
       renderStage();
       return;
     }
+    const inv = inventoryMap[matchName];
+    const avail = availableOf(matchName) - basketQtyFor(matchName);
+    if(avail < 1){
+      scanNotFoundError = `"${matchName}" isn't available right now (0 left after what's already in your list).`;
+      renderStage();
+      return;
+    }
     scanNotFoundError = null;
-    pendingScanItem = matchName;
-    screen = 'scanConfirm';
-    renderStage();
+    const hours = inv.reference==='Tools' ? 24 : null; // default; adjustable in the review list
+    basket.push({ id: ++basketIdCounter, itemName: matchName, category: inv.reference, qty: 1, hours });
+    lastScanAdded = matchName;
+    renderStage(); // stay on the scan screen — ready for the next scan immediately
   }
 
   function tryHandleReturnScan(text){
