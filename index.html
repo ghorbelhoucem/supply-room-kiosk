@@ -137,6 +137,7 @@
   let takeSearchQuery = '';
   let takeError = null;
   let pendingReturnTx = null;
+  let returnScanError = null;
   let confirmInfo = null;
   let reportTab = 'open';
   let scanBuffer = '';
@@ -258,6 +259,7 @@
     if(screen==='takeCategory') return stageTakeCategory(stage, banner);
     if(screen==='take') return stageTake(stage, banner);
     if(screen==='return') return stageReturn(stage, banner);
+    if(screen==='returnScanPrompt') return stageReturnScanPrompt(stage, banner);
     if(screen==='confirm') return stageConfirm(stage, banner);
     if(screen==='report') return stageReport(stage, banner);
   }
@@ -439,6 +441,7 @@
           <button class="no" id="scanNo">No, choose manually</button>
           <button class="yes" id="scanYes">Yes, this is it</button>
         </div>
+        <button id="scanAgainBtn" class="go-btn" style="margin-top:40px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);">🔄 Scan again</button>
       </div>
     `;
     document.getElementById('scanNo').onclick = ()=>{
@@ -453,6 +456,12 @@
       takeSearchQuery = '';
       pendingScanItem = null;
       screen = 'scanTakeDetail';
+      renderStage();
+    };
+    document.getElementById('scanAgainBtn').onclick = ()=>{
+      pendingScanItem = null;
+      scanNotFoundError = null;
+      screen = 'scanPrompt';
       renderStage();
     };
   }
@@ -647,15 +656,32 @@
   }
 
   // ---------- return ----------
+  async function finalizeReturn(tx){
+    const result = await postAction({ action:'return', txId: tx.txId, item: tx.item });
+    if(!result.ok){
+      loadError = 'Could not save the return — check your connection and try again.';
+      pendingReturnTx = null;
+      returnScanError = null;
+      screen = 'menu';
+      renderStage();
+      return;
+    }
+    await refreshRemote();
+    pendingReturnTx = null;
+    returnScanError = null;
+    confirmInfo = { icon:'✅', msg:'Returned', detail: `${iconForItem(tx.item)} ${tx.item} is back in the supply room` };
+    screen='confirm';
+    renderStage();
+  }
+
   function stageReturn(stage, banner){
     const opens = openCheckoutsFor(currentPerson.code);
-    const pendingTx = pendingReturnTx ? opens.find(h=>h.txId===pendingReturnTx) : null;
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you returning?</div></div>
       <div class="item-list">
         ${opens.map(h=>`
-          <div class="item-row ${pendingReturnTx===h.txId?'selected':''}" data-tx="${h.txId}">
+          <div class="item-row" data-tx="${h.txId}">
             <div>
               <div class="item-name" style="margin-top:5px;">${iconForItem(h.item)} ${esc(h.item)}</div>
               <div class="item-meta">taken ${fmtDate(h.timestamp)}</div>
@@ -663,38 +689,40 @@
             <div class="stock ${isOverdue(h)?'low':''}">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
           </div>`).join('')}
       </div>
-      ${pendingTx ? `
-        <div class="confirm-panel">
-          <div class="q">Confirm you're returning <strong>${iconForItem(pendingTx.item)} ${esc(pendingTx.item)}</strong>?</div>
-          <div class="confirm-actions">
-            <button class="no" id="cancelReturn">Cancel</button>
-            <button class="yes" id="okReturn">Yes, returned</button>
-          </div>
-        </div>
-      ` : ''}
     `;
     document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; screen='menu'; renderStage(); };
     stage.querySelectorAll('.item-row').forEach(row=>{
-      row.onclick = ()=>{ pendingReturnTx = row.getAttribute('data-tx'); renderStage(); };
-    });
-    if(pendingTx){
-      document.getElementById('cancelReturn').onclick = ()=>{ pendingReturnTx=null; renderStage(); };
-      document.getElementById('okReturn').onclick = async ()=>{
-        document.getElementById('okReturn').textContent = 'Saving…';
-        document.getElementById('okReturn').disabled = true;
-        const result = await postAction({ action:'return', txId: pendingTx.txId, item: pendingTx.item });
-        if(!result.ok){
-          pendingReturnTx=null;
-          loadError = 'Could not save the return — check your connection and try again.';
-          renderStage();
-          return;
-        }
-        await refreshRemote();
-        pendingReturnTx = null;
-        confirmInfo = { icon:'✅', msg:'Returned', detail: `${iconForItem(pendingTx.item)} ${pendingTx.item} is back in the supply room` };
-        screen='confirm';
+      row.onclick = ()=>{
+        pendingReturnTx = row.getAttribute('data-tx');
+        returnScanError = null;
+        screen = 'returnScanPrompt';
         renderStage();
       };
+    });
+  }
+
+  function stageReturnScanPrompt(stage, banner){
+    const tx = historyRows.find(h=>h.txId===pendingReturnTx);
+    if(!tx){
+      pendingReturnTx = null;
+      screen = 'return';
+      renderStage();
+      return;
+    }
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel, go back to list</span>
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div style="font-size:44px;">📷</div>
+        <div class="hint" style="margin-top:12px;font-size:15px;">Scan the QR code on <strong style="color:var(--text);">${esc(tx.item)}</strong> to confirm the return</div>
+        ${returnScanError ? `
+          <div class="error-msg" style="margin-top:16px;">${esc(returnScanError)}</div>
+          <button id="returnScanCancel" style="margin-top:12px;background:transparent;color:var(--text-dim);border:1px solid var(--border);font-family:'Inter',sans-serif;font-size:12px;padding:7px 16px;border-radius:4px;cursor:pointer;">Cancel return</button>
+        ` : ''}
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; returnScanError=null; screen='return'; renderStage(); };
+    if(returnScanError){
+      document.getElementById('returnScanCancel').onclick = ()=>{ pendingReturnTx=null; returnScanError=null; screen='return'; renderStage(); };
     }
   }
 
@@ -785,7 +813,8 @@
 
   function tryHandleScan(text){
     if(!currentPerson) return; // must be signed in first
-    if(screen !== 'scanPrompt') return; // only accept scans while on the scan screen
+    if(screen === 'returnScanPrompt') return tryHandleReturnScan(text);
+    if(screen !== 'scanPrompt') return; // only accept take-flow scans on the scan screen
     const trimmed = text.trim();
     const norm = normalizeText(trimmed);
     let matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
@@ -804,6 +833,26 @@
     pendingScanItem = matchName;
     screen = 'scanConfirm';
     renderStage();
+  }
+
+  function tryHandleReturnScan(text){
+    const tx = historyRows.find(h=>h.txId===pendingReturnTx);
+    if(!tx){
+      returnScanError = 'Lost track of which transaction this was — go back and select it again.';
+      renderStage();
+      return;
+    }
+    const trimmed = text.trim();
+    const norm = normalizeText(trimmed);
+    const expected = normalizeText(tx.item);
+    const isMatch = norm === expected || norm.includes(expected) || expected.includes(norm);
+    if(!isMatch){
+      returnScanError = `Scanned: "${trimmed}" — doesn't match "${tx.item}". Make sure you're scanning the right item, then try again.`;
+      renderStage();
+      return;
+    }
+    returnScanError = null;
+    finalizeReturn(tx);
   }
 
   document.addEventListener('keydown', function(e){
