@@ -153,9 +153,24 @@
   function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
   function iconForRef(reference){ return ICONS[reference] || '📦'; }
+
+  const ITEM_ICON_EXACT = { 'pc': '🖥️' };
+  const ITEM_ICON_KEYWORDS = [
+    ['camera','📷'], ['monitor','🖥️'], ['screen','🖥️'], ['keyboard','⌨️'], ['mouse','🖱️'],
+    ['antenna','📡'], ['wifi','📡'], ['adapter','🔌'], ['cable','🔌'], ['power','⚡'],
+    ['socket','🔌'], ['light','💡'], ['gripper','🦾'], ['arm','🦾'], ['box','📦'],
+    ['screw','🔩'], ['zip tie','🔗'], ['button','🛑'], ['touchpad','🔌']
+  ];
+
   function iconForItem(itemName){
     const inv = inventoryMap[itemName];
-    return inv ? iconForRef(inv.reference) : '📦';
+    const fallback = inv ? iconForRef(inv.reference) : '📦';
+    const lower = String(itemName).toLowerCase().trim();
+    if(ITEM_ICON_EXACT[lower]) return ITEM_ICON_EXACT[lower];
+    for(const [kw, icon] of ITEM_ICON_KEYWORDS){
+      if(lower.includes(kw)) return icon;
+    }
+    return fallback;
   }
 
   async function refreshRemote(){
@@ -577,11 +592,14 @@
     renderStage();
   }
 
+  const OTHER_SENTINEL = '__OTHER__';
+
   function stageTake(stage, banner){
     const selected = takeSelection.itemName;
     const allItems = Object.values(inventoryMap).filter(it=>it.reference===takeCategory);
     const q = takeSearchQuery.trim().toLowerCase();
     const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
+    const isOther = selected === OTHER_SENTINEL;
     let scanBanner = '';
     if(scanNotice){
       scanBanner = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">📷 Scanned: ${esc(scanNotice)}</div>`;
@@ -599,16 +617,30 @@
           const low = it.reference==='Station Parts' && Number(it.quantity) <= 3;
           return `<div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div>
-              <span class="tag">${iconForRef(it.reference)}</span>
+              <span class="tag">${iconForItem(it.item)}</span>
               <div class="item-name" style="margin-top:5px;">${esc(it.item)}</div>
               <div class="item-meta">${it.reference==='Tools' ? 'Checkout &amp; return' : 'One-time use'}</div>
             </div>
             <div class="stock ${low?'low':''}">${avail} avail</div>
           </div>`;
         }).join('') : `<div class="empty-note">${allItems.length ? 'No items match your search.' : 'No items found in this category yet.'}</div>`}
+        ${takeCategory==='Station Parts' ? `
+          <div class="item-row ${isOther?'selected':''}" data-name="${OTHER_SENTINEL}" style="border-style:dashed;">
+            <div>
+              <span class="tag">❓</span>
+              <div class="item-name" style="margin-top:5px;">Other (not labelled)</div>
+              <div class="item-meta">Describe what you took</div>
+            </div>
+          </div>
+        ` : ''}
       </div>
       <div class="form-row" id="detailsForm" style="display:${selected?'block':'none'}">
-        ${takeCategory==='Station Parts' ? `
+        ${isOther ? `
+          <label>What did you take?</label>
+          <input type="text" id="otherDescInput" placeholder="e.g. Zip tie gun, borrowed HDMI splitter…" style="font-family:'Inter',sans-serif;letter-spacing:normal;" />
+          <label>Quantity</label>
+          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+        ` : takeCategory==='Station Parts' ? `
           <label>Quantity</label>
           <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
         ` : `
@@ -640,7 +672,7 @@
         takeError = null;
         renderStage();
         setTimeout(()=>{
-          const el = document.getElementById(takeCategory==='Station Parts' ? 'qtyInput' : 'hoursSelect');
+          const el = document.getElementById(takeSelection.itemName===OTHER_SENTINEL ? 'otherDescInput' : (takeCategory==='Station Parts' ? 'qtyInput' : 'hoursSelect'));
           if(el) el.focus();
         },0);
       };
@@ -648,17 +680,24 @@
     if(selected){
       document.getElementById('confirmTake').onclick = async ()=>{
         let qty = 1;
-        if(takeCategory==='Station Parts'){
+        let finalItemName = selected;
+        if(isOther){
+          const desc = document.getElementById('otherDescInput').value.trim();
+          if(!desc){ takeError = 'Please describe what you took.'; renderStage(); return; }
+          finalItemName = 'Other: ' + desc;
+          qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
+          if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
+        } else if(takeCategory==='Station Parts'){
           qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
           const avail = availableOf(selected);
           if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
           if(qty > avail){ takeError = 'Only ' + avail + ' available right now.'; renderStage(); return; }
         }
-        const hours = takeCategory==='Tools' ? parseInt(document.getElementById('hoursSelect').value,10) : null;
+        const hours = (takeCategory==='Tools' && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
         takeError = null;
         document.getElementById('confirmTake').textContent = 'Saving…';
         document.getElementById('confirmTake').disabled = true;
-        await submitTake(selected, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
+        await submitTake(finalItemName, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
       };
     }
   }
