@@ -200,6 +200,13 @@
     });
   }
 
+  function allOpenToolCheckouts(){
+    return historyRows.filter(h=>{
+      const inv = inventoryMap[h.item];
+      return inv && inv.reference==='Tools' && h.returnedAt==='Not returned';
+    });
+  }
+
   function isOverdue(h){
     if(h.returnedAt !== 'Not returned') return false;
     if(!h.expectedReturn || h.expectedReturn==='None') return false;
@@ -381,8 +388,9 @@
 
   // ---------- menu ----------
   function stageMenu(stage, banner){
-    const opens = openCheckoutsFor(currentPerson.code);
-    const anyOpen = opens.length > 0;
+    const myOpens = openCheckoutsFor(currentPerson.code);
+    const teamOpens = allOpenToolCheckouts();
+    const anyTeamOpen = teamOpens.length > 0;
     stage.innerHTML = banner + `
       <div class="greet">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
@@ -394,14 +402,14 @@
           <div class="label">Take Something</div>
           <div class="sub">Tools or Station Parts</div>
         </div>
-        <div class="menu-card ${anyOpen?'':'disabled'}" id="returnCard">
+        <div class="menu-card ${anyTeamOpen?'':'disabled'}" id="returnCard">
           <div class="big">↩️</div>
           <div class="label">Return a Tool</div>
-          <div class="sub">${anyOpen ? opens.length + ' item(s) checked out' : 'Nothing checked out'}</div>
+          <div class="sub">${anyTeamOpen ? teamOpens.length + ' item(s) out (any team member)' : 'Nothing checked out'}</div>
         </div>
       </div>
-      ${anyOpen ? `<div class="open-list"><h3>Currently checked out to you</h3>
-        ${opens.map(h=>`
+      ${myOpens.length ? `<div class="open-list"><h3>Currently checked out to you</h3>
+        ${myOpens.map(h=>`
           <div class="open-row ${isOverdue(h)?'overdue':''}">
             <span>${iconForItem(h.item)} ${esc(h.item)}</span>
             <span class="due">${isOverdue(h)?'OVERDUE · ':'due '}${fmtDate(h.expectedReturn)}</span>
@@ -410,7 +418,7 @@
       <div style="text-align:center;margin-top:22px;"><span class="back-link" id="signOut">Sign out</span></div>
     `;
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
-    if(anyOpen){
+    if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ pendingReturnTx=null; screen='return'; renderStage(); };
     }
     document.getElementById('signOut').onclick = ()=>{ currentPerson=null; screen='idle'; renderStage(); };
@@ -657,7 +665,7 @@
 
   // ---------- return ----------
   async function finalizeReturn(tx){
-    const result = await postAction({ action:'return', txId: tx.txId, item: tx.item });
+    const result = await postAction({ action:'return', txId: tx.txId, item: tx.item, returnedBy: currentPerson.code });
     if(!result.ok){
       loadError = 'Could not save the return — check your connection and try again.';
       pendingReturnTx = null;
@@ -675,19 +683,20 @@
   }
 
   function stageReturn(stage, banner){
-    const opens = openCheckoutsFor(currentPerson.code);
+    const opens = allOpenToolCheckouts();
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you returning?</div></div>
+      <div class="hint" style="margin-top:0;margin-bottom:14px;">Showing tools checked out by anyone on the team</div>
       <div class="item-list">
-        ${opens.map(h=>`
+        ${opens.length ? opens.map(h=>`
           <div class="item-row" data-tx="${h.txId}">
             <div>
               <div class="item-name" style="margin-top:5px;">${iconForItem(h.item)} ${esc(h.item)}</div>
-              <div class="item-meta">taken ${fmtDate(h.timestamp)}</div>
+              <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
             </div>
             <div class="stock ${isOverdue(h)?'low':''}">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
-          </div>`).join('')}
+          </div>`).join('') : `<div class="empty-note">Nothing checked out right now.</div>`}
       </div>
     `;
     document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; screen='menu'; renderStage(); };
@@ -781,7 +790,7 @@
       ` : `
         ${rows.length ? `
         <table>
-          <thead><tr><th>Person/Role</th><th>Item</th><th>Taken</th><th>Expected</th><th>Returned</th></tr></thead>
+          <thead><tr><th>Taken By</th><th>Item</th><th>Taken</th><th>Expected</th><th>Returned</th><th>Returned By</th></tr></thead>
           <tbody>
             ${rows.map(h=>`
               <tr class="${isOverdue(h) ? 'overdue':''}">
@@ -790,6 +799,7 @@
                 <td>${fmtDate(h.timestamp)}</td>
                 <td>${fmtDate(h.expectedReturn)}</td>
                 <td>${h.returnedAt==='Not returned' ? (isOverdue(h) ? '<span class="pill over">overdue</span>' : '<span class="pill open">out</span>') : '<span class="pill done">'+fmtDate(h.returnedAt)+'</span>'}</td>
+                <td>${h.returnedAt==='Not returned' ? '—' : esc(h.returnedBy || '—')}</td>
               </tr>`).join('')}
           </tbody>
         </table>` : `<div class="empty-note">Nothing here yet.</div>`}
