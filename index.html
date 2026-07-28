@@ -497,12 +497,15 @@
   }
 
   function stageScanConfirm(stage, banner){
-    const inv = inventoryMap[pendingScanItem] || {};
+    const isOtherScan = pendingScanItem === OTHER_SENTINEL;
+    const inv = isOtherScan ? { reference: 'Station Parts' } : (inventoryMap[pendingScanItem] || {});
+    const displayName = isOtherScan ? 'Other (not labelled)' : pendingScanItem;
+    const displayIcon = isOtherScan ? '❓' : iconForRef(inv.reference);
     stage.innerHTML = banner + `
       <div class="confirm-box">
-        <div class="icon">${iconForRef(inv.reference)}</div>
+        <div class="icon">${displayIcon}</div>
         <div class="msg">Is this correct?</div>
-        <div class="detail" style="font-size:16px;color:var(--text);font-weight:600;margin-top:6px;">${esc(pendingScanItem)}</div>
+        <div class="detail" style="font-size:16px;color:var(--text);font-weight:600;margin-top:6px;">${esc(displayName)}</div>
         <div class="confirm-actions" style="max-width:320px;margin:24px auto 0;">
           <button class="no" id="scanNo">No, choose manually</button>
           <button class="yes" id="scanYes">Yes, this is it</button>
@@ -534,15 +537,21 @@
 
   function stageScanTakeDetail(stage, banner){
     const itemName = takeSelection.itemName;
+    const isOther = itemName === OTHER_SENTINEL;
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Scan a different item</span>
       <div class="greet" style="margin-bottom:10px;">
-        <div style="font-size:40px;">${iconForRef(takeCategory)}</div>
-        <div class="name" style="font-size:20px;margin-top:8px;">${esc(itemName)}</div>
+        <div style="font-size:40px;">${isOther ? '❓' : iconForRef(takeCategory)}</div>
+        <div class="name" style="font-size:20px;margin-top:8px;">${isOther ? 'Other (not labelled)' : esc(itemName)}</div>
         <div class="code">${takeCategory==='Tools' ? 'Checkout & return' : 'One-time use'}</div>
       </div>
       <div class="form-row">
-        ${takeCategory==='Station Parts' ? `
+        ${isOther ? `
+          <label>What did you take?</label>
+          <input type="text" id="otherDescInput" placeholder="e.g. Zip tie gun, borrowed HDMI splitter…" style="font-family:'Inter',sans-serif;letter-spacing:normal;" />
+          <label>Quantity</label>
+          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+        ` : takeCategory==='Station Parts' ? `
           <label>Quantity</label>
           <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
         ` : `
@@ -561,17 +570,24 @@
     document.getElementById('back').onclick = ()=>{ takeError=null; screen='scanPrompt'; renderStage(); };
     document.getElementById('confirmTake').onclick = async ()=>{
       let qty = 1;
-      if(takeCategory==='Station Parts'){
+      let finalItemName = itemName;
+      if(isOther){
+        const desc = document.getElementById('otherDescInput').value.trim();
+        if(!desc){ takeError = 'Please describe what you took.'; renderStage(); return; }
+        finalItemName = 'Other: ' + desc;
+        qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
+        if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
+      } else if(takeCategory==='Station Parts'){
         qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
         const avail = availableOf(itemName);
         if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
         if(qty > avail){ takeError = 'Only ' + avail + ' available right now.'; renderStage(); return; }
       }
-      const hours = takeCategory==='Tools' ? parseInt(document.getElementById('hoursSelect').value,10) : null;
+      const hours = (takeCategory==='Tools' && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
       takeError = null;
       document.getElementById('confirmTake').textContent = 'Saving…';
       document.getElementById('confirmTake').disabled = true;
-      await submitTake(itemName, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
+      await submitTake(finalItemName, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
     };
   }
 
@@ -1011,6 +1027,13 @@
     if(screen !== 'scanPrompt') return; // only accept take-flow scans on the scan screen
     const trimmed = text.trim();
     const norm = normalizeText(trimmed);
+    if(norm === 'other'){
+      scanNotFoundError = null;
+      pendingScanItem = OTHER_SENTINEL;
+      screen = 'scanConfirm';
+      renderStage();
+      return;
+    }
     let matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
     if(!matchName){
       matchName = Object.keys(inventoryMap).find(name => {
