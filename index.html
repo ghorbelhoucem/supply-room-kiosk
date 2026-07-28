@@ -190,6 +190,8 @@
     return fallback;
   }
 
+  let lastFetchTime = 0;
+
   async function refreshRemote(){
     try{
       const res = await fetch(WEBAPP_URL, { method:'GET' });
@@ -198,10 +200,19 @@
       (data.inventory||[]).forEach(row=>{ inventoryMap[row.item] = row; });
       historyRows = data.history || [];
       loadError = null;
+      lastFetchTime = Date.now();
     }catch(err){
       loadError = 'Could not reach the inventory sheet. Check your internet connection and try again.';
     }
     updateStatusDot();
+  }
+
+  // Skips the network round-trip if we fetched very recently — avoids a
+  // visible loading spinner when moving quickly between screens right
+  // after data was already refreshed (e.g. right after signing in).
+  async function refreshRemoteIfStale(maxAgeMs){
+    if(Date.now() - lastFetchTime < maxAgeMs) return;
+    await refreshRemote();
   }
 
   function updateStatusDot(){
@@ -279,7 +290,7 @@
       if(screen==='report'){ screen='idle'; currentPerson=null; basket=[]; renderStage(); return; }
       screen = 'report';
       currentPerson = null;
-      await withLoading(refreshRemote);
+      await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
     updateClock();
@@ -411,7 +422,7 @@
       pendingRole = null;
       pinError = null;
       screen = 'menu';
-      await withLoading(refreshRemote);
+      await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
     document.getElementById('pinGoBtn').onclick = submit;
@@ -440,7 +451,7 @@
       currentPerson = { name, role: role.label, code: name + '/' + role.label };
       pendingRole = null;
       screen = 'menu';
-      await withLoading(refreshRemote);
+      await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
     document.getElementById('opGoBtn').onclick = submit;
@@ -685,6 +696,10 @@
     return basket.filter(b=>b.itemName===itemName).reduce((s,b)=>s+b.qty,0);
   }
 
+  function basketQtyForExcluding(itemName, excludeId){
+    return basket.filter(b=>b.itemName===itemName && b.id!==excludeId).reduce((s,b)=>s+b.qty,0);
+  }
+
   function addToBasketAndReview(itemName, category, qty, hours){
     basket.push({ id: ++basketIdCounter, itemName, category, qty, hours });
     screen = 'basketReview';
@@ -702,7 +717,7 @@
           ${basket.length ? basket.map(b=>`
             <tr>
               <td>${iconForItem(b.itemName)} ${esc(b.itemName)}</td>
-              <td>${b.qty}</td>
+              <td><input type="number" min="1" value="${b.qty}" data-qty-for="${b.id}" style="width:56px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;" /></td>
               <td>${b.category==='Tools' ? 'Return ' + hoursLabel(b.hours) : (b.category==='Station Parts' ? 'One-time use' : '')}</td>
               <td><button class="btn-ghost" data-remove="${b.id}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
             </tr>
@@ -718,6 +733,24 @@
     `;
     document.getElementById('addMoreBtn').onclick = ()=>{ basketError=null; screen='scanPrompt'; renderStage(); };
     document.getElementById('cancelBasket').onclick = ()=>{ basket=[]; basketError=null; screen='menu'; renderStage(); };
+    stage.querySelectorAll('[data-qty-for]').forEach(input=>{
+      input.onchange = ()=>{
+        const id = parseInt(input.getAttribute('data-qty-for'),10);
+        const item = basket.find(b=>b.id===id);
+        if(!item) return;
+        let newQty = parseInt(input.value,10);
+        if(!newQty || newQty < 1) newQty = 1;
+        const cap = availableOf(item.itemName) - basketQtyForExcluding(item.itemName, id);
+        if(cap >= 0 && newQty > cap){
+          basketError = `Only ${cap} of "${item.itemName}" available — quantity capped.`;
+          newQty = Math.max(1, cap);
+        } else {
+          basketError = null;
+        }
+        item.qty = newQty;
+        renderStage();
+      };
+    });
     stage.querySelectorAll('[data-remove]').forEach(btn=>{
       btn.onclick = ()=>{
         const id = parseInt(btn.getAttribute('data-remove'),10);
@@ -730,22 +763,21 @@
         document.getElementById('confirmAllBtn').textContent = 'Saving…';
         document.getElementById('confirmAllBtn').disabled = true;
         basketError = null;
-        const takenSummary = [];
-        for(const b of basket){
-          const expectedReturn = b.hours ? new Date(Date.now() + b.hours*3600*1000).toISOString() : null;
-          const result = await postAction({
-            action:'take', person: currentPerson.name, role: currentPerson.role,
-            item: b.itemName, category: b.category, qty: b.qty, expectedReturn
-          });
-          if(!result.ok){
-            basketError = `Saved ${takenSummary.length} of ${basket.length} — stopped at "${b.itemName}". Check your connection and try again.`;
-            basket = basket.filter(x => !takenSummary.includes(x.id));
-            renderStage();
-            return;
-          }
-          takenSummary.push(b.id);
-        }
+        const items = basket.map(b=>({
+          item: b.itemName,
+          category: b.category,
+          qty: b.qty,
+          expectedReturn: b.hours ? new Date(Date.now() + b.hours*3600*1000).toISOString() : null
+        }));
+        const result = await postAction({
+          action:'takeBatch', person: currentPerson.name, role: currentPerson.role, items
+        });
         await refreshRemote();
+        if(!result.ok){
+          basketError = 'Something went wrong saving your items — check your connection and tap Confirm again.';
+          renderStage();
+          return;
+        }
         const detailLines = basket.map(b=>`${b.qty} × ${b.itemName}`).join(', ');
         confirmInfo = { icon:'✅', msg: `${basket.length} item(s) recorded`, detail: detailLines };
         basket = [];
