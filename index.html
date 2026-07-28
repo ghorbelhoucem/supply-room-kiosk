@@ -266,7 +266,7 @@
   }
 
   function fmtDate(d){
-    if(!d || d==='None' || d==='Not returned') return d || '—';
+    if(!d || d==='None' || d==='Not returned' || d==='N/A') return d || '—';
     const dt = new Date(d);
     if(isNaN(dt.getTime())) return String(d);
     return dt.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
@@ -287,7 +287,7 @@
       <div class="stage" id="stage"></div>
     `;
     document.getElementById('reportBtn').onclick = async ()=>{
-      if(screen==='report'){ screen='idle'; currentPerson=null; basket=[]; renderStage(); return; }
+      if(screen==='report'){ screen='idle'; currentPerson=null; basket=[]; returnBasket=[]; renderStage(); return; }
       screen = 'report';
       currentPerson = null;
       await withLoading(()=>refreshRemoteIfStale(4000));
@@ -333,10 +333,8 @@
     if(screen==='takeCategory') return stageTakeCategory(stage, banner);
     if(screen==='take') return stageTake(stage, banner);
     if(screen==='return') return stageReturn(stage, banner);
-    if(screen==='returnScanFirst') return stageReturnScanFirst(stage, banner);
-    if(screen==='returnDisambiguate') return stageReturnDisambiguate(stage, banner);
-    if(screen==='returnConfirmSingle') return stageReturnConfirmSingle(stage, banner);
     if(screen==='returnScanPrompt') return stageReturnScanPrompt(stage, banner);
+    if(screen==='returnBasketReview') return stageReturnBasketReview(stage, banner);
     if(screen==='confirm') return stageConfirm(stage, banner);
     if(screen==='report') return stageReport(stage, banner);
   }
@@ -491,9 +489,9 @@
     `;
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
-      document.getElementById('returnCard').onclick = ()=>{ pendingReturnTx=null; returnFirstError=null; screen='returnScanFirst'; renderStage(); };
+      document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
     }
-    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; basket=[]; screen='idle'; renderStage(); };
+    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
   }
 
   function stageScanPrompt(stage, banner){
@@ -896,129 +894,27 @@
   }
 
   // ---------- return ----------
-  async function finalizeReturn(tx){
-    const result = await postAction({ action:'return', txId: tx.txId, item: tx.item, returnedBy: currentPerson.code });
-    if(!result.ok){
-      loadError = 'Could not save the return — check your connection and try again.';
-      pendingReturnTx = null;
-      returnScanError = null;
-      screen = 'menu';
-      renderStage();
-      return;
-    }
-    await refreshRemote();
-    pendingReturnTx = null;
-    returnScanError = null;
-    confirmInfo = { icon:'✅', msg:'Returned', detail: `${iconForItem(tx.item)} ${tx.item} is back in the supply room` };
-    screen='confirm';
-    renderStage();
+  let returnBasket = [];
+  let lastReturnAdded = null;
+  let returnBasketError = null;
+
+  function isInReturnBasket(txId){
+    return returnBasket.some(r=>r.txId===txId);
   }
 
-  function stageReturnScanFirst(stage, banner){
-    stage.innerHTML = banner + `
-      <span class="back-link" id="back">&larr; Back to menu</span>
-      <div class="reader-wrap" style="padding-top:6px;">
-        <div style="font-size:48px;">📷</div>
-        <div class="hint" style="margin-top:10px;font-size:15px;">Scan the QR code on the tool you're returning</div>
-        ${returnFirstError ? `<div class="error-msg" style="margin-top:12px;">${esc(returnFirstError)}</div>` : ''}
-        <button class="btn-ghost" id="browseManualBtn" style="margin-top:120px;">Browse list manually</button>
-      </div>
-    `;
-    document.getElementById('back').onclick = ()=>{ returnFirstError=null; screen='menu'; renderStage(); };
-    document.getElementById('browseManualBtn').onclick = ()=>{ returnFirstError=null; screen='return'; renderStage(); };
-  }
-
-  function tryHandleReturnScanFirst(text){
-    const trimmed = text.trim();
-    const norm = normalizeText(trimmed);
-    let matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
-    if(!matchName){
-      matchName = Object.keys(inventoryMap).find(name => {
-        const n = normalizeText(name);
-        return norm.includes(n) || n.includes(norm);
-      });
-    }
-    if(!matchName){
-      returnFirstError = `No matching item found for scan: "${trimmed}". Try again, or browse manually.`;
-      renderStage();
-      return;
-    }
-    const matches = allOpenToolCheckouts().filter(h=>h.item===matchName);
-    if(matches.length === 0){
-      returnFirstError = `"${matchName}" isn't currently checked out by anyone. Try again, or browse manually.`;
-      renderStage();
-      return;
-    }
-    returnFirstError = null;
-    if(matches.length === 1){
-      pendingReturnTx = matches[0].txId;
-      screen = 'returnConfirmSingle';
-      renderStage();
-      return;
-    }
-    pendingReturnMatches = matches;
-    screen = 'returnDisambiguate';
-    renderStage();
-  }
-
-  function stageReturnDisambiguate(stage, banner){
-    const matches = pendingReturnMatches || [];
-    stage.innerHTML = banner + `
-      <span class="back-link" id="back">&larr; Cancel</span>
-      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:17px;">Multiple people have this checked out — which one?</div></div>
-      <div class="item-list">
-        ${matches.map(h=>`
-          <div class="item-row" data-tx="${h.txId}">
-            <div>
-              <div class="item-name" style="margin-top:5px;">${iconForItem(h.item)} ${esc(h.item)}</div>
-              <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
-            </div>
-            <div class="stock ${isOverdue(h)?'low':''}">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
-          </div>`).join('')}
-      </div>
-    `;
-    document.getElementById('back').onclick = ()=>{ pendingReturnMatches=null; screen='returnScanFirst'; renderStage(); };
-    stage.querySelectorAll('.item-row').forEach(row=>{
-      row.onclick = ()=>{
-        pendingReturnTx = row.getAttribute('data-tx');
-        pendingReturnMatches = null;
-        screen = 'returnConfirmSingle';
-        renderStage();
-      };
-    });
-  }
-
-  function stageReturnConfirmSingle(stage, banner){
-    const tx = historyRows.find(h=>h.txId===pendingReturnTx);
-    if(!tx){
-      pendingReturnTx = null;
-      screen = 'returnScanFirst';
-      renderStage();
-      return;
-    }
-    stage.innerHTML = banner + `
-      <div class="confirm-box">
-        <div class="icon">${iconForItem(tx.item)}</div>
-        <div class="msg">Return this item?</div>
-        <div class="detail" style="font-size:16px;color:var(--text);font-weight:600;margin-top:6px;">${esc(tx.item)}</div>
-        <div class="detail" style="margin-top:4px;">taken by ${esc(tx.personRole)} · ${fmtDate(tx.timestamp)}</div>
-        <div class="confirm-actions" style="max-width:320px;margin:24px auto 0;">
-          <button class="no" id="retNo">Cancel</button>
-          <button class="yes" id="retYes">Yes, returned</button>
-        </div>
-      </div>
-    `;
-    document.getElementById('retNo').onclick = ()=>{ pendingReturnTx=null; screen='returnScanFirst'; renderStage(); };
-    document.getElementById('retYes').onclick = async ()=>{
-      document.getElementById('retYes').textContent = 'Saving…';
-      document.getElementById('retYes').disabled = true;
-      await finalizeReturn(tx);
-    };
+  function addToReturnBasket(tx){
+    if(isInReturnBasket(tx.txId)) return;
+    returnBasket.push(tx);
   }
 
   function stageReturn(stage, banner){
-    const opens = allOpenToolCheckouts();
-    stage.innerHTML = banner + `
+    let flash = '';
+    if(lastReturnAdded){
+      flash = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">✅ Added: ${esc(lastReturnAdded)} — pick another, or review below</div>`;
+      lastReturnAdded = null;
+    }
+    const opens = allOpenToolCheckouts().filter(h=>!isInReturnBasket(h.txId));
+    stage.innerHTML = banner + flash + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you returning?</div></div>
       <div class="hint" style="margin-top:0;margin-bottom:14px;">Showing tools checked out by anyone on the team</div>
@@ -1030,17 +926,26 @@
               <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
             </div>
             <div class="stock ${isOverdue(h)?'low':''}">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
-          </div>`).join('') : `<div class="empty-note">Nothing checked out right now.</div>`}
+          </div>`).join('') : `<div class="empty-note">Nothing left to return.</div>`}
       </div>
+      ${returnBasket.length ? `
+        <div style="text-align:center;margin-top:18px;">
+          <button class="go-btn" id="returnReviewBtn">Review &amp; Confirm (${returnBasket.length})</button>
+        </div>
+      ` : ''}
     `;
-    document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; screen='menu'; renderStage(); };
+    document.getElementById('back').onclick = ()=>{ screen='menu'; renderStage(); };
     stage.querySelectorAll('.item-row').forEach(row=>{
       row.onclick = ()=>{
         pendingReturnTx = row.getAttribute('data-tx');
-        screen = 'returnConfirmSingle';
+        returnScanError = null;
+        screen = 'returnScanPrompt';
         renderStage();
       };
     });
+    if(returnBasket.length){
+      document.getElementById('returnReviewBtn').onclick = ()=>{ screen='returnBasketReview'; renderStage(); };
+    }
   }
 
   function stageReturnScanPrompt(stage, banner){
@@ -1052,19 +957,100 @@
       return;
     }
     stage.innerHTML = banner + `
-      <span class="back-link" id="back">&larr; Cancel, go back to list</span>
+      <span class="back-link" id="back">&larr; Cancel, back to list</span>
       <div class="reader-wrap" style="padding-top:6px;">
         <div style="font-size:44px;">📷</div>
         <div class="hint" style="margin-top:12px;font-size:15px;">Scan the QR code on <strong style="color:var(--text);">${esc(tx.item)}</strong> to confirm the return</div>
-        ${returnScanError ? `
-          <div class="error-msg" style="margin-top:16px;">${esc(returnScanError)}</div>
-          <button class="btn-ghost" id="returnScanCancel" style="margin-top:12px;">Cancel return</button>
-        ` : ''}
+        ${returnScanError ? `<div class="error-msg" style="margin-top:16px;">${esc(returnScanError)}</div>` : ''}
+        <button class="btn-ghost" id="noQrReturnBtn" style="margin-top:60px;">Return without QR code</button>
       </div>
     `;
     document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; returnScanError=null; screen='return'; renderStage(); };
-    if(returnScanError){
-      document.getElementById('returnScanCancel').onclick = ()=>{ pendingReturnTx=null; returnScanError=null; screen='return'; renderStage(); };
+    document.getElementById('noQrReturnBtn').onclick = ()=>{
+      addToReturnBasket(tx);
+      lastReturnAdded = tx.item;
+      pendingReturnTx = null;
+      returnScanError = null;
+      screen = 'return';
+      renderStage();
+    };
+  }
+
+  function tryHandleReturnScan(text){
+    const tx = historyRows.find(h=>h.txId===pendingReturnTx);
+    if(!tx){
+      returnScanError = 'Lost track of this item — go back and select it again.';
+      renderStage();
+      return;
+    }
+    const trimmed = text.trim();
+    const norm = normalizeText(trimmed);
+    const expected = normalizeText(tx.item);
+    const isMatch = norm === expected || norm.includes(expected) || expected.includes(norm);
+    if(!isMatch){
+      returnScanError = `Scanned: "${trimmed}" — doesn't match "${tx.item}". Try again, or use "Return without QR code" below.`;
+      renderStage();
+      return;
+    }
+    returnScanError = null;
+    addToReturnBasket(tx);
+    lastReturnAdded = tx.item;
+    pendingReturnTx = null;
+    screen = 'return';
+    renderStage();
+  }
+
+  function stageReturnBasketReview(stage, banner){
+    stage.innerHTML = banner + `
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Returning (${returnBasket.length})</div></div>
+      <table>
+        <thead><tr><th>Item</th><th>Taken By</th><th>Due</th><th></th></tr></thead>
+        <tbody>
+          ${returnBasket.length ? returnBasket.map(tx=>`
+            <tr class="${isOverdue(tx)?'overdue':''}">
+              <td>${iconForItem(tx.item)} ${esc(tx.item)}</td>
+              <td>${esc(tx.personRole)}</td>
+              <td>${isOverdue(tx) ? '<span class="pill over">overdue</span>' : fmtDate(tx.expectedReturn)}</td>
+              <td><button class="btn-ghost" data-remove="${tx.txId}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
+            </tr>
+          `).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Nothing added yet.</td></tr>`}
+        </tbody>
+      </table>
+      ${returnBasketError ? `<div class="error-msg" style="margin-top:14px;">${esc(returnBasketError)}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:22px;max-width:460px;margin-left:auto;margin-right:auto;">
+        <button class="btn-ghost" id="returnAddMoreBtn" style="flex:1;padding:12px;">➕ Scan/Add another</button>
+        <button class="go-btn" id="returnConfirmAllBtn" style="flex:1;margin-top:0;" ${!returnBasket.length?'disabled':''}>Confirm &amp; Return (${returnBasket.length})</button>
+      </div>
+      <div style="text-align:center;margin-top:16px;"><span class="back-link" id="cancelReturnBasket">Cancel, back to menu</span></div>
+    `;
+    document.getElementById('returnAddMoreBtn').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
+    document.getElementById('cancelReturnBasket').onclick = ()=>{ returnBasket=[]; returnBasketError=null; screen='menu'; renderStage(); };
+    stage.querySelectorAll('[data-remove]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const txId = btn.getAttribute('data-remove');
+        returnBasket = returnBasket.filter(tx=>tx.txId!==txId);
+        renderStage();
+      };
+    });
+    if(returnBasket.length){
+      document.getElementById('returnConfirmAllBtn').onclick = async ()=>{
+        document.getElementById('returnConfirmAllBtn').textContent = 'Saving…';
+        document.getElementById('returnConfirmAllBtn').disabled = true;
+        returnBasketError = null;
+        const txIds = returnBasket.map(tx=>tx.txId);
+        const result = await postAction({ action:'returnBatch', txIds, returnedBy: currentPerson.code });
+        await refreshRemote();
+        if(!result.ok){
+          returnBasketError = 'Something went wrong saving these returns — check your connection and tap Confirm again.';
+          renderStage();
+          return;
+        }
+        const detailLines = returnBasket.map(tx=>tx.item).join(', ');
+        confirmInfo = { icon:'✅', msg: `${returnBasket.length} item(s) returned`, detail: detailLines };
+        returnBasket = [];
+        screen = 'confirm';
+        renderStage();
+      };
     }
   }
 
@@ -1077,8 +1063,8 @@
         <button class="go-btn" id="doneBtn" style="margin-top:26px;">Done</button>
       </div>
     `;
-    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; basket=[]; screen='idle'; renderStage(); };
-    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; basket=[]; screen='idle'; renderStage(); } }, 6000);
+    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
+    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); } }, 6000);
   }
 
   // ---------- manager report ----------
@@ -1131,7 +1117,7 @@
                 <td>${iconForItem(h.item)} ${esc(h.item)}</td>
                 <td>${fmtDate(h.timestamp)}</td>
                 <td>${fmtDate(h.expectedReturn)}</td>
-                <td>${h.returnedAt==='Not returned' ? (isOverdue(h) ? '<span class="pill over">overdue</span>' : '<span class="pill open">out</span>') : '<span class="pill done">'+fmtDate(h.returnedAt)+'</span>'}</td>
+                <td>${h.returnedAt==='N/A' ? '<span class="pill">n/a</span>' : (h.returnedAt==='Not returned' ? (isOverdue(h) ? '<span class="pill over">overdue</span>' : '<span class="pill open">out</span>') : '<span class="pill done">'+fmtDate(h.returnedAt)+'</span>')}</td>
                 <td>${h.returnedAt==='Not returned' ? '—' : esc(h.returnedBy || '—')}</td>
               </tr>`).join('')}
           </tbody>
@@ -1159,7 +1145,6 @@
   function tryHandleScan(text){
     if(!currentPerson) return; // must be signed in first
     if(screen === 'returnScanPrompt') return tryHandleReturnScan(text);
-    if(screen === 'returnScanFirst') return tryHandleReturnScanFirst(text);
     if(screen !== 'scanPrompt') return; // only accept take-flow scans on the scan screen
     const trimmed = text.trim();
     const norm = normalizeText(trimmed);
@@ -1194,26 +1179,6 @@
     basket.push({ id: ++basketIdCounter, itemName: matchName, category: inv.reference, qty: 1, hours });
     lastScanAdded = matchName;
     renderStage(); // stay on the scan screen — ready for the next scan immediately
-  }
-
-  function tryHandleReturnScan(text){
-    const tx = historyRows.find(h=>h.txId===pendingReturnTx);
-    if(!tx){
-      returnScanError = 'Lost track of which transaction this was — go back and select it again.';
-      renderStage();
-      return;
-    }
-    const trimmed = text.trim();
-    const norm = normalizeText(trimmed);
-    const expected = normalizeText(tx.item);
-    const isMatch = norm === expected || norm.includes(expected) || expected.includes(norm);
-    if(!isMatch){
-      returnScanError = `Scanned: "${trimmed}" — doesn't match "${tx.item}". Make sure you're scanning the right item, then try again.`;
-      renderStage();
-      return;
-    }
-    returnScanError = null;
-    finalizeReturn(tx);
   }
 
   document.addEventListener('keydown', function(e){
