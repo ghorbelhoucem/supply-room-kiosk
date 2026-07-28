@@ -139,6 +139,11 @@
   let pendingReturnTx = null;
   let confirmInfo = null;
   let reportTab = 'open';
+  let scanBuffer = '';
+  let lastScanKeyTime = 0;
+  let scanNotice = null;
+  let pendingScanItem = null;
+  let scanNotFoundError = null;
 
   let inventoryMap = {}; // itemName -> {reference, item, quantity, availability}
   let historyRows = [];  // [{timestamp, personRole, item, expectedReturn, returnedAt, txId}]
@@ -247,6 +252,9 @@
     if(screen==='pinEntry') return stagePinEntry(stage, banner);
     if(screen==='operatorId') return stageOperatorId(stage, banner);
     if(screen==='menu') return stageMenu(stage, banner);
+    if(screen==='scanPrompt') return stageScanPrompt(stage, banner);
+    if(screen==='scanConfirm') return stageScanConfirm(stage, banner);
+    if(screen==='scanTakeDetail') return stageScanTakeDetail(stage, banner);
     if(screen==='takeCategory') return stageTakeCategory(stage, banner);
     if(screen==='take') return stageTake(stage, banner);
     if(screen==='return') return stageReturn(stage, banner);
@@ -399,11 +407,97 @@
         </div>` : ''}
       <div style="text-align:center;margin-top:22px;"><span class="back-link" id="signOut">Sign out</span></div>
     `;
-    document.getElementById('takeCard').onclick = ()=>{ screen='takeCategory'; renderStage(); };
+    document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyOpen){
       document.getElementById('returnCard').onclick = ()=>{ pendingReturnTx=null; screen='return'; renderStage(); };
     }
     document.getElementById('signOut').onclick = ()=>{ currentPerson=null; screen='idle'; renderStage(); };
+  }
+
+  function stageScanPrompt(stage, banner){
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Back to menu</span>
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div class="big" style="font-size:48px;">📷</div>
+        <div class="hint" style="margin-top:10px;font-size:15px;">Scan the QR code on the item</div>
+        ${scanNotFoundError ? `<div class="error-msg" style="margin-top:12px;">${esc(scanNotFoundError)}</div>` : ''}
+        <button id="manualBtn" style="margin-top:120px;background:transparent;color:var(--text-dim);border:1px solid var(--border);font-family:'Inter',sans-serif;font-size:11px;padding:5px 12px;border-radius:4px;cursor:pointer;">Or choose manually</button>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ scanNotFoundError=null; screen='menu'; renderStage(); };
+    document.getElementById('manualBtn').onclick = ()=>{ scanNotFoundError=null; screen='takeCategory'; renderStage(); };
+  }
+
+  function stageScanConfirm(stage, banner){
+    const inv = inventoryMap[pendingScanItem] || {};
+    stage.innerHTML = banner + `
+      <div class="confirm-box">
+        <div class="icon">${iconForRef(inv.reference)}</div>
+        <div class="msg">Is this correct?</div>
+        <div class="detail" style="font-size:16px;color:var(--text);font-weight:600;margin-top:6px;">${esc(pendingScanItem)}</div>
+        <div class="confirm-actions" style="max-width:320px;margin:24px auto 0;">
+          <button class="no" id="scanNo">No, choose manually</button>
+          <button class="yes" id="scanYes">Yes, this is it</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('scanNo').onclick = ()=>{
+      pendingScanItem = null;
+      screen = 'takeCategory';
+      renderStage();
+    };
+    document.getElementById('scanYes').onclick = ()=>{
+      takeCategory = inv.reference;
+      takeSelection = { itemName: pendingScanItem, qty:1, hours:24 };
+      takeError = null;
+      takeSearchQuery = '';
+      pendingScanItem = null;
+      screen = 'scanTakeDetail';
+      renderStage();
+    };
+  }
+
+  function stageScanTakeDetail(stage, banner){
+    const itemName = takeSelection.itemName;
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Scan a different item</span>
+      <div class="greet" style="margin-bottom:10px;">
+        <div style="font-size:40px;">${iconForRef(takeCategory)}</div>
+        <div class="name" style="font-size:20px;margin-top:8px;">${esc(itemName)}</div>
+        <div class="code">${takeCategory==='Tools' ? 'Checkout & return' : 'One-time use'}</div>
+      </div>
+      <div class="form-row">
+        ${takeCategory==='Station Parts' ? `
+          <label>Quantity</label>
+          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+        ` : `
+          <label>Expected return</label>
+          <select id="hoursSelect">
+            <option value="4">End of day (4 hrs)</option>
+            <option value="24" selected>Tomorrow (24 hrs)</option>
+            <option value="72">3 days</option>
+            <option value="168">1 week</option>
+          </select>
+        `}
+        ${takeError ? `<div class="error-msg">${esc(takeError)}</div>` : ''}
+        <button class="go-btn" id="confirmTake" style="width:100%;">Confirm</button>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ takeError=null; screen='scanPrompt'; renderStage(); };
+    document.getElementById('confirmTake').onclick = async ()=>{
+      let qty = 1;
+      if(takeCategory==='Station Parts'){
+        qty = parseInt(document.getElementById('qtyInput').value,10) || 1;
+        const avail = availableOf(itemName);
+        if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
+        if(qty > avail){ takeError = 'Only ' + avail + ' available right now.'; renderStage(); return; }
+      }
+      const hours = takeCategory==='Tools' ? parseInt(document.getElementById('hoursSelect').value,10) : null;
+      takeError = null;
+      document.getElementById('confirmTake').textContent = 'Saving…';
+      document.getElementById('confirmTake').disabled = true;
+      await submitTake(itemName, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
+    };
   }
 
   function stageTakeCategory(stage, banner){
@@ -441,12 +535,42 @@
   }
 
   // ---------- take ----------
+  async function submitTake(itemName, category, qty, hours, onError){
+    const payload = {
+      action:'take',
+      person: currentPerson.name,
+      role: currentPerson.role,
+      item: itemName,
+      category: category,
+      qty: qty,
+      expectedReturn: hours ? new Date(Date.now() + hours*3600*1000).toISOString() : null
+    };
+    const result = await postAction(payload);
+    if(!result.ok){
+      onError('Something went wrong saving this — check your connection and try again.');
+      return;
+    }
+    await refreshRemote();
+    confirmInfo = {
+      icon: category==='Tools' ? '🧰' : '✅',
+      msg: category==='Tools' ? 'Checked out' : 'Taken from inventory',
+      detail: `${iconForRef(category)} ${qty} × ${itemName}` + (payload.expectedReturn ? ` — return by ${fmtDate(payload.expectedReturn)}` : ' — logged as used, no return needed')
+    };
+    screen='confirm';
+    renderStage();
+  }
+
   function stageTake(stage, banner){
     const selected = takeSelection.itemName;
     const allItems = Object.values(inventoryMap).filter(it=>it.reference===takeCategory);
     const q = takeSearchQuery.trim().toLowerCase();
     const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
-    stage.innerHTML = banner + `
+    let scanBanner = '';
+    if(scanNotice){
+      scanBanner = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">📷 Scanned: ${esc(scanNotice)}</div>`;
+      scanNotice = null;
+    }
+    stage.innerHTML = banner + scanBanner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${takeCategory==='Tools' ? 'Which tool?' : 'Which part?'}</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;">
@@ -517,30 +641,7 @@
         takeError = null;
         document.getElementById('confirmTake').textContent = 'Saving…';
         document.getElementById('confirmTake').disabled = true;
-
-        const payload = {
-          action:'take',
-          person: currentPerson.name,
-          role: currentPerson.role,
-          item: selected,
-          category: takeCategory,
-          qty: qty,
-          expectedReturn: hours ? new Date(Date.now() + hours*3600*1000).toISOString() : null
-        };
-        const result = await postAction(payload);
-        if(!result.ok){
-          takeError = 'Something went wrong saving this — check your connection and try again.';
-          renderStage();
-          return;
-        }
-        await refreshRemote();
-        confirmInfo = {
-          icon: takeCategory==='Tools' ? '🧰' : '✅',
-          msg: takeCategory==='Tools' ? 'Checked out' : 'Taken from inventory',
-          detail: `${iconForRef(takeCategory)} ${qty} × ${selected}` + (payload.expectedReturn ? ` — return by ${fmtDate(payload.expectedReturn)}` : ' — logged as used, no return needed')
-        };
-        screen='confirm';
-        renderStage();
+        await submitTake(selected, takeCategory, qty, hours, (msg)=>{ takeError=msg; renderStage(); });
       };
     }
   }
@@ -670,6 +771,56 @@
       b.onclick = ()=>{ reportTab = b.getAttribute('data-t'); renderStage(); };
     });
   }
+
+  // ---------- barcode/QR scanner support ----------
+  // The Inateck BCST-23 (and most handheld scanners) acts like a keyboard:
+  // it "types" the encoded text very fast, then presses Enter. We detect that
+  // speed pattern to tell a scan apart from normal human typing, and jump
+  // straight to that item once a match is found in the current inventory.
+  const SCAN_MAX_GAP_MS = 300;
+
+  function normalizeText(s){
+    return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function tryHandleScan(text){
+    if(!currentPerson) return; // must be signed in first
+    if(screen !== 'scanPrompt') return; // only accept scans while on the scan screen
+    const trimmed = text.trim();
+    const norm = normalizeText(trimmed);
+    let matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
+    if(!matchName){
+      matchName = Object.keys(inventoryMap).find(name => {
+        const n = normalizeText(name);
+        return norm.includes(n) || n.includes(norm);
+      });
+    }
+    if(!matchName){
+      scanNotFoundError = `No matching item found for scan: "${trimmed}". (${Object.keys(inventoryMap).length} items loaded) Try again, or choose manually.`;
+      renderStage();
+      return;
+    }
+    scanNotFoundError = null;
+    pendingScanItem = matchName;
+    screen = 'scanConfirm';
+    renderStage();
+  }
+
+  document.addEventListener('keydown', function(e){
+    const now = Date.now();
+    if(now - lastScanKeyTime > SCAN_MAX_GAP_MS){
+      scanBuffer = '';
+    }
+    lastScanKeyTime = now;
+
+    if(e.key === 'Enter'){
+      const candidate = scanBuffer;
+      scanBuffer = '';
+      if(candidate.length >= 2) tryHandleScan(candidate);
+    }else if(e.key.length === 1){
+      scanBuffer += e.key;
+    }
+  }, true);
 
   (async function init(){
     render();
