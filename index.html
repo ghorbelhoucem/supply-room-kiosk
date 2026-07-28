@@ -109,17 +109,32 @@
   const ICONS = { 'Tools': '🧰', 'Station Parts': '🔌' };
 
   const ROLES = {
-    maintenance: { label: 'Maintenance', icon: '🔧', kind: 'names', names: ['Marwan','Houcem','Hamza','Ahmed','Felix','Yie'] },
+    maintenance: { label: 'Maintenance', icon: '🔧', kind: 'names', names: ['Marwan','Houcem','Hamza','Ahmed','Felix','Yie Hang'] },
     management:  { label: 'Management', icon: '📋', kind: 'names', names: ['Rosa','Clarissa','Bingie'] },
     supervisor:  { label: 'Supervisor', icon: '🧭', kind: 'operatorId' },
     teleoperator:{ label: 'Tele-operator', icon: '🎮', kind: 'operatorId' }
   };
 
-  let screen = 'idle'; // idle, nameSelect, operatorId, menu, takeCategory, take, return, confirm, report
+  // ==== PIN groups — change these 4-digit codes to whatever you want ====
+  const GROUP_PINS = {
+    groupA: '4827',     // Marwan, Houcem, Hamza, Ahmed
+    groupC: '6193',     // Felix, Yie Hang
+    management: '9012'  // Rosa, Clarissa, Bingie
+  };
+  const NAME_TO_GROUP = {
+    'Marwan':'groupA', 'Houcem':'groupA', 'Hamza':'groupA', 'Ahmed':'groupA',
+    'Felix':'groupC', 'Yie Hang':'groupC',
+    'Rosa':'management', 'Clarissa':'management', 'Bingie':'management'
+  };
+
+  let screen = 'idle'; // idle, nameSelect, pinEntry, operatorId, menu, takeCategory, take, return, confirm, report
   let pendingRole = null;
+  let pendingName = null;
+  let pinError = null;
   let currentPerson = null; // {name, role, code}  code = "Name/Role"
   let takeCategory = null; // 'Tools' | 'Station Parts'
   let takeSelection = null; // {itemName, qty, hours}
+  let takeSearchQuery = '';
   let takeError = null;
   let pendingReturnTx = null;
   let confirmInfo = null;
@@ -229,6 +244,7 @@
     if(loadError) banner = `<div class="banner-error">${esc(loadError)}</div>`;
     if(screen==='idle') return stageRoleSelect(stage, banner);
     if(screen==='nameSelect') return stageNameSelect(stage, banner);
+    if(screen==='pinEntry') return stagePinEntry(stage, banner);
     if(screen==='operatorId') return stageOperatorId(stage, banner);
     if(screen==='menu') return stageMenu(stage, banner);
     if(screen==='takeCategory') return stageTakeCategory(stage, banner);
@@ -278,15 +294,50 @@
     `;
     document.getElementById('back').onclick = ()=>{ pendingRole=null; screen='idle'; renderStage(); };
     stage.querySelectorAll('.menu-card[data-name]').forEach(card=>{
-      card.onclick = async ()=>{
-        const name = card.getAttribute('data-name');
-        currentPerson = { name, role: role.label, code: name + '/' + role.label };
-        pendingRole = null;
-        screen = 'menu';
-        await withLoading(refreshRemote);
+      card.onclick = ()=>{
+        pendingName = card.getAttribute('data-name');
+        pinError = null;
+        screen = 'pinEntry';
         renderStage();
       };
     });
+  }
+
+  function stagePinEntry(stage, banner){
+    const role = ROLES[pendingRole];
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Back</span>
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div class="hint" style="margin-top:0;">${esc(pendingName)} — enter your group PIN</div>
+        <div class="slot" style="margin-top:16px;">
+          <input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="4-DIGIT PIN" />
+        </div>
+        ${pinError ? `<div class="error-msg" style="margin-top:12px;">${esc(pinError)}</div>` : ''}
+        <button class="go-btn" id="pinGoBtn">Sign In</button>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ pendingName=null; pinError=null; screen='nameSelect'; renderStage(); };
+    const input = document.getElementById('pinInput');
+    input.focus();
+    const submit = async ()=>{
+      const pin = input.value.trim();
+      const groupKey = NAME_TO_GROUP[pendingName];
+      const correctPin = GROUP_PINS[groupKey];
+      if(pin !== correctPin){
+        pinError = 'Incorrect PIN, try again.';
+        renderStage();
+        return;
+      }
+      currentPerson = { name: pendingName, role: role.label, code: pendingName + '/' + role.label };
+      pendingName = null;
+      pendingRole = null;
+      pinError = null;
+      screen = 'menu';
+      await withLoading(refreshRemote);
+      renderStage();
+    };
+    document.getElementById('pinGoBtn').onclick = submit;
+    input.onkeydown = (e)=>{ if(e.key==='Enter') submit(); };
   }
 
   function stageOperatorId(stage, banner){
@@ -377,12 +428,14 @@
       takeCategory = 'Tools';
       takeSelection = {itemName:null, qty:1, hours:24};
       takeError = null;
+      takeSearchQuery = '';
       screen='take'; renderStage();
     };
     document.getElementById('partsCard').onclick = ()=>{
       takeCategory = 'Station Parts';
       takeSelection = {itemName:null, qty:1, hours:24};
       takeError = null;
+      takeSearchQuery = '';
       screen='take'; renderStage();
     };
   }
@@ -390,10 +443,15 @@
   // ---------- take ----------
   function stageTake(stage, banner){
     const selected = takeSelection.itemName;
-    const items = Object.values(inventoryMap).filter(it=>it.reference===takeCategory);
+    const allItems = Object.values(inventoryMap).filter(it=>it.reference===takeCategory);
+    const q = takeSearchQuery.trim().toLowerCase();
+    const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${takeCategory==='Tools' ? 'Which tool?' : 'Which part?'}</div></div>
+      <div class="form-row" style="margin-top:0;margin-bottom:14px;">
+        <input type="text" id="searchInput" placeholder="Search ${takeCategory==='Tools' ? 'tools' : 'parts'}…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
+      </div>
       <div class="item-list">
         ${items.length ? items.map(it=>{
           const avail = availableOf(it.item);
@@ -406,7 +464,7 @@
             </div>
             <div class="stock ${low?'low':''}">${avail} avail</div>
           </div>`;
-        }).join('') : `<div class="empty-note">No items found in this category yet.</div>`}
+        }).join('') : `<div class="empty-note">${allItems.length ? 'No items match your search.' : 'No items found in this category yet.'}</div>`}
       </div>
       <div class="form-row" id="detailsForm" style="display:${selected?'block':'none'}">
         ${takeCategory==='Station Parts' ? `
@@ -426,6 +484,15 @@
       </div>
     `;
     document.getElementById('back').onclick = ()=>{ takeError=null; screen='takeCategory'; renderStage(); };
+    const searchInput = document.getElementById('searchInput');
+    searchInput.oninput = ()=>{
+      takeSearchQuery = searchInput.value;
+      renderStage();
+      setTimeout(()=>{
+        const el = document.getElementById('searchInput');
+        if(el){ el.focus(); const v = el.value; el.value=''; el.value=v; }
+      },0);
+    };
     stage.querySelectorAll('.item-row').forEach(row=>{
       row.onclick = ()=>{
         takeSelection.itemName = row.getAttribute('data-name');
