@@ -190,6 +190,50 @@
     return fallback;
   }
 
+  // Real photos for items we have pictures of — everything else falls back
+  // to the emoji icon above. Put the actual image files in an "images/"
+  // folder next to index.html on GitHub for these to show up.
+  const PHOTO_MAP = {
+    'Mouse': 'images/mouse.jpg',
+    'Wrist Camera Cable': 'images/wrist_camera_cable.jpg',
+    'Environmental Camera Cable': 'images/environmental_camera_cable.jpg',
+    'USB-C Cable (Head Camera)': 'images/usb_c_cable_head_camera.jpg',
+    'Type C-C Cable': 'images/type_c_c_cable.jpg',
+    'Ethernet Cable 0.5M': 'images/ethernet_cable.jpg',
+    'Ethernet Cable 1M': 'images/ethernet_cable.jpg',
+    'Ethernet Cable 2M': 'images/ethernet_cable.jpg',
+    'Ethernet Cable 3M': 'images/ethernet_cable.jpg',
+    'Ethernet Cable 5M': 'images/ethernet_cable.jpg',
+    'Ethernet Cable 10M': 'images/ethernet_cable.jpg',
+    'Arm Power Cable': 'images/arm_power_cable.jpg',
+    'Station Monitor Touchpad Cable': 'images/touchpad_cable.jpg',
+    'DP Monitor Cable': 'images/dp_monitor_cable.jpg',
+    'Keyboard': 'images/keyboard.jpg',
+    'Gripper Power Supply': 'images/power_supply.jpg',
+    'Switch Power Supply': 'images/power_supply.jpg',
+    'Type C to Ethernet': 'images/type_c_to_ethernet.jpg',
+    'Power Cable (PC/Monitor)': 'images/power_cable_pc_monitor.jpg',
+    'HDMI Cable': 'images/hdmi_cable.jpg',
+    'Ethernet Adapter': 'images/ethernet_adapter.jpg',
+    'Emergency Button': 'images/emergency_button.jpg',
+    'Space Mouse': 'images/space_mouse.jpg',
+    'Wifi Antenna': 'images/wifi_antenna.jpg',
+    'USB Hub': 'images/usb_hub.jpg',
+    'Power Socket': 'images/power_socket.jpg'
+  };
+
+  // Renders a small photo thumbnail if we have one for this item, otherwise
+  // falls back to the emoji icon — used everywhere an item is shown.
+  function itemThumbHTML(itemName, sizePx){
+    sizePx = sizePx || 30;
+    const photo = PHOTO_MAP[itemName];
+    const fallbackIcon = iconForItem(itemName);
+    if(photo){
+      return `<img src="${photo}" alt="" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid var(--border);background:#fff;" onerror="this.outerHTML='<span style=\\'font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;\\'>${fallbackIcon}</span>'">`;
+    }
+    return `<span style="font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;">${fallbackIcon}</span>`;
+  }
+
   let lastFetchTime = 0;
 
   async function refreshRemote(){
@@ -481,7 +525,7 @@
       ${myOpens.length ? `<div class="open-list"><h3>Currently checked out to you</h3>
         ${myOpens.map(h=>`
           <div class="open-row ${isOverdue(h)?'overdue':''}">
-            <span>${iconForItem(h.item)} ${esc(h.item)}</span>
+            <span>${itemThumbHTML(h.item, 26)} ${esc(h.item)}</span>
             <span class="due">${isOverdue(h)?'OVERDUE · ':'due '}${fmtDate(h.expectedReturn)}</span>
           </div>`).join('')}
         </div>` : ''}
@@ -513,7 +557,7 @@
           <h3>In your list (${basket.length})</h3>
           ${basket.map(b=>`
             <div class="open-row">
-              <span>${iconForItem(b.itemName)} ${esc(b.itemName)} ${b.qty>1?('× '+b.qty):''}</span>
+              <span>${itemThumbHTML(b.itemName, 26)} ${esc(b.itemName)} ${b.qty>1?('× '+b.qty):''}</span>
               <span class="due">${b.category==='Tools' ? 'return '+hoursLabel(b.hours) : ''}</span>
             </div>`).join('')}
         </div>
@@ -533,10 +577,10 @@
     const isOtherScan = pendingScanItem === OTHER_SENTINEL;
     const inv = isOtherScan ? { reference: 'Station Parts' } : (inventoryMap[pendingScanItem] || {});
     const displayName = isOtherScan ? 'Other (not labelled)' : pendingScanItem;
-    const displayIcon = isOtherScan ? '❓' : iconForRef(inv.reference);
+    const displayIcon = isOtherScan ? '<div class="icon">❓</div>' : `<div>${itemThumbHTML(pendingScanItem, 72)}</div>`;
     stage.innerHTML = banner + `
       <div class="confirm-box">
-        <div class="icon">${displayIcon}</div>
+        ${displayIcon}
         <div class="msg">Is this correct?</div>
         <div class="detail" style="font-size:16px;color:var(--text);font-weight:600;margin-top:6px;">${esc(displayName)}</div>
         <div class="confirm-actions" style="max-width:320px;margin:24px auto 0;">
@@ -574,7 +618,7 @@
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Scan a different item</span>
       <div class="greet" style="margin-bottom:10px;">
-        <div style="font-size:40px;">${isOther ? '❓' : iconForRef(takeCategory)}</div>
+        <div style="font-size:40px;">${isOther ? '❓' : itemThumbHTML(itemName, 64)}</div>
         <div class="name" style="font-size:20px;margin-top:8px;">${isOther ? 'Other (not labelled)' : esc(itemName)}</div>
         <div class="code">${takeCategory==='Tools' ? 'Checkout & return' : 'One-time use'}</div>
       </div>
@@ -714,7 +758,7 @@
         <tbody>
           ${basket.length ? basket.map(b=>`
             <tr>
-              <td>${iconForItem(b.itemName)} ${esc(b.itemName)}</td>
+              <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}</td>
               <td><input type="number" min="1" value="${b.qty}" data-qty-for="${b.id}" style="width:56px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;" /></td>
               <td>${b.category==='Tools' ? 'Return ' + hoursLabel(b.hours) : (b.category==='Station Parts' ? 'One-time use' : '')}</td>
               <td><button class="btn-ghost" data-remove="${b.id}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
@@ -810,7 +854,7 @@
           const low = it.reference==='Station Parts' && Number(it.quantity) <= 3;
           return `<div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div>
-              <span class="tag">${iconForItem(it.item)}</span>
+              ${itemThumbHTML(it.item, 32)}
               <div class="item-name" style="margin-top:5px;">${esc(it.item)}</div>
               <div class="item-meta">${it.reference==='Tools' ? 'Checkout &amp; return' : 'One-time use'}</div>
             </div>
@@ -922,7 +966,7 @@
         ${opens.length ? opens.map(h=>`
           <div class="item-row" data-tx="${h.txId}">
             <div>
-              <div class="item-name" style="margin-top:5px;">${iconForItem(h.item)} ${esc(h.item)}</div>
+              <div class="item-name" style="margin-top:5px;">${itemThumbHTML(h.item, 26)} ${esc(h.item)}</div>
               <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
             </div>
             <div class="stock ${isOverdue(h)?'low':''}">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
@@ -1008,7 +1052,7 @@
         <tbody>
           ${returnBasket.length ? returnBasket.map(tx=>`
             <tr class="${isOverdue(tx)?'overdue':''}">
-              <td>${iconForItem(tx.item)} ${esc(tx.item)}</td>
+              <td>${itemThumbHTML(tx.item, 28)} ${esc(tx.item)}</td>
               <td>${esc(tx.personRole)}</td>
               <td>${isOverdue(tx) ? '<span class="pill over">overdue</span>' : fmtDate(tx.expectedReturn)}</td>
               <td><button class="btn-ghost" data-remove="${tx.txId}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
@@ -1114,7 +1158,7 @@
             ${rows.map(h=>`
               <tr class="${isOverdue(h) ? 'overdue':''}">
                 <td>${esc(h.personRole)}</td>
-                <td>${iconForItem(h.item)} ${esc(h.item)}</td>
+                <td>${itemThumbHTML(h.item, 28)} ${esc(h.item)}</td>
                 <td>${fmtDate(h.timestamp)}</td>
                 <td>${fmtDate(h.expectedReturn)}</td>
                 <td>${h.returnedAt==='N/A' ? '<span class="pill">n/a</span>' : (h.returnedAt==='Not returned' ? (isOverdue(h) ? '<span class="pill over">overdue</span>' : '<span class="pill open">out</span>') : '<span class="pill done">'+fmtDate(h.returnedAt)+'</span>')}</td>
