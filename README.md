@@ -102,13 +102,33 @@ The app is a static site — deploy anywhere that serves files.
 2. Set source to *Deploy from a branch*, branch `main`, folder `/`.
 3. The kiosk is live at `https://<your-org>.github.io/supply-room-kiosk/`.
 
-**Local network kiosk**
+**Docker (recommended for company LAN)**
 
 ```bash
-python3 -m http.server 80
+# From this folder — stop any old python http.server first
+docker compose up -d --build
 ```
 
-Point the kiosk browser to `http://localhost` in full-screen / kiosk mode.
+Open on the LAN (this host’s IP + the mapped port):
+
+```text
+http://10.3.120.174:61938
+```
+
+Useful commands:
+
+```bash
+docker compose logs -f    # watch logs
+docker compose down       # stop and remove container
+```
+
+**Local network kiosk (without Docker)**
+
+```bash
+python3 -m http.server 61938 --bind 0.0.0.0
+```
+
+Point the kiosk browser to `http://<this-machine-ip>:61938` in full-screen / kiosk mode.
 
 ---
 

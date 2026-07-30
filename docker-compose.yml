@@ -1,0 +1,9 @@
+services:
+  kiosk:
+    build: .
+    image: supply-room-kiosk:local
+    container_name: supply-room-kiosk
+    ports:
+      # Host port 61938 -> container nginx :80
+      - "61938:80"
+    restart: unless-stopped
