@@ -219,6 +219,25 @@
   let operatorIdError = null;
   let operatorPasswordError = null;
   let currentPerson = null; // {name, role, code}  code = "Name/Role"
+  const AUTO_LOGOUT_MS = 10 * 60 * 1000; // 10 minutes from login
+  let autoLogoutTimer = null;
+  let autoLoggedOut = false;
+
+  function startAutoLogoutTimer(){
+    if(autoLogoutTimer) clearTimeout(autoLogoutTimer);
+    autoLogoutTimer = setTimeout(()=>{
+      currentPerson = null;
+      basket = [];
+      returnBasket = [];
+      autoLoggedOut = true;
+      screen = 'idle';
+      renderStage();
+    }, AUTO_LOGOUT_MS);
+  }
+
+  function clearAutoLogoutTimer(){
+    if(autoLogoutTimer){ clearTimeout(autoLogoutTimer); autoLogoutTimer = null; }
+  }
   let takeCategory = null; // 'Tools' | 'Station Parts'
   let takeSelection = null; // {itemName, qty, hours}
   let takeSearchQuery = '';
@@ -386,13 +405,13 @@
     document.getElementById('reportBtn').onclick = async ()=>{
       if(screen==='report'){
         const ret = reportReturnScreen;
-        if(ret === 'idle'){ currentPerson=null; basket=[]; returnBasket=[]; }
+        if(ret === 'idle'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; }
         screen = ret;
         renderStage();
         return;
       }
       reportReturnScreen = (screen === 'menu') ? 'menu' : 'idle';
-      if(screen !== 'menu'){ currentPerson=null; basket=[]; returnBasket=[]; }
+      if(screen !== 'menu'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; }
       screen = 'report';
       await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
@@ -443,6 +462,8 @@
     else if(screen==='returnBasketReview') stageReturnBasketReview(stage, banner);
     else if(screen==='confirm') stageConfirm(stage, banner);
     else if(screen==='report') stageReport(stage, banner);
+    else if(screen==='restockCategory') stageRestockCategory(stage, banner);
+    else if(screen==='restockPick') stageRestockPick(stage, banner);
     updateReportBtn();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{ stage.style.opacity='1'; stage.style.transition='opacity .13s ease'; }));
   }
@@ -450,7 +471,12 @@
   // ---------- sign-in ----------
   function stageRoleSelect(stage, banner){
     const mainRoles = ['maintenance','management','supervisor','teleoperator'];
-    stage.innerHTML = banner + `
+    let logoutNotice = '';
+    if(autoLoggedOut){
+      logoutNotice = `<div class="banner-error" style="background:#3a2f1f;border-color:var(--accent);color:#f2d9b9;">⏱️ You were automatically signed out after 10 minutes.</div>`;
+      autoLoggedOut = false;
+    }
+    stage.innerHTML = banner + logoutNotice + `
       <div class="reader-wrap" style="padding-top:6px;">
         <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Who's checking in?</div>
         <div class="hint" style="margin-top:0;margin-bottom:24px;">Tap your role to continue</div>
@@ -472,6 +498,7 @@
     `;
     stage.querySelectorAll('.menu-card[data-role]').forEach(card=>{
       card.onclick = ()=>{
+        clearAutoLogoutTimer();
         currentPerson = null; // guard against any leftover session before a fresh sign-in
         const key = card.getAttribute('data-role');
         pendingRole = key;
@@ -521,6 +548,7 @@
       const uniqueName = dir.unique[pin];
       if(uniqueName){
         currentPerson = { name: uniqueName, role: role.label, code: uniqueName + '/' + role.label };
+        startAutoLogoutTimer();
         pendingRole = null;
         pinError = null;
         screen = 'menu';
@@ -532,6 +560,7 @@
         if(dir.sharedNames.length === 1){
           const only = dir.sharedNames[0];
           currentPerson = { name: only, role: role.label, code: only + '/' + role.label };
+          startAutoLogoutTimer();
           pendingRole = null;
           pinError = null;
           screen = 'menu';
@@ -586,6 +615,7 @@
       card.onclick = async ()=>{
         const name = card.getAttribute('data-name');
         currentPerson = { name, role: role.label, code: name + '/' + role.label };
+        startAutoLogoutTimer();
         pendingSharedNames = null;
         pendingRole = null;
         screen = 'menu';
@@ -691,6 +721,7 @@
       }
       const name = OPERATOR_NAMES[id] || ('Operator-' + id);
       currentPerson = { name, role: role.label, code: name + '/' + role.label };
+        startAutoLogoutTimer();
       pendingOperatorId = null;
       operatorPasswordError = null;
       pendingRole = null;
@@ -707,12 +738,13 @@
     const myOpens = openCheckoutsFor(currentPerson.code);
     const teamOpens = allOpenToolCheckouts();
     const anyTeamOpen = teamOpens.length > 0;
+    const canRestock = currentPerson.role === 'Maintenance' || currentPerson.role === 'Management';
     stage.innerHTML = banner + `
       <div class="greet">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
         <div class="code">${esc(currentPerson.role)}</div>
       </div>
-      <div class="menu-grid">
+      <div class="menu-grid" style="${canRestock ? '' : ''}">
         <div class="menu-card" id="takeCard">
           <div class="big">📦</div>
           <div class="label">Take Something</div>
@@ -723,6 +755,13 @@
           <div class="label">Return a Tool</div>
           <div class="sub">${anyTeamOpen ? teamOpens.length + ' item(s) out (any team member)' : 'Nothing checked out'}</div>
         </div>
+        ${canRestock ? `
+        <div class="menu-card" id="restockCard" style="grid-column:1/-1;">
+          <div class="big">📥</div>
+          <div class="label">Add Stock</div>
+          <div class="sub">Got new stock in? Add it to inventory</div>
+        </div>
+        ` : ''}
       </div>
       ${myOpens.length ? `<div class="open-list"><h3>Currently checked out to you</h3>
         ${myOpens.map(h=>`
@@ -737,7 +776,107 @@
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
     }
-    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
+    if(canRestock){
+      document.getElementById('restockCard').onclick = ()=>{ restockError=null; restockSearchQuery=''; screen='restockCategory'; renderStage(); };
+    }
+    document.getElementById('signOut').onclick = ()=>{ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
+  }
+
+  function stageRestockCategory(stage, banner){
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Back to menu</span>
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Adding new stock — which kind?</div></div>
+      <div class="menu-grid">
+        <div class="menu-card" id="restockToolsCard">
+          <div class="big">🧰</div>
+          <div class="label">Tools</div>
+        </div>
+        <div class="menu-card" id="restockPartsCard">
+          <div class="big">🔌</div>
+          <div class="label">Station Parts</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ screen='menu'; renderStage(); };
+    document.getElementById('restockToolsCard').onclick = ()=>{
+      restockCategory = 'Tools'; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
+      screen = 'restockPick'; renderStage();
+    };
+    document.getElementById('restockPartsCard').onclick = ()=>{
+      restockCategory = 'Station Parts'; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
+      screen = 'restockPick'; renderStage();
+    };
+  }
+
+  function stageRestockPick(stage, banner){
+    const allItems = Object.values(inventoryMap).filter(it=>it.reference===restockCategory);
+    const q = restockSearchQuery.trim().toLowerCase();
+    const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
+    const selected = restockSelectedItem;
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Back</span>
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Which item got restocked?</div></div>
+      <div class="form-row" style="margin-top:0;margin-bottom:14px;">
+        <input type="text" id="restockSearchInput" placeholder="Search ${restockCategory==='Tools' ? 'tools' : 'parts'}…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
+      </div>
+      <div class="item-list">
+        ${items.length ? items.map(it=>`
+          <div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
+            <div>
+              <div class="item-name" style="margin-top:5px;">${itemThumbHTML(it.item, 26)} ${esc(it.item)}</div>
+              <div class="item-meta">Current stock: ${it.quantity}</div>
+            </div>
+          </div>
+        `).join('') : `<div class="empty-note">No items match.</div>`}
+      </div>
+      <div class="form-row" id="restockForm" style="display:${selected?'block':'none'}">
+        <label>How many are you adding?</label>
+        <input type="number" id="restockQtyInput" min="1" value="${restockQty}" />
+        ${restockError ? `<div class="error-msg">${esc(restockError)}</div>` : ''}
+        <button class="go-btn" id="restockConfirmBtn" style="width:100%;">Add to Inventory</button>
+      </div>
+    `;
+    document.getElementById('back').onclick = ()=>{ restockError=null; screen='restockCategory'; renderStage(); };
+    const searchInput = document.getElementById('restockSearchInput');
+    searchInput.oninput = ()=>{
+      restockSearchQuery = searchInput.value;
+      renderStage();
+      setTimeout(()=>{
+        const el = document.getElementById('restockSearchInput');
+        if(el){ el.focus(); const v = el.value; el.value=''; el.value=v; }
+      },0);
+    };
+    stage.querySelectorAll('.item-row').forEach(row=>{
+      row.onclick = ()=>{
+        restockSelectedItem = row.getAttribute('data-name');
+        restockError = null;
+        renderStage();
+        setTimeout(()=>{ const el = document.getElementById('restockQtyInput'); if(el) el.focus(); },0);
+      };
+    });
+    if(selected){
+      document.getElementById('restockConfirmBtn').onclick = async ()=>{
+        const qty = parseInt(document.getElementById('restockQtyInput').value,10);
+        if(!qty || qty < 1){ restockError='Enter a quantity of at least 1.'; renderStage(); return; }
+        const btn = document.getElementById('restockConfirmBtn');
+        setButtonBusy(btn, true, 'Saving...');
+        const result = await postAction({
+          action:'restock', person: currentPerson.name, role: currentPerson.role,
+          item: selected, qty
+        });
+        await refreshRemote();
+        if(!result.ok){
+          restockError = result.error || 'Something went wrong — check your connection and try again.';
+          renderStage();
+          return;
+        }
+        confirmInfo = { icon:'📥', msg:'Stock updated', detail: `+${qty} × ${selected}` };
+        restockSelectedItem = null;
+        restockQty = 1;
+        screen = 'confirm';
+        renderStage();
+      };
+    }
   }
 
   function stageScanPrompt(stage, banner){
@@ -1122,6 +1261,11 @@
   let returnBasket = [];
   let lastReturnAdded = null;
   let returnBasketError = null;
+  let restockCategory = null;
+  let restockSearchQuery = '';
+  let restockSelectedItem = null;
+  let restockQty = 1;
+  let restockError = null;
 
   function isInReturnBasket(txId){
     return returnBasket.some(r=>r.txId===txId);
@@ -1297,8 +1441,8 @@
         <button class="go-btn" id="doneBtn" style="margin-top:26px;">Done</button>
       </div>
     `;
-    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
-    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); } }, 6000);
+    document.getElementById('doneBtn').onclick = ()=>{ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
+    setTimeout(()=>{ if(screen==='confirm'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); } }, 6000);
   }
 
   // ---------- manager report ----------
@@ -1365,7 +1509,7 @@
     `;
     document.getElementById('reportBack').onclick = ()=>{
       const ret = reportReturnScreen;
-      if(ret === 'idle'){ currentPerson=null; basket=[]; returnBasket=[]; }
+      if(ret === 'idle'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; }
       screen = ret;
       renderStage();
     };
