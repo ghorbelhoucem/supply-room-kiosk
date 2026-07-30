@@ -471,6 +471,7 @@
     `;
     stage.querySelectorAll('.menu-card[data-role]').forEach(card=>{
       card.onclick = ()=>{
+        currentPerson = null; // guard against any leftover session before a fresh sign-in
         const key = card.getAttribute('data-role');
         pendingRole = key;
         pinError = null;
