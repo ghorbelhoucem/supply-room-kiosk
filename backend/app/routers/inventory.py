@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_manager
+from app.auth import get_current_user, require_manager, require_restock_access
 from app.database import get_db
 from app.models import User
 from app.schemas import (
@@ -74,7 +74,7 @@ def return_batch(
 def receive(
     body: ReceiveRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_manager),
+    user: User = Depends(require_restock_access),
 ):
     existing = inv.get_idempotent(db, body.client_request_id)
     if existing:

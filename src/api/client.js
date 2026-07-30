@@ -40,10 +40,13 @@
       authToken = null;
     }
 
-    async function requestJson(path, { method = 'GET', body, auth = false, retry = true } = {}) {
+    async function requestJson(path, { method = 'GET', body, auth = false, retry } = {}) {
+      // Retries are only safe for GET by default. POSTs use client_request_id
+      // idempotency on the server, but we still avoid blind retries unless asked.
+      const shouldRetry = retry == null ? method === 'GET' : retry;
+      const maxAttempts = shouldRetry ? retries : 0;
       let attempts = 0;
       let lastError;
-      const maxAttempts = retry ? retries : 0;
       const url = `${root}${path.startsWith('/') ? path : `/${path}`}`;
       while (attempts <= maxAttempts) {
         try {
@@ -111,6 +114,7 @@
             role: payload.role,
             items: payload.items,
           },
+          retry: false,
         });
       },
       async returnBatch(payload) {
@@ -122,12 +126,32 @@
             txIds: payload.txIds,
             returnedBy: payload.returnedBy,
           },
+          retry: false,
+        });
+      },
+      async receive(payload) {
+        return requestJson('/receive', {
+          method: 'POST',
+          auth: true,
+          body: {
+            client_request_id: payload.client_request_id || newRequestId(),
+            item: payload.item,
+            qty: payload.qty,
+            reason: payload.reason || 'restock',
+          },
+          retry: false,
         });
       },
       async postAction(payload) {
-        // Back-compat shim for older call sites
         if (payload.action === 'takeBatch') return this.takeBatch(payload);
         if (payload.action === 'returnBatch') return this.returnBatch(payload);
+        if (payload.action === 'restock' || payload.action === 'receive') {
+          return this.receive({
+            item: payload.item,
+            qty: payload.qty,
+            reason: payload.reason || 'restock',
+          });
+        }
         return { ok: false, error: 'Unsupported action', code: 'UNSUPPORTED' };
       },
       mapError,
