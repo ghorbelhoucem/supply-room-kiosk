@@ -25,7 +25,7 @@
   html,body{margin:0;padding:0;background:#1c1e22;color:var(--text);font-family:'Inter',system-ui,sans-serif;height:100%;
     background-image:radial-gradient(circle, rgba(255,255,255,0.035) 1px, transparent 1px);
     background-size:22px 22px;}
-  .app{max-width:960px;margin:0 auto;padding:28px 24px 40px;min-height:100vh;box-sizing:border-box;}
+  .app{max-width:min(1200px,94vw);margin:0 auto;padding:28px clamp(16px,3vw,40px) 40px;min-height:100vh;box-sizing:border-box;}
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
   .brand{display:flex;align-items:center;gap:12px;}
   .brand-mark{width:34px;height:34px;border-radius:7px;background:#f2f0ea;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(0,0,0,0.25);padding:5px;box-sizing:border-box;}
@@ -63,14 +63,15 @@
   .menu-card .sub{color:var(--text-dim);font-size:12px;margin-top:4px;}
   .menu-card.disabled{opacity:0.4;cursor:not-allowed;}
   .menu-card.disabled:hover{transform:none;border-color:var(--border);}
-  .open-list{max-width:560px;margin:22px auto 0;}
+  .open-list{max-width:100%;margin:22px auto 0;}
   .open-list h3{font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin:0 0 8px;}
   .open-row{display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);border:1px solid var(--border);border-radius:4px;padding:10px 14px;margin-bottom:6px;font-size:13px;}
   .open-row.overdue{border-color:var(--danger);}
   .open-row .due{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-dim);}
   .open-row.overdue .due{color:var(--danger);}
   .tag{display:inline-block;background:var(--tag-bg);border:1px solid #000;border-radius:2px;padding:2px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.06em;color:#e8e6e1;}
-  .item-list{display:flex;flex-direction:column;gap:8px;max-width:600px;margin:18px auto 0;max-height:300px;overflow-y:auto;padding-right:4px;}
+  .item-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;max-width:100%;margin:18px auto 0;max-height:clamp(320px,52vh,700px);overflow-y:auto;padding-right:4px;}
+  .item-list>.empty-note{grid-column:1/-1;}
   .item-row{display:flex;align-items:center;justify-content:space-between;background:var(--panel-alt);border:1px solid var(--border);border-radius:5px;padding:12px 16px;cursor:pointer;transition:border-color .15s ease;}
   .item-row:hover{border-color:var(--accent);}
   .item-row.selected{border-color:var(--accent);background:rgba(255,122,26,0.08);}
@@ -80,7 +81,7 @@
   .stock.low{color:var(--danger);}
   .back-link{color:var(--text-dim);font-size:12px;cursor:pointer;display:inline-block;margin-bottom:14px;}
   .back-link:hover{color:var(--text);}
-  .form-row{max-width:400px;margin:20px auto 0;}
+  .form-row{max-width:min(600px,100%);margin:20px auto 0;}
   .form-row label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;}
   .form-row input,.form-row select{width:100%;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:14px;margin-bottom:14px;}
   .confirm-box{text-align:center;padding:40px 0;}
@@ -109,16 +110,72 @@
   .confirm-actions .no{background:transparent;color:var(--text-dim);}
   .loading-wrap{display:flex;align-items:center;justify-content:center;height:100%;min-height:340px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.05em;}
   .banner-error{background:#3a1f1f;border:1px solid var(--danger);color:#f2b9b9;border-radius:5px;padding:10px 14px;font-size:12.5px;margin-bottom:16px;}
+
+  /* === kiosk UX improvements === */
+  html,body{-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+  button,.menu-card,.item-row{touch-action:manipulation;}
+
+  /* Larger, more tappable role cards */
+  .menu-card{padding:28px 18px;min-height:120px;}
+  .menu-card .big{font-size:36px;margin-bottom:10px;}
+  .menu-card .label{font-size:15px;}
+  .menu-card:active{transform:scale(0.97) !important;}
+
+  /* Bigger touch targets throughout */
+  .go-btn{padding:15px 36px;font-size:15px;border-radius:5px;}
+  .go-btn:active{transform:scale(0.97);}
+  .btn-ghost{padding:11px 20px;font-size:12.5px;border-radius:5px;}
+  .item-row{min-height:66px;padding:14px 16px;}
+  .item-name{font-size:15px;}
+  .nav-btn{padding:10px 16px;}
+
+  /* Animated loading spinner */
+  .spin-ring{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:kiosk-spin .72s linear infinite;margin:0 auto 14px;}
+  @keyframes kiosk-spin{to{transform:rotate(360deg);}}
+
+  /* On-screen numpad for PIN / operator ID */
+  .numpad-wrap{max-width:290px;margin:0 auto;}
+  .numpad-display{font-family:'IBM Plex Mono',monospace;font-size:30px;letter-spacing:.4em;text-align:center;padding:14px 20px;background:var(--panel-alt);border:2px solid var(--border);border-radius:7px;min-height:64px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;transition:border-color .15s,box-shadow .15s;}
+  .numpad-display.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,122,26,.12);}
+  .numpad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .numpad-key{height:66px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;border-radius:7px;cursor:pointer;transition:background .1s,transform .08s,border-color .1s;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none;}
+  .numpad-key:hover{background:var(--panel);border-color:var(--accent-dim);}
+  .numpad-key:active{transform:scale(0.91);background:rgba(255,122,26,.14);}
+  .numpad-key.del{color:var(--text-dim);font-size:19px;}
+  .numpad-key.del:hover{border-color:var(--danger);color:var(--danger);}
+  .numpad-key.go{background:var(--accent);color:#1c1e22;border-color:var(--accent);font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+  .numpad-key.go:hover{background:var(--accent-hover);}
+  .numpad-key.go:disabled{background:var(--panel-alt);color:var(--text-dim);border-color:var(--border);cursor:not-allowed;transform:none;}
+  .numpad-key.go:active:not(:disabled){transform:scale(0.95);}
+
+  /* Pulsing scan icon */
+  @keyframes scan-pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(1.1);}}
+  .scan-pulse{display:inline-block;animation:scan-pulse 2s ease-in-out infinite;}
+
+  /* Pop-in animation on confirmation */
+  @keyframes pop-in{0%{transform:scale(.3) rotate(-15deg);opacity:0;}65%{transform:scale(1.18) rotate(4deg);}100%{transform:scale(1) rotate(0deg);opacity:1;}}
+  .confirm-pop{display:inline-block;animation:pop-in .45s cubic-bezier(.34,1.56,.64,1) both;}
 </style>
 </head>
 <body>
 
 <div class="app" id="app"></div>
 
+<script src="./src/api/client.js"></script>
+<script src="./src/domain/inventory.js"></script>
+<script src="./src/state/machine.js"></script>
+<script src="./src/state/store.js"></script>
+<script src="./src/scanner/keyboardScanner.js"></script>
+<script src="./src/ui/renderer.js"></script>
 <script>
 (function(){
   // ==== your Apps Script Web App URL ====
   const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxk6CIrk9GI1zn82Yg-5ZI3E8WOTVG02TgYDY-yqgV6isWkDKJR-n8rnhfJZ4jSOGqLAQ/exec';
+  const apiClient = window.SupplyApi.createApiClient(WEBAPP_URL, { timeoutMs: 9000, retries: 2 });
+  const domain = window.SupplyDomain;
+  const { upgradeInteractiveElements, setButtonBusy } = window.SupplyUi;
+  const machine = window.SupplyMachine.createSupplyMachine();
+  const store = window.SupplyStore.createStore(machine, { current: 'idle' });
 
   const ICONS = { 'Tools': '🧰', 'Station Parts': '🔌' };
 
@@ -156,6 +213,7 @@
   let pendingReturnMatches = null;
   let confirmInfo = null;
   let reportTab = 'open';
+  let reportReturnScreen = 'idle'; // where the report back-button goes
   let basket = [];
   let basketIdCounter = 0;
   let scanBuffer = '';
@@ -167,6 +225,17 @@
   let inventoryMap = {}; // itemName -> {reference, item, quantity, availability}
   let historyRows = [];  // [{timestamp, personRole, item, expectedReturn, returnedAt, txId}]
   let loadError = null;
+
+  function setScreen(next){
+    if(screen === next) return true;
+    const result = store.transition(next);
+    if(!result.ok){
+      console.warn(result.error);
+      return false;
+    }
+    screen = next;
+    return true;
+  }
 
   function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -238,16 +307,15 @@
   let lastFetchTime = 0;
 
   async function refreshRemote(){
-    try{
-      const res = await fetch(WEBAPP_URL, { method:'GET' });
-      const data = await res.json();
+    const result = await apiClient.loadInventory();
+    if(result.ok){
       inventoryMap = {};
-      (data.inventory||[]).forEach(row=>{ inventoryMap[row.item] = row; });
-      historyRows = data.history || [];
+      (result.inventory||[]).forEach(row=>{ inventoryMap[row.item] = row; });
+      historyRows = result.history || [];
       loadError = null;
       lastFetchTime = Date.now();
-    }catch(err){
-      loadError = 'Could not reach the inventory sheet. Check your internet connection and try again.';
+    } else {
+      loadError = result.error || 'Could not reach the inventory sheet. Check your internet connection and try again.';
     }
     updateStatusDot();
   }
@@ -267,55 +335,23 @@
     el.innerHTML = `<span class="dot"></span>${loadError ? 'Offline' : 'Connected'}`;
   }
 
+  function updateReportBtn(){
+    const btn = document.getElementById('reportBtn');
+    if(!btn) return;
+    const inReport = screen === 'report';
+    btn.textContent = inReport ? '← Close Report' : 'Manager Report';
+    btn.classList.toggle('active', inReport);
+  }
+
   async function postAction(payload){
-    try{
-      const res = await fetch(WEBAPP_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-      return await res.json();
-    }catch(err){
-      return { ok:false, error:String(err) };
-    }
+    return apiClient.postAction(payload);
   }
 
-  function availableOf(itemName){
-    const inv = inventoryMap[itemName];
-    if(!inv) return 0;
-    if(inv.reference==='Station Parts') return Number(inv.quantity)||0;
-    const total = Number(inv.quantity)||0;
-    const missing = historyRows.filter(h=>h.item===itemName && h.returnedAt==='Not returned').length;
-    return Math.max(0, total - missing);
-  }
-
-  function openCheckoutsFor(personCode){
-    return historyRows.filter(h=>{
-      const inv = inventoryMap[h.item];
-      return h.personRole===personCode && inv && inv.reference==='Tools' && h.returnedAt==='Not returned';
-    });
-  }
-
-  function allOpenToolCheckouts(){
-    return historyRows.filter(h=>{
-      const inv = inventoryMap[h.item];
-      return inv && inv.reference==='Tools' && h.returnedAt==='Not returned';
-    });
-  }
-
-  function isOverdue(h){
-    if(h.returnedAt !== 'Not returned') return false;
-    if(!h.expectedReturn || h.expectedReturn==='None') return false;
-    const t = new Date(h.expectedReturn).getTime();
-    return !isNaN(t) && t < Date.now();
-  }
-
-  function fmtDate(d){
-    if(!d || d==='None' || d==='Not returned' || d==='N/A') return d || '—';
-    const dt = new Date(d);
-    if(isNaN(dt.getTime())) return String(d);
-    return dt.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
-  }
+  function availableOf(itemName){ return domain.availableOf(itemName, inventoryMap, historyRows); }
+  function openCheckoutsFor(personCode){ return domain.openCheckoutsFor(personCode, inventoryMap, historyRows); }
+  function allOpenToolCheckouts(){ return domain.allOpenToolCheckouts(inventoryMap, historyRows); }
+  function isOverdue(h){ return domain.isOverdue(h); }
+  function fmtDate(d){ return domain.fmtDate(d); }
 
   // ---------- render shell ----------
   function render(){
@@ -332,9 +368,16 @@
       <div class="stage" id="stage"></div>
     `;
     document.getElementById('reportBtn').onclick = async ()=>{
-      if(screen==='report'){ screen='idle'; currentPerson=null; basket=[]; returnBasket=[]; renderStage(); return; }
+      if(screen==='report'){
+        const ret = reportReturnScreen;
+        if(ret === 'idle'){ currentPerson=null; basket=[]; returnBasket=[]; }
+        screen = ret;
+        renderStage();
+        return;
+      }
+      reportReturnScreen = (screen === 'menu') ? 'menu' : 'idle';
+      if(screen !== 'menu'){ currentPerson=null; basket=[]; returnBasket=[]; }
       screen = 'report';
-      currentPerson = null;
       await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
@@ -353,7 +396,7 @@
   setInterval(updateClock, 15000);
 
   function renderLoading(stage){
-    stage.innerHTML = `<div class="loading-wrap">Loading…</div>`;
+    stage.innerHTML = `<div class="loading-wrap"><div style="text-align:center;"><div class="spin-ring"></div>Loading…</div></div>`;
   }
 
   async function withLoading(fn){
@@ -364,24 +407,27 @@
 
   function renderStage(){
     const stage = document.getElementById('stage');
+    stage.style.opacity = '0';
     let banner = '';
     if(loadError) banner = `<div class="banner-error">${esc(loadError)}</div>`;
-    if(screen==='idle') return stageRoleSelect(stage, banner);
-    if(screen==='nameSelect') return stageNameSelect(stage, banner);
-    if(screen==='pinEntry') return stagePinEntry(stage, banner);
-    if(screen==='operatorId') return stageOperatorId(stage, banner);
-    if(screen==='menu') return stageMenu(stage, banner);
-    if(screen==='scanPrompt') return stageScanPrompt(stage, banner);
-    if(screen==='scanConfirm') return stageScanConfirm(stage, banner);
-    if(screen==='scanTakeDetail') return stageScanTakeDetail(stage, banner);
-    if(screen==='basketReview') return stageBasketReview(stage, banner);
-    if(screen==='takeCategory') return stageTakeCategory(stage, banner);
-    if(screen==='take') return stageTake(stage, banner);
-    if(screen==='return') return stageReturn(stage, banner);
-    if(screen==='returnScanPrompt') return stageReturnScanPrompt(stage, banner);
-    if(screen==='returnBasketReview') return stageReturnBasketReview(stage, banner);
-    if(screen==='confirm') return stageConfirm(stage, banner);
-    if(screen==='report') return stageReport(stage, banner);
+    if(screen==='idle') stageRoleSelect(stage, banner);
+    else if(screen==='nameSelect') stageNameSelect(stage, banner);
+    else if(screen==='pinEntry') stagePinEntry(stage, banner);
+    else if(screen==='operatorId') stageOperatorId(stage, banner);
+    else if(screen==='menu') stageMenu(stage, banner);
+    else if(screen==='scanPrompt') stageScanPrompt(stage, banner);
+    else if(screen==='scanConfirm') stageScanConfirm(stage, banner);
+    else if(screen==='scanTakeDetail') stageScanTakeDetail(stage, banner);
+    else if(screen==='basketReview') stageBasketReview(stage, banner);
+    else if(screen==='takeCategory') stageTakeCategory(stage, banner);
+    else if(screen==='take') stageTake(stage, banner);
+    else if(screen==='return') stageReturn(stage, banner);
+    else if(screen==='returnScanPrompt') stageReturnScanPrompt(stage, banner);
+    else if(screen==='returnBasketReview') stageReturnBasketReview(stage, banner);
+    else if(screen==='confirm') stageConfirm(stage, banner);
+    else if(screen==='report') stageReport(stage, banner);
+    updateReportBtn();
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ stage.style.opacity='1'; stage.style.transition='opacity .13s ease'; }));
   }
 
   // ---------- sign-in ----------
@@ -437,26 +483,44 @@
 
   function stagePinEntry(stage, banner){
     const role = ROLES[pendingRole];
+    let pin = '';
+    const maxLen = 4;
+
+    function numpadUpdate(){
+      const display = document.getElementById('numpadDisplay');
+      if(!display) return;
+      display.textContent = Array.from({length:maxLen},(_,i)=> i<pin.length ? '●' : '○').join(' ');
+      display.classList.toggle('active', pin.length > 0);
+      const goKey = document.getElementById('numpadGo');
+      if(goKey) goKey.disabled = pin.length < maxLen;
+    }
+
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="reader-wrap" style="padding-top:6px;">
-        <div class="hint" style="margin-top:0;">${esc(pendingName)} — enter your group PIN</div>
-        <div class="slot" style="margin-top:16px;">
-          <input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="4-DIGIT PIN" />
+        <div class="hint" style="margin-top:0;margin-bottom:18px;">${esc(pendingName)} — enter your group PIN</div>
+        ${pinError ? `<div class="error-msg" style="margin-top:0;margin-bottom:14px;">${esc(pinError)}</div>` : ''}
+        <div class="numpad-wrap">
+          <div class="numpad-display" id="numpadDisplay">○ ○ ○ ○</div>
+          <div class="numpad-grid">
+            ${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="numpad-key" data-digit="${n}">${n}</button>`).join('')}
+            <button class="numpad-key del" id="numpadDel">⌫</button>
+            <button class="numpad-key" data-digit="0">0</button>
+            <button class="numpad-key go" id="numpadGo" disabled>Sign In</button>
+          </div>
         </div>
-        ${pinError ? `<div class="error-msg" style="margin-top:12px;">${esc(pinError)}</div>` : ''}
-        <button class="go-btn" id="pinGoBtn">Sign In</button>
       </div>
     `;
+
     document.getElementById('back').onclick = ()=>{ pendingName=null; pinError=null; screen='nameSelect'; renderStage(); };
-    const input = document.getElementById('pinInput');
-    input.focus();
+
     const submit = async ()=>{
-      const pin = input.value.trim();
+      if(pin.length < maxLen) return;
       const groupKey = NAME_TO_GROUP[pendingName];
       const correctPin = GROUP_PINS[groupKey];
       if(pin !== correctPin){
         pinError = 'Incorrect PIN, try again.';
+        pin = '';
         renderStage();
         return;
       }
@@ -468,37 +532,77 @@
       await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
-    document.getElementById('pinGoBtn').onclick = submit;
-    input.onkeydown = (e)=>{ if(e.key==='Enter') submit(); };
+
+    stage.querySelectorAll('[data-digit]').forEach(btn=>{
+      btn.onclick = ()=>{ if(pin.length<maxLen){ pin+=btn.getAttribute('data-digit'); numpadUpdate(); } };
+    });
+    document.getElementById('numpadDel').onclick = ()=>{ pin=pin.slice(0,-1); numpadUpdate(); };
+    document.getElementById('numpadGo').onclick = submit;
+
+    function handleKey(e){
+      if(!document.getElementById('numpadDisplay')){ document.removeEventListener('keydown', handleKey); return; }
+      if(e.key>='0'&&e.key<='9'){ if(pin.length<maxLen){ pin+=e.key; numpadUpdate(); } }
+      else if(e.key==='Backspace'){ e.preventDefault(); pin=pin.slice(0,-1); numpadUpdate(); }
+      else if(e.key==='Enter'){ submit(); }
+    }
+    document.addEventListener('keydown', handleKey);
   }
 
   function stageOperatorId(stage, banner){
     const role = ROLES[pendingRole];
+    let digits = '';
+    const maxLen = 6;
+
+    function numpadUpdate(){
+      const display = document.getElementById('numpadDisplay');
+      if(!display) return;
+      display.textContent = digits || '—';
+      display.classList.toggle('active', digits.length > 0);
+      const goKey = document.getElementById('numpadGo');
+      if(goKey) goKey.disabled = digits.length < 1;
+    }
+
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="reader-wrap" style="padding-top:6px;">
-        <div class="hint" style="margin-top:0;">${role.icon} ${esc(role.label)} — enter your operator ID</div>
-        <div class="slot" style="margin-top:16px;">
-          <input id="opIdInput" placeholder="OPERATOR ID (numbers)" inputmode="numeric" maxlength="6" />
+        <div class="hint" style="margin-top:0;margin-bottom:18px;">${role.icon} ${esc(role.label)} — enter your operator ID</div>
+        <div class="numpad-wrap">
+          <div class="numpad-display" id="numpadDisplay" style="font-size:26px;letter-spacing:.2em;">—</div>
+          <div class="numpad-grid">
+            ${[1,2,3,4,5,6,7,8,9].map(n=>`<button class="numpad-key" data-digit="${n}">${n}</button>`).join('')}
+            <button class="numpad-key del" id="numpadDel">⌫</button>
+            <button class="numpad-key" data-digit="0">0</button>
+            <button class="numpad-key go" id="numpadGo" disabled>Sign In</button>
+          </div>
         </div>
-        <button class="go-btn" id="opGoBtn">Sign In</button>
       </div>
     `;
+
     document.getElementById('back').onclick = ()=>{ pendingRole=null; screen='idle'; renderStage(); };
-    const input = document.getElementById('opIdInput');
-    input.focus();
+
     const submit = async ()=>{
-      const num = input.value.trim().replace(/\D/g,'');
-      if(!num) return;
-      const name = 'Operator-' + num;
+      if(!digits) return;
+      const name = 'Operator-' + digits;
       currentPerson = { name, role: role.label, code: name + '/' + role.label };
       pendingRole = null;
       screen = 'menu';
       await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
-    document.getElementById('opGoBtn').onclick = submit;
-    input.onkeydown = (e)=>{ if(e.key==='Enter') submit(); };
+
+    stage.querySelectorAll('[data-digit]').forEach(btn=>{
+      btn.onclick = ()=>{ if(digits.length<maxLen){ digits+=btn.getAttribute('data-digit'); numpadUpdate(); } };
+    });
+    document.getElementById('numpadDel').onclick = ()=>{ digits=digits.slice(0,-1); numpadUpdate(); };
+    document.getElementById('numpadGo').onclick = submit;
+
+    function handleKey(e){
+      if(!document.getElementById('numpadDisplay')){ document.removeEventListener('keydown', handleKey); return; }
+      if(e.key>='0'&&e.key<='9'){ if(digits.length<maxLen){ digits+=e.key; numpadUpdate(); } }
+      else if(e.key==='Backspace'){ e.preventDefault(); digits=digits.slice(0,-1); numpadUpdate(); }
+      else if(e.key==='Enter'){ submit(); }
+    }
+    document.addEventListener('keydown', handleKey);
   }
 
   // ---------- menu ----------
@@ -548,7 +652,7 @@
     stage.innerHTML = banner + flash + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="reader-wrap" style="padding-top:6px;padding-bottom:0;">
-        <div class="big" style="font-size:48px;">📷</div>
+        <div class="scan-pulse" style="font-size:56px;margin-bottom:6px;">📷</div>
         <div class="hint" style="margin-top:10px;font-size:15px;">Scan as many items as you need — they'll add up below</div>
         ${scanNotFoundError ? `<div class="error-msg" style="margin-top:12px;">${esc(scanNotFoundError)}</div>` : ''}
         <button class="btn-ghost" id="manualBtn" style="margin-top:24px;">Or choose manually</button>
@@ -803,8 +907,8 @@
     });
     if(basket.length){
       document.getElementById('confirmAllBtn').onclick = async ()=>{
-        document.getElementById('confirmAllBtn').textContent = 'Saving…';
-        document.getElementById('confirmAllBtn').disabled = true;
+        const confirmBtn = document.getElementById('confirmAllBtn');
+        setButtonBusy(confirmBtn, true, 'Saving...');
         basketError = null;
         const items = basket.map(b=>({
           item: b.itemName,
@@ -817,7 +921,7 @@
         });
         await refreshRemote();
         if(!result.ok){
-          basketError = 'Something went wrong saving your items — check your connection and tap Confirm again.';
+          basketError = result.error || 'Something went wrong saving your items — check your connection and tap Confirm again.';
           renderStage();
           return;
         }
@@ -846,7 +950,7 @@
     stage.innerHTML = banner + scanBanner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${takeCategory==='Tools' ? 'Which tool?' : 'Which part?'}</div></div>
-      <div class="form-row" style="margin-top:0;margin-bottom:14px;">
+      <div class="form-row" style="margin-top:0;margin-bottom:14px;max-width:none;">
         <input type="text" id="searchInput" placeholder="Search ${takeCategory==='Tools' ? 'tools' : 'parts'}…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
       </div>
       <div class="item-list">
@@ -854,20 +958,24 @@
           const avail = availableOf(it.item);
           const low = it.reference==='Station Parts' && Number(it.quantity) <= 3;
           return `<div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
-            <div>
-              ${itemThumbHTML(it.item, 32)}
-              <div class="item-name" style="margin-top:5px;">${esc(it.item)}</div>
-              <div class="item-meta">${it.reference==='Tools' ? 'Checkout &amp; return' : 'One-time use'}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+              ${itemThumbHTML(it.item, 36)}
+              <div style="min-width:0;">
+                <div class="item-name">${esc(it.item)}</div>
+                <div class="item-meta">${it.reference==='Tools' ? 'Checkout &amp; return' : 'One-time use'}</div>
+              </div>
             </div>
-            <div class="stock ${low?'low':''}">${avail} avail</div>
+            <div class="stock ${low?'low':''}" style="flex-shrink:0;padding-left:8px;">${avail} avail</div>
           </div>`;
         }).join('') : `<div class="empty-note">${allItems.length ? 'No items match your search.' : 'No items found in this category yet.'}</div>`}
         ${takeCategory==='Station Parts' ? `
           <div class="item-row ${isOther?'selected':''}" data-name="${OTHER_SENTINEL}" style="border-style:dashed;">
-            <div>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
               <span class="tag">❓</span>
-              <div class="item-name" style="margin-top:5px;">Other (not labelled)</div>
-              <div class="item-meta">Describe what you took</div>
+              <div style="min-width:0;">
+                <div class="item-name">Other (not labelled)</div>
+                <div class="item-meta">Describe what you took</div>
+              </div>
             </div>
           </div>
         ` : ''}
@@ -966,11 +1074,14 @@
       <div class="item-list">
         ${opens.length ? opens.map(h=>`
           <div class="item-row" data-tx="${h.txId}">
-            <div>
-              <div class="item-name" style="margin-top:5px;">${itemThumbHTML(h.item, 26)} ${esc(h.item)}</div>
-              <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+              ${itemThumbHTML(h.item, 34)}
+              <div style="min-width:0;">
+                <div class="item-name">${esc(h.item)}</div>
+                <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
+              </div>
             </div>
-            <div class="stock ${isOverdue(h)?'low':''}">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
+            <div class="stock ${isOverdue(h)?'low':''}" style="flex-shrink:0;padding-left:8px;">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
           </div>`).join('') : `<div class="empty-note">Nothing left to return.</div>`}
       </div>
       ${returnBasket.length ? `
@@ -1004,7 +1115,7 @@
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Cancel, back to list</span>
       <div class="reader-wrap" style="padding-top:6px;">
-        <div style="font-size:44px;">📷</div>
+        <div class="scan-pulse" style="font-size:56px;margin-bottom:6px;">📷</div>
         <div class="hint" style="margin-top:12px;font-size:15px;">Scan the QR code on <strong style="color:var(--text);">${esc(tx.item)}</strong> to confirm the return</div>
         ${returnScanError ? `<div class="error-msg" style="margin-top:16px;">${esc(returnScanError)}</div>` : ''}
         <button class="btn-ghost" id="noQrReturnBtn" style="margin-top:60px;">Return without QR code</button>
@@ -1079,14 +1190,14 @@
     });
     if(returnBasket.length){
       document.getElementById('returnConfirmAllBtn').onclick = async ()=>{
-        document.getElementById('returnConfirmAllBtn').textContent = 'Saving…';
-        document.getElementById('returnConfirmAllBtn').disabled = true;
+        const confirmBtn = document.getElementById('returnConfirmAllBtn');
+        setButtonBusy(confirmBtn, true, 'Saving...');
         returnBasketError = null;
         const txIds = returnBasket.map(tx=>tx.txId);
         const result = await postAction({ action:'returnBatch', txIds, returnedBy: currentPerson.code });
         await refreshRemote();
         if(!result.ok){
-          returnBasketError = 'Something went wrong saving these returns — check your connection and tap Confirm again.';
+          returnBasketError = result.error || 'Something went wrong saving these returns — check your connection and tap Confirm again.';
           renderStage();
           return;
         }
@@ -1102,7 +1213,7 @@
   function stageConfirm(stage, banner){
     stage.innerHTML = banner + `
       <div class="confirm-box">
-        <div class="icon">${confirmInfo.icon}</div>
+        <div class="icon" style="font-size:52px;"><span class="confirm-pop">${confirmInfo.icon}</span></div>
         <div class="msg">${esc(confirmInfo.msg)}</div>
         <div class="detail">${esc(confirmInfo.detail)}</div>
         <button class="go-btn" id="doneBtn" style="margin-top:26px;">Done</button>
@@ -1128,7 +1239,12 @@
     else if(reportTab==='overdue') rows = overdueTx;
     else if(reportTab==='all') rows = allTx;
 
+    const backLabel = reportReturnScreen === 'menu' ? '← Back to menu' : '← Back to home';
     stage.innerHTML = banner + `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <span class="back-link" id="reportBack">${backLabel}</span>
+        <span style="font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);">Manager Report</span>
+      </div>
       <div class="report-tabs">
         <button class="nav-btn ${reportTab==='open'?'active':''}" data-t="open">Open (${openTx.length})</button>
         <button class="nav-btn ${reportTab==='overdue'?'active':''}" data-t="overdue">Overdue (${overdueTx.length})</button>
@@ -1169,6 +1285,12 @@
         </table>` : `<div class="empty-note">Nothing here yet.</div>`}
       `}
     `;
+    document.getElementById('reportBack').onclick = ()=>{
+      const ret = reportReturnScreen;
+      if(ret === 'idle'){ currentPerson=null; basket=[]; returnBasket=[]; }
+      screen = ret;
+      renderStage();
+    };
     stage.querySelectorAll('.report-tabs button').forEach(b=>{
       b.onclick = ()=>{ reportTab = b.getAttribute('data-t'); renderStage(); };
     });
@@ -1182,7 +1304,7 @@
   const SCAN_MAX_GAP_MS = 300;
 
   function normalizeText(s){
-    return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+    return domain.normalizeText(s);
   }
 
   let lastScanAdded = null;
@@ -1226,21 +1348,10 @@
     renderStage(); // stay on the scan screen — ready for the next scan immediately
   }
 
-  document.addEventListener('keydown', function(e){
-    const now = Date.now();
-    if(now - lastScanKeyTime > SCAN_MAX_GAP_MS){
-      scanBuffer = '';
-    }
-    lastScanKeyTime = now;
-
-    if(e.key === 'Enter'){
-      const candidate = scanBuffer;
-      scanBuffer = '';
-      if(candidate.length >= 2) tryHandleScan(candidate);
-    }else if(e.key.length === 1){
-      scanBuffer += e.key;
-    }
-  }, true);
+  window.SupplyScanner.attachKeyboardScanner({
+    maxGapMs: SCAN_MAX_GAP_MS,
+    onScan: tryHandleScan
+  });
 
   (async function init(){
     render();
