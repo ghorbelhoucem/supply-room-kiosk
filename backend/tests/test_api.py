@@ -153,9 +153,27 @@ def test_manager_receive_and_export(client):
     assert "spreadsheetml" in export.headers["content-type"]
 
 
-def test_report_requires_manager(client):
-    login = client.post("/api/auth/login/pin", json={"role_key": "maintenance", "pin": "4708"})
-    token = login.json()["token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    denied = client.get("/api/reports/summary", headers=headers)
+def test_report_allows_maintenance_denies_supervisor(client):
+    maint = client.post("/api/auth/login/pin", json={"role_key": "maintenance", "pin": "4708"})
+    assert client.get("/api/reports/summary", headers={"Authorization": f"Bearer {maint.json()['token']}"}).status_code == 200
+
+    # supervisor has no seeded user with pin in this fixture; create one
+    from app.database import SessionLocal
+    from app.models import AuthKind, User, UserRole
+    from app.auth import hash_secret, create_access_token
+
+    db = SessionLocal()
+    user = User(
+        name="Op-9",
+        role=UserRole.supervisor,
+        auth_kind=AuthKind.operator,
+        operator_id="9",
+        password_hash=hash_secret("x"),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_access_token(user)
+    db.close()
+    denied = client.get("/api/reports/summary", headers={"Authorization": f"Bearer {token}"})
     assert denied.status_code == 403

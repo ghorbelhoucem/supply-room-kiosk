@@ -374,8 +374,8 @@
         return;
       }
       const role = currentPerson && currentPerson.role;
-      if(!role || (role !== 'Management' && role !== 'Devs')){
-        loadError = 'Manager Report requires a Management or Devs sign-in.';
+      if(!role || (role !== 'Management' && role !== 'Devs' && role !== 'Maintenance')){
+        loadError = 'Manager Report requires a Maintenance, Management, or Devs sign-in.';
         renderStage();
         updateStatusDot();
         return;

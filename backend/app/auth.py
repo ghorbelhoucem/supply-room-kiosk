@@ -23,6 +23,7 @@ ROLE_KEY_TO_ENUM = {
 }
 
 MANAGER_ROLES = {UserRole.management, UserRole.devs}
+REPORT_ROLES = {UserRole.management, UserRole.maintenance, UserRole.devs}
 
 
 def hash_secret(value: str) -> str:
@@ -78,4 +79,10 @@ def get_current_user(
 def require_manager(user: User = Depends(get_current_user)) -> User:
     if user.role not in MANAGER_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+    return user
+
+
+def require_report_access(user: User = Depends(get_current_user)) -> User:
+    if user.role not in REPORT_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Report access required")
     return user

@@ -30,6 +30,7 @@
     const retries = config.retries == null ? 2 : config.retries;
     const retryDelayMs = config.retryDelayMs || 350;
     let authToken = null;
+    const root = String(baseUrl || '/api').replace(/\/$/, '');
 
     function setToken(token) {
       authToken = token || null;
@@ -43,16 +44,18 @@
       let attempts = 0;
       let lastError;
       const maxAttempts = retry ? retries : 0;
+      const url = `${root}${path.startsWith('/') ? path : `/${path}`}`;
       while (attempts <= maxAttempts) {
         try {
-          const headers = { 'Content-Type': 'application/json' };
+          const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
           if (auth && authToken) headers.Authorization = `Bearer ${authToken}`;
           const res = await fetchWithTimeout(
-            `${baseUrl}${path}`,
+            url,
             {
               method,
               headers,
               body: body == null ? undefined : JSON.stringify(body),
+              redirect: 'follow',
             },
             timeoutMs
           );

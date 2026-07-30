@@ -38,14 +38,27 @@ def run() -> None:
     if not url:
         raise SystemExit("Set LEGACY_WEBAPP_URL to the Apps Script /exec endpoint")
 
+    replace = str(os.environ.get("IMPORT_REPLACE", "true")).lower() in {"1", "true", "yes"}
+
     Base.metadata.create_all(bind=engine)
     logger.info("Fetching legacy snapshot from %s", url)
-    data = httpx.get(url, timeout=60).json()
+    data = httpx.get(url, timeout=60, follow_redirects=True).json()
     inventory = data.get("inventory") or []
     history = data.get("history") or []
 
     db = SessionLocal()
     try:
+        if replace:
+            logger.info("IMPORT_REPLACE=true — clearing inventory/checkouts/movements before import")
+            from sqlalchemy import delete
+
+            from app.models import Movement
+
+            db.execute(delete(Checkout))
+            db.execute(delete(Movement))
+            db.execute(delete(InventoryItem))
+            db.commit()
+
         for row in inventory:
             name = row.get("item")
             if not name:

@@ -7,7 +7,7 @@ from openpyxl import Workbook
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import require_manager
+from app.auth import require_manager, require_report_access
 from app.database import get_db
 from app.models import Checkout, InventoryItem, Movement, User
 from app.services.inventory import availability_label, available_qty
@@ -16,7 +16,7 @@ router = APIRouter(tags=["reports"])
 
 
 @router.get("/reports/summary")
-def report_summary(db: Session = Depends(get_db), _user: User = Depends(require_manager)):
+def report_summary(db: Session = Depends(get_db), _user: User = Depends(require_report_access)):
     items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
     open_tx = (
         db.execute(select(Checkout).where(Checkout.returned_at.is_(None))).scalars().all()
@@ -53,7 +53,7 @@ def report_summary(db: Session = Depends(get_db), _user: User = Depends(require_
 
 
 @router.get("/exports/inventory.xlsx")
-def export_inventory_xlsx(db: Session = Depends(get_db), _user: User = Depends(require_manager)):
+def export_inventory_xlsx(db: Session = Depends(get_db), _user: User = Depends(require_report_access)):
     wb = Workbook()
 
     ws = wb.active
