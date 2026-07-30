@@ -27,9 +27,13 @@
     const retryDelayMs = config.retryDelayMs || 350;
 
     async function requestJson(method, payload) {
+      // Retries are only safe for GET (read-only). Retrying a POST could
+      // duplicate a take/return if the first request actually succeeded
+      // server-side but the response was lost (e.g. a slow Apps Script reply).
+      const maxAttempts = method === "GET" ? retries : 0;
       let attempts = 0;
       let lastError;
-      while (attempts <= retries) {
+      while (attempts <= maxAttempts) {
         try {
           const options =
             method === "GET"
@@ -44,7 +48,7 @@
           return await res.json();
         } catch (err) {
           lastError = err;
-          if (attempts >= retries) break;
+          if (attempts >= maxAttempts) break;
           await sleep(retryDelayMs * Math.pow(2, attempts));
           attempts += 1;
         }
