@@ -3,6 +3,13 @@
     return String(s).trim().toLowerCase().replace(/\s+/g, " ");
   }
 
+  // Strips everything except letters/digits — a last-resort match for when a
+  // scanner's keyboard layout mangles punctuation like ( ) / on items such as
+  // "Power Cable (PC/Monitor)" or "Knife (Cutter)".
+  function normalizeAlnum(s) {
+    return String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
   function availableOf(itemName, inventoryMap, historyRows) {
     const inv = inventoryMap[itemName];
     if (!inv) return 0;
@@ -46,6 +53,7 @@
 
   window.SupplyDomain = {
     normalizeText,
+    normalizeAlnum,
     availableOf,
     openCheckoutsFor,
     allOpenToolCheckouts,
