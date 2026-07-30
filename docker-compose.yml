@@ -1,9 +1,55 @@
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: supply-room-db
+    environment:
+      POSTGRES_USER: supply
+      POSTGRES_PASSWORD: supply
+      POSTGRES_DB: supply
+    volumes:
+      - supply_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supply -d supply"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    image: supply-room-api:local
+    container_name: supply-room-api
+    environment:
+      DATABASE_URL: postgresql+psycopg2://supply:supply@db:5432/supply
+      JWT_SECRET: ${JWT_SECRET:-dev-change-me-supply-room-kiosk-secret}
+      SEED_ON_STARTUP: "true"
+      CORS_ORIGINS: "*"
+      GOOGLE_SHEET_SYNC_ENABLED: ${GOOGLE_SHEET_SYNC_ENABLED:-false}
+      GOOGLE_SHEET_ID: ${GOOGLE_SHEET_ID:-}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON:-}
+      LEGACY_WEBAPP_URL: ${LEGACY_WEBAPP_URL:-}
+      SHEET_SYNC_INTERVAL_MINUTES: ${SHEET_SYNC_INTERVAL_MINUTES:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   kiosk:
     build: .
     image: supply-room-kiosk:local
     container_name: supply-room-kiosk
     ports:
-      # Host port 61938 -> container nginx :80
       - "61938:80"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  supply_pgdata:

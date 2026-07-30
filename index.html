@@ -161,6 +161,7 @@
 
 <div class="app" id="app"></div>
 
+<script src="./config.js"></script>
 <script src="./src/api/client.js"></script>
 <script src="./src/domain/inventory.js"></script>
 <script src="./src/state/machine.js"></script>
@@ -169,9 +170,10 @@
 <script src="./src/ui/renderer.js"></script>
 <script>
 (function(){
-  // ==== your Apps Script Web App URL ====
-  const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxk6CIrk9GI1zn82Yg-5ZI3E8WOTVG02TgYDY-yqgV6isWkDKJR-n8rnhfJZ4jSOGqLAQ/exec';
-  const apiClient = window.SupplyApi.createApiClient(WEBAPP_URL, { timeoutMs: 9000, retries: 2 });
+  const API_BASE = (window.SUPPLY_CONFIG && window.SUPPLY_CONFIG.apiBaseUrl) || '/api';
+  const apiClient = window.SupplyApi.createApiClient(API_BASE, { timeoutMs: 9000, retries: 2 });
+  let authToken = null;
+  let pendingPin = null;
   const domain = window.SupplyDomain;
   const { upgradeInteractiveElements, setButtonBusy } = window.SupplyUi;
   const machine = window.SupplyMachine.createSupplyMachine();
@@ -187,27 +189,7 @@
     devs:        { label: 'Devs', sub: 'Development & testing', icon: '💻', kind: 'pin' }
   };
 
-  // ==== Per-person PINs — change any of these codes any time ====
-  // "unique" PINs identify one specific person directly, no name pick needed.
-  // "sharedPin" is a fallback code shared by everyone listed in sharedNames —
-  // entering it asks a quick "which one of you?" since the PIN alone can't tell.
-  const PIN_DIRECTORY = {
-    maintenance: {
-      unique: { '4708':'Houcem', '4191':'Marwan', '4719':'Hamza' },
-      sharedPin: '0000',
-      sharedNames: ['Ahmed','Felix','Yie Hang']
-    },
-    management: {
-      unique: { '4685':'Rosa', '4728':'Clarissa' },
-      sharedPin: '0000',
-      sharedNames: ['Bingie','Winnie']
-    },
-    devs: {
-      unique: {},
-      sharedPin: '7346',   // change this to whatever you want the devs code to be
-      sharedNames: ['Developer']
-    }
-  };
+  // Credentials live on the API (hashed). Kiosk only collects PIN/password.
 
   let screen = 'idle'; // idle, deptPin, deptPinPickName, operatorId, menu, takeCategory, take, return, confirm, report
   let pendingRole = null;
@@ -386,13 +368,19 @@
     document.getElementById('reportBtn').onclick = async ()=>{
       if(screen==='report'){
         const ret = reportReturnScreen;
-        if(ret === 'idle'){ currentPerson=null; basket=[]; returnBasket=[]; }
+        if(ret === 'idle'){ currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); }
         screen = ret;
         renderStage();
         return;
       }
+      const role = currentPerson && currentPerson.role;
+      if(!role || (role !== 'Management' && role !== 'Devs')){
+        loadError = 'Manager Report requires a Management or Devs sign-in.';
+        renderStage();
+        updateStatusDot();
+        return;
+      }
       reportReturnScreen = (screen === 'menu') ? 'menu' : 'idle';
-      if(screen !== 'menu'){ currentPerson=null; basket=[]; returnBasket=[]; }
       screen = 'report';
       await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
@@ -517,36 +505,29 @@
 
     const submit = async ()=>{
       if(pin.length < maxLen) return;
-      const dir = PIN_DIRECTORY[pendingRole];
-      const uniqueName = dir.unique[pin];
-      if(uniqueName){
-        currentPerson = { name: uniqueName, role: role.label, code: uniqueName + '/' + role.label };
-        pendingRole = null;
-        pinError = null;
-        screen = 'menu';
-        await withLoading(()=>refreshRemoteIfStale(4000));
-        renderStage();
-        return;
-      }
-      if(dir.sharedPin && pin === dir.sharedPin){
-        if(dir.sharedNames.length === 1){
-          const only = dir.sharedNames[0];
-          currentPerson = { name: only, role: role.label, code: only + '/' + role.label };
-          pendingRole = null;
-          pinError = null;
-          screen = 'menu';
-          await withLoading(()=>refreshRemoteIfStale(4000));
-          renderStage();
-          return;
-        }
-        pendingSharedNames = dir.sharedNames;
+      const result = await apiClient.loginPin({ roleKey: pendingRole, pin });
+      if(result && result.needs_name){
+        pendingPin = pin;
+        pendingSharedNames = result.shared_names || [];
         pinError = null;
         screen = 'deptPinPickName';
         renderStage();
         return;
       }
-      pinError = 'Incorrect PIN, try again.';
-      pin = '';
+      if(!result || !result.ok || !result.token){
+        pinError = (result && result.error) || 'Incorrect PIN, try again.';
+        pin = '';
+        renderStage();
+        return;
+      }
+      authToken = result.token;
+      apiClient.setToken(authToken);
+      currentPerson = result.person;
+      pendingRole = null;
+      pendingPin = null;
+      pinError = null;
+      screen = 'menu';
+      await withLoading(()=>refreshRemoteIfStale(4000));
       renderStage();
     };
 
@@ -585,8 +566,20 @@
     stage.querySelectorAll('.menu-card[data-name]').forEach(card=>{
       card.onclick = async ()=>{
         const name = card.getAttribute('data-name');
-        currentPerson = { name, role: role.label, code: name + '/' + role.label };
+        const result = await apiClient.loginPin({ roleKey: pendingRole, pin: pendingPin, name });
+        if(!result || !result.ok || !result.token){
+          pinError = (result && result.error) || 'Could not sign in.';
+          pendingSharedNames = null;
+          pendingPin = null;
+          screen = 'deptPin';
+          renderStage();
+          return;
+        }
+        authToken = result.token;
+        apiClient.setToken(authToken);
+        currentPerson = result.person;
         pendingSharedNames = null;
+        pendingPin = null;
         pendingRole = null;
         screen = 'menu';
         await withLoading(()=>refreshRemoteIfStale(4000));
@@ -595,10 +588,7 @@
     });
   }
 
-  // Operator credentials: 3-digit ID -> password. Names aren't set yet —
-  // shows "Operator-N" until a name list is provided, then update OPERATOR_NAMES below.
-  const OPERATOR_CREDENTIALS = {"1":"Senate!now1","2":"Punch+love2","3":"Allmight!3","4":"Cake4break!","5":"Ironman&snap5","6":"Over8thousand!","7":"Believe!7it","8":"Hadtobe+me8","9":"Mojave!9road","10":"Praise2sun!","11":"Evenlift!11","12":"Winter^coming12","13":"Legsdan!ny13","14":"Theone+14now","15":"Kameha&goku15","16":"Catchemall!16","17":"Master^chief17","18":"Link2past!18","19":"Hyrule+war19","20":"Mario64!super","21":"Sonic&fast21","22":"Batman!22dark","23":"Kryptonite+23","24":"Spidey^web24","25":"Thor!hammer25","26":"Hulk+smash26","27":"Captain&shield27","28":"Hawkeye^28","29":"Wanda+magic29","30":"Loki!variant30","31":"Thanos&wrong31","32":"Groot^iamgroot32","33":"Rocket+trash33","34":"Drax!laugher34","35":"Gamora&green35","36":"Nebula^cyborg36","37":"Starlord+who37","38":"Avengers!init38","39":"Infinity&gems39","40":"Timestone+40","41":"Doctor^who41","42":"Tardis!blue42","43":"Dalek&exterm43","44":"Cyberman+up44","45":"Master^drums45","46":"Rose!badwolf46","47":"River&spoilers47","48":"Captain+jack48","49":"Donna^remember49","50":"Amy!pondwaits50","51":"Rory&waited51","52":"Clara+impossible52","53":"Bill^tenant53","54":"Nardole!ramen54","55":"Sasuke&avenger55","56":"Sakura+medic56","57":"Kakashi^pasta57","58":"Jiraya!pervy58","59":"Tsunade&gambler59","60":"Orochi+snake60","61":"Itachi^truth61","62":"Madara!god62","63":"Hashirama&wood63","64":"Minato+flash64","65":"Kushina^habanero65","66":"Hinata!gentle66","67":"Neji&fate67now","68":"Rocklee+beast68","69":"Tenten^weapon69","70":"Kiba!fang70dog","71":"Shino&bugs71","72":"Ino+mindflower72","73":"Choji^butterfly73","74":"Asuma!cigs74","75":"Kurenai&genjutsu75","76":"Gaara+sand76","77":"Temari^wind77","78":"Kankaro!puppet78","79":"Chiyo&granny79","80":"Sasori+puppet80","81":"Deidara^artboom81","82":"Tobi!goodboy82","83":"Pain&almighty83","84":"Konan+paper84","85":"Kisame^sharky85","86":"Zetsu!blackwhite86","87":"Obito&kamui87","88":"Rin+sacrifice88","89":"Danzo^root89","90":"Hiruzen!sarutobi90","91":"Tobirama&speed91","92":"Jiraiya+dies92","93":"Link^awakens93","94":"Zelda!wisdom94","95":"Ganondorf&doom95","96":"Samus+arangun96","97":"Pikachu^volts97","98":"Mewtwo!psychic98","99":"Lucario&lucario99","100":"Charizard+flame100","101":"Moonlight^sword101","102":"Thunder!cats102","103":"Voltron&defender103","104":"Megaman+buster104","105":"Crash^bandicoot105","106":"Spaborea!light106","107":"Falcon&pawnch107","108":"Fox+mccloud108","109":"Kirby^inhale109","110":"Yoshi!eggthrow110","111":"Waluigi&time111","112":"Bowser+flame112","113":"Peach^parasol113","114":"Toad!mushroom114","115":"Dabo&roadwarrior115","116":"Bumblebee+bot116","117":"Optimus^prime117","118":"Megatron!rises118","119":"Starscream&flys119","120":"Grimlock+chomp120","121":"Cybertron^home121","122":"Delorean!skid122","123":"Flux&capacitor123","124":"Greatscott+doc124","125":"Deckard^runner125","126":"Neo!awakened126","127":"Morpheus&pill127","128":"Trinity+dodge128","129":"Agentsmith^virus129","130":"Zion!lastcity130","131":"Ripley&survives131","132":"Predator+trophy132","133":"Robocop^lawman133","134":"Terminator!back134","135":"Judgment&dayrise135","136":"Bladerunner+049","137":"Replicant^dream137","138":"Atreides!spice138","139":"Dune&wormrider139","140":"Fremen+sietch140","141":"Shallow^aisword141","142":"Excalibur!strike142","143":"Maboroshi&ghost143","144":"Spirited+away144","145":"Totoro^catbus145","146":"Howl!castle146","147":"Ponyo&goldfish147","148":"Mikisen+entropy148","149":"Elon^astronaut149","150":"Saitama!punch150","151":"Genos&inciner8","152":"Bang+silver152","153":"Tornado^terror153","154":"King!engine154","155":"Doomslayer&rip155","156":"Masterchef+cook156","157":"Cortana^blue157","158":"Arbiter!sworn158","159":"Serge&johnson159","160":"Gravemind+speak160","161":"Kratos^boy161","162":"Atreus!lokinow162","163":"Thor&ragnarok163","164":"Midgard+serpent164","165":"Mimir^wisehead165","166":"Geralt!ofrivia166","167":"Yennefer&violet167","168":"Ciri+swallowtail168","169":"Triss^merigold169","170":"Dandelion!jask170","171":"Roach&theboat171","172":"Shepard+command172","173":"Garrus^vakarian173","174":"Tali!machinist174","175":"Wrex&kroganbash175","176":"Liara+prothean176","177":"Dragonborn^fus177","178":"Alduin!forever178","179":"Paarthurnax&old179","180":"Sweetroll+guard180","181":"Lydias^sworn181","182":"Chocobo!ride182","183":"Maboroshi&sword183","184":"Tidus+blitzball184","185":"Cloud^buster185","186":"Sephiroth!wing186","187":"Aerith&flowers187","188":"Tifa+fistfight188","189":"Barret^gunarm189","190":"Redxiii!cosmo190","191":"Cid&flyaway191","192":"Viki+freeze192","193":"Squall^gunblade193","194":"Rinoa!angel194","195":"Zell&hotdog195","196":"Quistis+whip196","197":"Selphie^bouncy197","198":"Vivi!dragooneer198","199":"Steiner&rusty199","200":"Ember+galaxy200","201":"Elden@lordrune201","202":"Malenia#blade202","203":"Ranni$darkmoon203","204":"Radahn%starscourge204","205":"Godrick@grafted205","206":"Messmer#flame206","207":"Hunter$paleblood207","208":"Ludwig%holyblade208","209":"Hollow@knightnail209","210":"Sekiro#shinobi210","211":"Snake$foxhound211","212":"Bigboss%legend212","213":"Ocelot@revolver213","214":"Raiden#lightning214","215":"Quiet$sniper215","216":"Otacon%codec216","217":"Leon@kennedy217","218":"Jill#valentine218","219":"Nemesis$stars219","220":"Wesker%uroboros220","221":"Chris@redfield221","222":"Ada#wong222","223":"Pyramid$headfog223","224":"James%sunderland224","225":"Ryu@hadoken225","226":"Ken#shoryuken226","227":"Chunli$kick227","228":"Guile%sonicboom228","229":"Scorpion@gethere229","230":"Subzero#freeze230","231":"Liukang$fire231","232":"Heihachi%mishima232","233":"Kazuya@devilgene233","234":"Jin#kazama234","235":"Tracer$blink235","236":"Reaper%wraith236","237":"Mercy@heals237","238":"Genji#dragonblade238","239":"Reinhardt$barrier239","240":"Teemo%shroom240","241":"Yasuo@windwall241","242":"Diablo#terror242","243":"Tyrael$justice243","244":"Arthas%frostmourne244","245":"Joker@arsene245","246":"Morgana#mona246","247":"Makoto$queen247","248":"Yusuke%inari248","249":"Sora@keyblade249","250":"Kairi#light250","251":"Riku$dawn251","252":"Roxas%oblivion252","253":"Rapture@kindly253","254":"Bigdaddy#drill254","255":"Subject$delta255","256":"Glados%testing256","257":"Chell@portalgun257","258":"Gordon#crowbar258","259":"Alyx$vance259","260":"Picard%engage260","261":"Spock@logic261","262":"Kirk#beamup262","263":"Worf$honor263","264":"Eleven%eggos264","265":"Demogorgon@hunt265","266":"Hopper#hawkins266","267":"Dustin$curiosity267","268":"Potter%patronus268","269":"Hermione@leviosa269","270":"Snape#always270","271":"Dumbledore$phoenix271","272":"Voldemort%horcrux272","273":"Frodo@onering273","274":"Gandalf#shallnotpass274","275":"Aragorn$ranger275","276":"Legolas%longshot276","277":"Gimli@axeswing277","278":"Eren#freedom278","279":"Levi$ackerman279","280":"Mikasa%scarf280","281":"Tanjiro@hinokami281","282":"Nezuko#bamboo282","283":"Gojo$infinity283","284":"Itadori%sukuna284","285":"Edward@fullmetal285","286":"Alphonse#armor286","287":"Ichigo$bankai287","288":"Gon%jajanken288","289":"Killua@godspeed289","290":"Yagami#deathnote290","291":"Luffy$gomugomu291","292":"Zoro%threeswords292","293":"Nami@navigator293","294":"Sanji#blackleg294","295":"Spike$bebop295","296":"Usagi%moonprism296","297":"Vincent@silverhand297","298":"Morgan#redemption298","299":"Aloy$nora299","300":"Joel%ellie300"};
-  const OPERATOR_NAMES = {"149":"Saicharan Arukala","99":"Momen Khedr","98":"Abigail Isaac Okonu","97":"Wassim Hamdi","96":"Vanessa Deogratias Muganda","95":"Seifeddine Chbili","94":"Raene Bouzidi","92":"Michael Rifert","91":"Micha Maurice Diangatebe Ndong","90":"Matthias John","9":"Mouhammad Farooq","89":"Wassim Mnasri","88":"Zain Ahmed Shamsi","87":"Yassine Kallel","86":"Sohail Shafi Shaikh","85":"Sirine Mokni","84":"Mohammad Alata","83":"Leopold Jonathan Hartmann","82":"Khadija Jamoussi","81":"Katharina Graf","80":"Jesse Kokta","8":"Nandhakishor Sathian","79":"Isabella Menzel","78":"Gova Pinega","76":"Charlotte Tauber","75":"Gligor Andonov","74":"Dias Matthias Beisenov","73":"Sanchari Ghosh","72":"Iqra Nadeem","71":"Lorena Felicia Roetzer","70":"Rohit Kishore Galani","69":"Laureen Achola","68":"Ruth Jenebu Abah","67":"Danial Ahmed","66":"Noor Dheyaa Abdulrah Al Saedi","65":"Shayan Fazili","64":"Fatimah Azzahro","63":"Joseph Maher Mousa Sweiss","62":"Carolin Horn","60":"Doris Tunsubilege Mwakibinga","6":"Usama Ali","59":"Gabriela Alice Boanca","58":"Annemarie Ingrid Stoicescu","56":"Julian Mueller-Knapp","55":"Elsayad Ashref Elsayed Mourad","54":"Isabella Zwiorek","53":"Saud Ali","52":"Ahmed Yassine El Abed","51":"Sedki Ben Haouala","50":"Ashutosh Kumar Verma","5":"Azim Shakhmaev","49":"Mario Hagel","48":"Dominika Idzcak","47":"Paulus Emanuel Riedmann","46":"Henry Witton Acosta","45":"Farouk Amri","43":"Yeersen Shatewakasi","42":"Volgan Nketcha Mbakob","41":"Bhavya Shukla","40":"Leon Lahr","4":"Aftab Firojbhai Mansuri","39":"Angela Carrieri","38":"Ahmed Aboelmaaty","37":"Mohamed Mokhtar Mustafa Medina","36":"Abdalla Emad Abdelrazek Mohamed","35":"Shaojie Qiu","34":"Justin Zollinger","33":"Noreddine Razzouk","32":"Khaled Abdelmoneem Osman Elgendy","31":"Otmane Oulmekki","3":"Ahmed Halim Ammari","29":"Houcem Ghorbel","28":"Khadija Nezhari","27":"Bingjie Ma","25":"Ayhem Assadi","24":"Amelle Tayanou","23":"Almos Doma","22":"Vivek Sharma","21":"Kamaal Ahmed Barkathulla","2":"Aymen Lahiani","19":"Nisha Tallat","18":"Somireddy Nandipati","17":"Muhammad Shafee","169":"Hemant Arunkumar","168":"Kaan Özcurt","167":"Marie Galowy","166":"Samuel Daniel Tadesse","165":"Yesmine Karoui","164":"Phillip Schiebel","163":"Sarah Sami Mohamad Nuri","162":"Bieande Zheng","161":"Rym Abderrahim","160":"Moez Daghfous","16":"Ahmed Hussein","159":"Mouayed Jemaa","158":"Seda Aydin","157":"Ahmed Ibrahim Ahmed","156":"Haris","155":"Nahid Ahmmed","154":"Aita Nikhil","153":"Sowreshwaramoorthi","152":"Dinesh Yalamaddi","151":"Sidratul Montaha","150":"Gayatri Aita","15":"Mohamed Hedi Kammoun","148":"Sohel Sekh","147":"Ehap Awad Elbaz Saleh Awad","146":"Nithin Pathipaka","144":"Areeba Ishtiaq","143":"SAMIUL ISLAM","141":"Simon Nikolas","140":"Ahmed Kaddah","14":"Mohammad Younesse","139":"Maxima Sabrina","138":"Salah Fenina","137":"Rima Neji","136":"Mohamed khalil taher Faouel","134":"Nuredin Selmani","133":"Baya Chaabane","132":"Benjamin Costa Santos Amendt","131":"Ümit Alper","130":"Ghaith Ben Younes","13":"Pranta Saha","129":"Saef Badran","128":"Fresnel Kenfack Tegoufo","127":"Wilfried Djoufo","126":"Sanket Khot","125":"Sebastian Pfleiderer","124":"Wezz Nunes","123":"Yadira Valentina Choquenaira Taipe","122":"Mahdi Gharsallah","121":"Mohamed Yassine Benkamel","120":"Abdelrahman Aref Nadi Mohamed","12":"Hamza Ben Dhiab","119":"Ismail Salem","118":"Kseniia Zimina","117":"Boran Kaplan","116":"Ibrahim Belkahla","115":"Salah-eddine Achi","114":"Finn Lemgau","113":"Mohamed Aziz Ben Ticha","112":"Amine Nezhari","111":"Mostafa Zayed","110":"Caroline Gingter","11":"Muhammed Uzair","109":"Srinivas Palla","108":"Asif Hussain Shaik","107":"Loujain Bahri","106":"Gopalarao Kandula","105":"Chiara Laurenza","104":"Murali Tadigiri","103":"Jitendra Chowdary Vattikunta","102":"Marcos Felipe Junior","101":"Nang Hnin Shwe Yi Win","100":"Akhil Ravinuthala","1":"Ahmed Soliman","170":"Maria Ishfaq","171":"Bushra Jafar","172":"Nurul Afsar","173":"Chaitali Singh","174":"Vinay kumar Pepeti","175":"Nishanth Sundaran","176":"Payel Miah","179":"Ahmed Samir Elmorsy Saleh Elazab","180":"Gabriel Barek","191":"Simon Nikolas"};
+  // Operator credentials are verified by the API.
 
   function stageOperatorId(stage, banner){
     const role = ROLES[pendingRole];
@@ -635,13 +625,7 @@
 
     const submit = ()=>{
       if(!digits) return;
-      const idNum = String(parseInt(digits, 10)); // normalize '007' -> '7' to match stored keys
-      if(!OPERATOR_CREDENTIALS.hasOwnProperty(idNum)){
-        operatorIdError = 'Unknown operator ID. Check the number and try again.';
-        digits = '';
-        renderStage();
-        return;
-      }
+      const idNum = String(parseInt(digits, 10)); // normalize '007' -> '7'
       pendingOperatorId = idNum;
       operatorIdError = null;
       screen = 'operatorPassword';
@@ -684,13 +668,19 @@
     input.focus();
     const submit = async ()=>{
       const entered = input.value;
-      if(entered !== OPERATOR_CREDENTIALS[id]){
-        operatorPasswordError = 'Incorrect password, try again.';
+      const result = await apiClient.loginOperator({
+        roleKey: pendingRole,
+        operatorId: id,
+        password: entered
+      });
+      if(!result || !result.ok || !result.token){
+        operatorPasswordError = (result && result.error) || 'Incorrect password, try again.';
         renderStage();
         return;
       }
-      const name = OPERATOR_NAMES[id] || ('Operator-' + id);
-      currentPerson = { name, role: role.label, code: name + '/' + role.label };
+      authToken = result.token;
+      apiClient.setToken(authToken);
+      currentPerson = result.person;
       pendingOperatorId = null;
       operatorPasswordError = null;
       pendingRole = null;
@@ -737,7 +727,7 @@
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
     }
-    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
+    document.getElementById('signOut').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); };
   }
 
   function stageScanPrompt(stage, banner){
@@ -1013,8 +1003,11 @@
           qty: b.qty,
           expectedReturn: b.hours ? new Date(Date.now() + b.hours*3600*1000).toISOString() : null
         }));
-        const result = await postAction({
-          action:'takeBatch', person: currentPerson.name, role: currentPerson.role, items
+        const result = await apiClient.takeBatch({
+          client_request_id: apiClient.newRequestId(),
+          person: currentPerson.name,
+          role: currentPerson.role,
+          items
         });
         await refreshRemote();
         if(!result.ok){
@@ -1291,7 +1284,11 @@
         setButtonBusy(confirmBtn, true, 'Saving...');
         returnBasketError = null;
         const txIds = returnBasket.map(tx=>tx.txId);
-        const result = await postAction({ action:'returnBatch', txIds, returnedBy: currentPerson.code });
+        const result = await apiClient.returnBatch({
+          client_request_id: apiClient.newRequestId(),
+          txIds,
+          returnedBy: currentPerson.code
+        });
         await refreshRemote();
         if(!result.ok){
           returnBasketError = result.error || 'Something went wrong saving these returns — check your connection and tap Confirm again.';
@@ -1316,8 +1313,8 @@
         <button class="go-btn" id="doneBtn" style="margin-top:26px;">Done</button>
       </div>
     `;
-    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); };
-    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; basket=[]; returnBasket=[]; screen='idle'; renderStage(); } }, 6000);
+    document.getElementById('doneBtn').onclick = ()=>{ currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); };
+    setTimeout(()=>{ if(screen==='confirm'){ currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); } }, 6000);
   }
 
   // ---------- manager report ----------
@@ -1419,11 +1416,19 @@
       renderStage();
       return;
     }
-    let matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
+    let matchName = Object.keys(inventoryMap).find(name => {
+      const inv = inventoryMap[name];
+      const barcode = inv && inv.barcode ? normalizeText(inv.barcode) : '';
+      return barcode && barcode === norm;
+    });
     if(!matchName){
+      matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
+    }
+    if(!matchName){
+      // fallback fuzzy match only if no exact barcode/name hit
       matchName = Object.keys(inventoryMap).find(name => {
         const n = normalizeText(name);
-        return norm.includes(n) || n.includes(norm);
+        return n.length >= 4 && (norm.includes(n) || n.includes(norm));
       });
     }
     if(!matchName){
