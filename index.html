@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Supply Room — Check-Out Station</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -150,11 +151,14 @@
 
   /* Pulsing scan icon */
   @keyframes scan-pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(1.1);}}
-  .scan-pulse{display:inline-block;animation:scan-pulse 2s ease-in-out infinite;}
+  .scan-pulse{display:inline-block;animation:scan-pulse 2s ease-in-out infinite;will-change:transform,opacity;}
 
   /* Pop-in animation on confirmation */
   @keyframes pop-in{0%{transform:scale(.3) rotate(-15deg);opacity:0;}65%{transform:scale(1.18) rotate(4deg);}100%{transform:scale(1) rotate(0deg);opacity:1;}}
-  .confirm-pop{display:inline-block;animation:pop-in .45s cubic-bezier(.34,1.56,.64,1) both;}
+  .confirm-pop{display:inline-block;animation:pop-in .45s cubic-bezier(.34,1.56,.64,1) both;will-change:transform;}
+
+  /* Paint containment — stops item-row repaints from bleeding into neighbours */
+  .item-row{contain:layout style;}
 </style>
 </head>
 <body>
@@ -171,7 +175,7 @@
 (function(){
   // ==== your Apps Script Web App URL ====
   const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxk6CIrk9GI1zn82Yg-5ZI3E8WOTVG02TgYDY-yqgV6isWkDKJR-n8rnhfJZ4jSOGqLAQ/exec';
-  const apiClient = window.SupplyApi.createApiClient(WEBAPP_URL, { timeoutMs: 9000, retries: 2 });
+  const apiClient = window.SupplyApi.createApiClient(WEBAPP_URL, { timeoutMs: 8000, retries: 1 });
   const domain = window.SupplyDomain;
   const { upgradeInteractiveElements, setButtonBusy } = window.SupplyUi;
   const machine = window.SupplyMachine.createSupplyMachine();
@@ -214,6 +218,7 @@
   let confirmInfo = null;
   let reportTab = 'open';
   let reportReturnScreen = 'idle'; // where the report back-button goes
+  let _numpadKeyCleanup = null;   // removes stale numpad keydown listener on screen change
   let basket = [];
   let basketIdCounter = 0;
   let scanBuffer = '';
@@ -299,7 +304,7 @@
     const photo = PHOTO_MAP[itemName];
     const fallbackIcon = iconForItem(itemName);
     if(photo){
-      return `<img src="${photo}" alt="" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid var(--border);background:#fff;" onerror="this.outerHTML='<span style=\\'font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;\\'>${fallbackIcon}</span>'">`;
+      return `<img src="${photo}" alt="" loading="lazy" width="${sizePx}" height="${sizePx}" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid var(--border);background:#fff;flex-shrink:0;" onerror="this.outerHTML='<span style=\\'font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;\\'>${fallbackIcon}</span>'">`;
     }
     return `<span style="font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;">${fallbackIcon}</span>`;
   }
@@ -385,15 +390,27 @@
     renderStage();
   }
 
+  let _lastClockStr = '';
   function updateClock(){
     const el = document.getElementById('clockDisplay');
     if(!el) return;
     const now = new Date();
     const dateStr = now.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
     const timeStr = now.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
-    el.innerHTML = `${dateStr}<br>${timeStr}`;
+    const combined = dateStr + '|' + timeStr;
+    if(combined === _lastClockStr) return;
+    _lastClockStr = combined;
+    // Avoid innerHTML re-parse — use two stable child text nodes
+    if(!el.firstChild){
+      el.appendChild(document.createTextNode(dateStr));
+      el.appendChild(document.createElement('br'));
+      el.appendChild(document.createTextNode(timeStr));
+    } else {
+      el.firstChild.textContent = dateStr;
+      el.lastChild.textContent = timeStr;
+    }
   }
-  setInterval(updateClock, 15000);
+  setInterval(updateClock, 10000);
 
   function renderLoading(stage){
     stage.innerHTML = `<div class="loading-wrap"><div style="text-align:center;"><div class="spin-ring"></div>Loading…</div></div>`;
@@ -406,6 +423,7 @@
   }
 
   function renderStage(){
+    if(_numpadKeyCleanup){ _numpadKeyCleanup(); _numpadKeyCleanup = null; }
     const stage = document.getElementById('stage');
     stage.style.opacity = '0';
     let banner = '';
@@ -540,12 +558,12 @@
     document.getElementById('numpadGo').onclick = submit;
 
     function handleKey(e){
-      if(!document.getElementById('numpadDisplay')){ document.removeEventListener('keydown', handleKey); return; }
       if(e.key>='0'&&e.key<='9'){ if(pin.length<maxLen){ pin+=e.key; numpadUpdate(); } }
       else if(e.key==='Backspace'){ e.preventDefault(); pin=pin.slice(0,-1); numpadUpdate(); }
       else if(e.key==='Enter'){ submit(); }
     }
     document.addEventListener('keydown', handleKey);
+    _numpadKeyCleanup = ()=>document.removeEventListener('keydown', handleKey);
   }
 
   function stageOperatorId(stage, banner){
@@ -597,12 +615,12 @@
     document.getElementById('numpadGo').onclick = submit;
 
     function handleKey(e){
-      if(!document.getElementById('numpadDisplay')){ document.removeEventListener('keydown', handleKey); return; }
       if(e.key>='0'&&e.key<='9'){ if(digits.length<maxLen){ digits+=e.key; numpadUpdate(); } }
       else if(e.key==='Backspace'){ e.preventDefault(); digits=digits.slice(0,-1); numpadUpdate(); }
       else if(e.key==='Enter'){ submit(); }
     }
     document.addEventListener('keydown', handleKey);
+    _numpadKeyCleanup = ()=>document.removeEventListener('keydown', handleKey);
   }
 
   // ---------- menu ----------

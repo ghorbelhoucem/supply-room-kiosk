@@ -18,8 +18,8 @@
       }
     }
 
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
+    document.addEventListener("keydown", onKeyDown, { capture: true, passive: true });
+    return () => document.removeEventListener("keydown", onKeyDown, { capture: true });
   }
 
   window.SupplyScanner = { attachKeyboardScanner };
