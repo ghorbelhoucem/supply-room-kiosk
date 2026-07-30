@@ -903,31 +903,6 @@
   }
 
   // ---------- take ----------
-  async function submitTake(itemName, category, qty, hours, onError){
-    const payload = {
-      action:'take',
-      person: currentPerson.name,
-      role: currentPerson.role,
-      item: itemName,
-      category: category,
-      qty: qty,
-      expectedReturn: hours ? new Date(Date.now() + hours*3600*1000).toISOString() : null
-    };
-    const result = await postAction(payload);
-    if(!result.ok){
-      onError('Something went wrong saving this — check your connection and try again.');
-      return;
-    }
-    await refreshRemote();
-    confirmInfo = {
-      icon: category==='Tools' ? '🧰' : '✅',
-      msg: category==='Tools' ? 'Checked out' : 'Taken from inventory',
-      detail: `${iconForRef(category)} ${qty} × ${itemName}` + (payload.expectedReturn ? ` — return by ${fmtDate(payload.expectedReturn)}` : ' — logged as used, no return needed')
-    };
-    screen='confirm';
-    renderStage();
-  }
-
   function hoursLabel(hours){
     if(hours===4) return 'end of day';
     if(hours===24) return 'tomorrow';
@@ -1239,7 +1214,13 @@
     const trimmed = text.trim();
     const norm = normalizeText(trimmed);
     const expected = normalizeText(tx.item);
-    const isMatch = norm === expected || norm.includes(expected) || expected.includes(norm);
+    let isMatch = norm === expected || norm.includes(expected) || expected.includes(norm);
+    if(!isMatch){
+      // Last resort: ignore punctuation entirely (scanner keyboard-layout mangling).
+      const normAlnum = domain.normalizeAlnum(trimmed);
+      const expectedAlnum = domain.normalizeAlnum(tx.item);
+      if(normAlnum.length >= 2 && normAlnum === expectedAlnum) isMatch = true;
+    }
     if(!isMatch){
       returnScanError = `Scanned: "${trimmed}" — doesn't match "${tx.item}". Try again, or use "Return without QR code" below.`;
       renderStage();
@@ -1425,6 +1406,14 @@
         const n = normalizeText(name);
         return norm.includes(n) || n.includes(norm);
       });
+    }
+    if(!matchName){
+      // Last resort: ignore punctuation entirely, in case a scanner's keyboard
+      // layout mangled characters like ( ) / — e.g. "Power Cable (PC/Monitor)".
+      const normAlnum = domain.normalizeAlnum(trimmed);
+      if(normAlnum.length >= 2){
+        matchName = Object.keys(inventoryMap).find(name => domain.normalizeAlnum(name) === normAlnum);
+      }
     }
     if(!matchName){
       scanNotFoundError = `No matching item found for scan: "${trimmed}". (${Object.keys(inventoryMap).length} items loaded) Try again, or choose manually.`;
