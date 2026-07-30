@@ -1,11 +1,9 @@
 FROM nginx:1.27-alpine
 
-# Serve the kiosk as the site root (no directory listing)
 COPY index.html /usr/share/nginx/html/index.html
+COPY config.js /usr/share/nginx/html/config.js
 COPY images/ /usr/share/nginx/html/images/
 COPY src/ /usr/share/nginx/html/src/
-
-# Lightweight static-only nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

@@ -3,49 +3,74 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  function newRequestId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
   async function fetchWithTimeout(url, options, timeoutMs) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const res = await fetch(url, { ...options, signal: controller.signal });
-      return res;
+      return await fetch(url, { ...options, signal: controller.signal });
     } finally {
       clearTimeout(timer);
     }
   }
 
   function mapError(err) {
-    const raw = String((err && err.message) || err || "Unknown error");
-    if (raw.includes("AbortError")) return "Request timed out. Please try again.";
-    if (raw.includes("Failed to fetch")) return "Network error. Check your connection and try again.";
-    return "Unexpected server error. Please retry.";
+    const raw = String((err && err.message) || err || 'Unknown error');
+    if (raw.includes('AbortError')) return 'Request timed out. Please try again.';
+    if (raw.includes('Failed to fetch')) return 'Network error. Check your connection and try again.';
+    return 'Unexpected server error. Please retry.';
   }
 
   function createApiClient(baseUrl, config = {}) {
     const timeoutMs = config.timeoutMs || 9000;
     const retries = config.retries == null ? 2 : config.retries;
     const retryDelayMs = config.retryDelayMs || 350;
+    let authToken = null;
+    const root = String(baseUrl || '/api').replace(/\/$/, '');
 
-    async function requestJson(method, payload) {
-      // Retries are only safe for GET (read-only). Retrying a POST could
-      // duplicate a take/return if the first request actually succeeded
-      // server-side but the response was lost (e.g. a slow Apps Script reply).
-      const maxAttempts = method === "GET" ? retries : 0;
+    function setToken(token) {
+      authToken = token || null;
+    }
+
+    function clearToken() {
+      authToken = null;
+    }
+
+    async function requestJson(path, { method = 'GET', body, auth = false, retry } = {}) {
+      // Retries are only safe for GET by default. POSTs use client_request_id
+      // idempotency on the server, but we still avoid blind retries unless asked.
+      const shouldRetry = retry == null ? method === 'GET' : retry;
+      const maxAttempts = shouldRetry ? retries : 0;
       let attempts = 0;
       let lastError;
+      const url = `${root}${path.startsWith('/') ? path : `/${path}`}`;
       while (attempts <= maxAttempts) {
         try {
-          const options =
-            method === "GET"
-              ? { method: "GET" }
-              : {
-                  method,
-                  headers: { "Content-Type": "text/plain;charset=utf-8" },
-                  body: JSON.stringify(payload || {}),
-                };
-          const res = await fetchWithTimeout(baseUrl, options, timeoutMs);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return await res.json();
+          const headers = { Accept: 'application/json', 'Content-Type': 'application/json' };
+          if (auth && authToken) headers.Authorization = `Bearer ${authToken}`;
+          const res = await fetchWithTimeout(
+            url,
+            {
+              method,
+              headers,
+              body: body == null ? undefined : JSON.stringify(body),
+              redirect: 'follow',
+            },
+            timeoutMs
+          );
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            return {
+              ok: false,
+              error: data.detail || data.error || `HTTP ${res.status}`,
+              code: data.code || `HTTP_${res.status}`,
+            };
+          }
+          return data;
         } catch (err) {
           lastError = err;
           if (attempts >= maxAttempts) break;
@@ -53,19 +78,81 @@
           attempts += 1;
         }
       }
-      return { ok: false, error: mapError(lastError), rawError: String(lastError || "") };
+      return { ok: false, error: mapError(lastError), rawError: String(lastError || '') };
     }
 
     return {
+      setToken,
+      clearToken,
+      newRequestId,
       async loadInventory() {
-        const data = await requestJson("GET");
+        const data = await requestJson('/inventory', { method: 'GET', auth: false });
         if (data && data.ok === false) return data;
         return { ok: true, inventory: data.inventory || [], history: data.history || [] };
       },
+      async loginPin({ roleKey, pin, name }) {
+        return requestJson('/auth/login/pin', {
+          method: 'POST',
+          body: { role_key: roleKey, pin, name: name || null },
+          retry: false,
+        });
+      },
+      async loginOperator({ roleKey, operatorId, password }) {
+        return requestJson('/auth/login/operator', {
+          method: 'POST',
+          body: { role_key: roleKey, operator_id: operatorId, password },
+          retry: false,
+        });
+      },
+      async takeBatch(payload) {
+        return requestJson('/take-batch', {
+          method: 'POST',
+          auth: true,
+          body: {
+            client_request_id: payload.client_request_id || newRequestId(),
+            person: payload.person,
+            role: payload.role,
+            items: payload.items,
+          },
+          retry: false,
+        });
+      },
+      async returnBatch(payload) {
+        return requestJson('/return-batch', {
+          method: 'POST',
+          auth: true,
+          body: {
+            client_request_id: payload.client_request_id || newRequestId(),
+            txIds: payload.txIds,
+            returnedBy: payload.returnedBy,
+          },
+          retry: false,
+        });
+      },
+      async receive(payload) {
+        return requestJson('/receive', {
+          method: 'POST',
+          auth: true,
+          body: {
+            client_request_id: payload.client_request_id || newRequestId(),
+            item: payload.item,
+            qty: payload.qty,
+            reason: payload.reason || 'restock',
+          },
+          retry: false,
+        });
+      },
       async postAction(payload) {
-        const result = await requestJson("POST", payload);
-        if (result && typeof result.ok === "boolean") return result;
-        return { ok: true, data: result };
+        if (payload.action === 'takeBatch') return this.takeBatch(payload);
+        if (payload.action === 'returnBatch') return this.returnBatch(payload);
+        if (payload.action === 'restock' || payload.action === 'receive') {
+          return this.receive({
+            item: payload.item,
+            qty: payload.qty,
+            reason: payload.reason || 'restock',
+          });
+        }
+        return { ok: false, error: 'Unsupported action', code: 'UNSUPPORTED' };
       },
       mapError,
     };

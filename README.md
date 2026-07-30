@@ -1,21 +1,8 @@
 # Supply Room — Check-Out Station
 
-A touchscreen kiosk for tracking tool and station-part checkouts in a robotics / operations environment. Staff tap their role and name, enter a group PIN, then check items in or out. All data lives in a Google Sheet via a Google Apps Script web app — no separate server needed.
+Touchscreen kiosk for tool and station-part checkouts. **PostgreSQL is the source of truth**; the kiosk is a thin UI; Google Sheets / Excel is a **purchasing mirror**.
 
 ![CI](https://github.com/ghorbelhoucem/supply-room-kiosk/actions/workflows/ci.yml/badge.svg)
-
----
-
-## Features
-
-- **Role-based sign-in** — Maintenance, Management, Supervisor, Tele-operator
-- **On-screen numpad** for PIN and operator-ID entry (no physical keyboard required)
-- **Barcode / QR scanner support** — plug in a USB HID scanner and it auto-detects fast keystrokes
-- **Take flow** — browse or search tools and station parts, build a basket, confirm in one tap
-- **Return flow** — pick items from the open-checkout list, optional QR-code scan to verify
-- **Manager report** — open/overdue checkouts, full history, and live inventory counts
-- **Offline-tolerant** — shows a connection banner when the backend is unreachable
-- **Responsive layout** — fluid grid adapts from small tablets to large kiosk monitors
 
 ---
 
@@ -23,142 +10,103 @@ A touchscreen kiosk for tracking tool and station-part checkouts in a robotics /
 
 | Layer | Technology |
 |---|---|
-| UI | Vanilla HTML/CSS/JS — single `index.html`, no framework |
-| JS modules | `src/` — domain logic, state machine, API client, scanner, renderer |
-| Backend | Google Apps Script Web App |
-| Data store | Google Sheets |
-| Tests | Playwright (smoke) |
-| CI | GitHub Actions |
+| UI | Vanilla HTML/CSS/JS (`index.html` + `src/`) |
+| API | Python FastAPI (`backend/`) |
+| Database | PostgreSQL |
+| Buyer view | Google Sheets mirror + `.xlsx` export |
+| Hosting | Docker Compose (nginx kiosk + api + db) |
 
 ---
 
-## Quick start (local)
+## Quick start (Docker / company LAN)
 
 ```bash
 git clone https://github.com/ghorbelhoucem/supply-room-kiosk.git
 cd supply-room-kiosk
+git checkout feature/production-inventory-backend
 
-# Serve with any static file server — no build step needed
-python3 -m http.server 8080
-# or: npx serve .
-```
-
-Open `http://localhost:8080` in a browser. The app shows a connection banner until a real backend URL is configured (see below).
-
----
-
-## Configuration
-
-All config lives in the `<script>` block at the bottom of `index.html`.
-
-### 1. Backend URL
-
-```js
-const WEBAPP_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
-```
-
-Deploy your Google Apps Script as a web app and paste the URL here. The script must handle `GET` (return `{ inventory, history }`) and `POST` (handle `take`, `takeBatch`, `returnBatch` actions).
-
-### 2. Roles and names
-
-```js
-const ROLES = {
-  maintenance: { label: 'Maintenance', icon: '🔧', kind: 'names', names: ['Alice', 'Bob'] },
-  management:  { label: 'Management',  icon: '📋', kind: 'names', names: ['Carol'] },
-  supervisor:  { label: 'Supervisor',  icon: '🧭', kind: 'operatorId' },
-  teleoperator:{ label: 'Tele-operator', icon: '🎮', kind: 'operatorId' }
-};
-```
-
-`kind: 'names'` — user picks their name then enters a group PIN.  
-`kind: 'operatorId'` — user types their numeric operator ID on the numpad.
-
-### 3. Group PINs
-
-```js
-const GROUP_PINS = {
-  groupA:     '1234',
-  management: '5678'
-};
-
-const NAME_TO_GROUP = {
-  'Alice': 'groupA',
-  'Bob':   'groupA',
-  'Carol': 'management'
-};
-```
-
-Everyone in the same group shares one 4-digit PIN. Change these codes to whatever you want.
-
----
-
-## Deployment
-
-The app is a static site — deploy anywhere that serves files.
-
-**GitHub Pages**
-
-1. Go to *Settings → Pages* in your repo.
-2. Set source to *Deploy from a branch*, branch `main`, folder `/`.
-3. The kiosk is live at `https://<your-org>.github.io/supply-room-kiosk/`.
-
-**Docker (recommended for company LAN)**
-
-```bash
-# From this folder — stop any old python http.server first
+# Optional: set JWT_SECRET in .env
 docker compose up -d --build
 ```
 
-Open on the LAN (this host’s IP + the mapped port):
+Open:
 
 ```text
 http://10.3.120.174:61938
 ```
 
-Useful commands:
+Seeded demo PINs (change in production via DB / reseed):
 
-```bash
-docker compose logs -f    # watch logs
-docker compose down       # stop and remove container
-```
+| Role | PIN | User |
+|---|---|---|
+| Maintenance | `4708` | Houcem |
+| Management | `4685` | Rosa |
+| Devs | `7346` | Developer |
 
-**Local network kiosk (without Docker)**
-
-```bash
-python3 -m http.server 61938 --bind 0.0.0.0
-```
-
-Point the kiosk browser to `http://<this-machine-ip>:61938` in full-screen / kiosk mode.
+Demo operators: ID `1` / `Senate!now1` (Supervisor), ID `2` / `Punch+love2` (Tele-operator).
 
 ---
 
-## Item images
+## Architecture
 
-Place product photos in the `images/` folder and register them in the `PHOTO_MAP` object inside `index.html`:
+- Kiosk calls `/api/*` through nginx → FastAPI
+- Auth: `POST /api/auth/login/pin` or `/api/auth/login/operator` → JWT
+- Mutations: `POST /api/take-batch`, `/api/return-batch`, `/api/receive`, `/api/adjust` with `client_request_id` (idempotent)
+- Snapshot: `GET /api/inventory`
+- Export: `GET /api/exports/inventory.xlsx` (Management/Devs)
+- Sheet sync: enable with `GOOGLE_SHEET_SYNC_ENABLED=true` + sheet id + service account JSON
 
-```js
-const PHOTO_MAP = {
-  'Ethernet Cable 1M': 'images/ethernet_cable.jpg',
-  'HDMI Cable':        'images/hdmi_cable.jpg',
-  // ...
-};
-```
-
-Items without a matching entry fall back to an emoji icon automatically.
+Config for the browser is [`config.js`](config.js) (`apiBaseUrl: '/api'`).
 
 ---
 
-## Development
+## Cutover runbook (from Apps Script / Sheets)
+
+1. **Start stack** — `docker compose up -d --build`
+2. **Import inventory/history** from legacy web app:
+   ```bash
+   docker compose exec -e LEGACY_WEBAPP_URL='https://script.google.com/.../exec' api \
+     python -m app.import_legacy
+   ```
+3. **Import operators** (optional) — write gitignored `backend/seed_secrets.json`, then:
+   ```bash
+   docker compose exec -w /app api python -m app.import_operators
+   ```
+   Mount or copy the file into the container first.
+4. **Point purchasing** at the mirror workbook (tabs: `Inventory`, `OpenCheckouts`, `Movements`) and enable sheet sync env vars.
+5. **Freeze** the old Apps Script web app (disable writes).
+6. **Backup Postgres** regularly:
+   ```bash
+   docker compose exec db pg_dump -U supply supply > backup-$(date +%F).sql
+   ```
+
+---
+
+## Google Sheets mirror
+
+Set in `.env` / compose:
 
 ```bash
-npm install               # installs Playwright + linting tools
-
-npm run lint              # ESLint
-npm run format            # Prettier
-npm test                  # Playwright smoke tests (headless Chromium)
+GOOGLE_SHEET_SYNC_ENABLED=true
+GOOGLE_SHEET_ID=your-sheet-id
+GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+SHEET_SYNC_INTERVAL_MINUTES=10
 ```
 
-Smoke tests live in `tests/smoke/kiosk.spec.js` and cover sign-in, take, return, and the manager report.
+Pre-create tabs named `Inventory`, `OpenCheckouts`, `Movements`. Share the sheet with the service account email. Humans should treat the sheet as **read-only**.
+
+Manual sync: `POST /api/sync/sheets`
+
+---
+
+## API tests
+
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+pytest -q
+```
 
 ---
 
@@ -166,17 +114,22 @@ Smoke tests live in `tests/smoke/kiosk.spec.js` and cover sign-in, take, return,
 
 ```
 supply-room-kiosk/
-├── index.html                      # app shell, styles, and bootstrap logic
-├── images/                         # product photos (jpg)
-├── src/
-│   ├── api/client.js               # fetch wrapper with retries + timeout
-│   ├── domain/inventory.js         # pure business logic (availability, overdue)
-│   ├── scanner/keyboardScanner.js  # HID barcode scanner detection
-│   ├── state/machine.js            # allowed screen transitions
-│   ├── state/store.js              # in-memory state store
-│   └── ui/renderer.js              # DOM utility helpers
-├── tests/smoke/kiosk.spec.js       # Playwright end-to-end smoke tests
-├── .github/workflows/ci.yml        # GitHub Actions CI
-├── package.json
-└── playwright.config.js
+├── index.html                 # kiosk UI
+├── config.js                  # API base URL
+├── src/                       # frontend modules
+├── backend/                   # FastAPI + inventory services
+│   ├── app/
+│   └── tests/
+├── docker-compose.yml         # db + api + kiosk
+├── Dockerfile                 # nginx UI
+└── nginx.conf                 # proxies /api → api:8000
 ```
+
+---
+
+## Development notes
+
+- Credentials are **not** stored in `index.html` anymore.
+- Manager Report requires Management or Devs session.
+- Client availability checks are advisory; the API enforces stock under row locks.
+- Retries after timeout are safe when the same `client_request_id` is reused.
