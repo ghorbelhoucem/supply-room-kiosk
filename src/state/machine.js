@@ -1,9 +1,10 @@
 (() => {
   const transitions = {
-    idle: ["nameSelect", "operatorId", "report"],
-    nameSelect: ["idle", "pinEntry"],
-    pinEntry: ["nameSelect", "menu"],
-    operatorId: ["idle", "menu"],
+    idle: ["deptPin", "operatorId", "report"],
+    deptPin: ["idle", "deptPinPickName", "menu"],
+    deptPinPickName: ["deptPin", "menu"],
+    operatorId: ["idle", "operatorPassword"],
+    operatorPassword: ["operatorId", "menu"],
     menu: ["idle", "scanPrompt", "takeCategory", "return", "report"],
     scanPrompt: ["menu", "takeCategory", "scanConfirm", "basketReview"],
     scanConfirm: ["scanPrompt", "takeCategory", "scanTakeDetail"],
