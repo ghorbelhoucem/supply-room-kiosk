@@ -213,6 +213,7 @@
   let pendingRole = null;
   let pendingName = null;
   let pendingSharedNames = null;
+  let activeNumpadKeyHandler = null; // ensures only one physical-keyboard listener is ever active
   let pinError = null;
   let pendingOperatorId = null;
   let operatorIdError = null;
@@ -561,6 +562,8 @@
       else if(e.key==='Backspace'){ e.preventDefault(); pin=pin.slice(0,-1); numpadUpdate(); }
       else if(e.key==='Enter'){ submit(); }
     }
+    if(activeNumpadKeyHandler) document.removeEventListener('keydown', activeNumpadKeyHandler);
+    activeNumpadKeyHandler = handleKey;
     document.addEventListener('keydown', handleKey);
   }
 
@@ -657,6 +660,8 @@
       else if(e.key==='Backspace'){ e.preventDefault(); digits=digits.slice(0,-1); numpadUpdate(); }
       else if(e.key==='Enter'){ submit(); }
     }
+    if(activeNumpadKeyHandler) document.removeEventListener('keydown', activeNumpadKeyHandler);
+    activeNumpadKeyHandler = handleKey;
     document.addEventListener('keydown', handleKey);
   }
 
