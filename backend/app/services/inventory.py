@@ -238,12 +238,41 @@ def return_batch(db: Session, tx_ids: list[str], returned_by: str) -> dict:
     return {"ok": True, "txIds": tx_ids}
 
 
-def receive_stock(db: Session, item_name: str, qty: int, actor: str, reason: str | None) -> dict:
+def receive_stock(
+    db: Session,
+    item_name: str,
+    qty: int,
+    actor: str,
+    reason: str | None,
+    category: str | None = None,
+) -> dict:
     item = db.execute(
         select(InventoryItem).where(InventoryItem.name == item_name).with_for_update()
     ).scalar_one_or_none()
+
     if not item:
-        return {"ok": False, "error": f'Unknown item "{item_name}"', "code": "UNKNOWN_ITEM"}
+        if not category:
+            return {"ok": False, "error": f'Unknown item "{item_name}"', "code": "UNKNOWN_ITEM"}
+        try:
+            item_category = ItemCategory(category)
+        except ValueError:
+            return {
+                "ok": False,
+                "error": f'Invalid category "{category}"',
+                "code": "INVALID_CATEGORY",
+            }
+        item = InventoryItem(
+            sku=f"NEW-{uuid.uuid4().hex[:8].upper()}",
+            name=item_name,
+            category=item_category,
+            qty_on_hand=0,
+            reorder_min=3,
+            barcode=item_name,
+        )
+        db.add(item)
+        db.flush()  # get item.id before logging the movement below
+        reason = reason or "New item added via kiosk"
+
     item.qty_on_hand += qty
     db.add(
         Movement(
