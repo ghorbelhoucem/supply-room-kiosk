@@ -116,7 +116,7 @@ def _push_to_legacy_webapp(webapp_url: str, payload: dict) -> None:
         "inventory": payload["inventory"],
         "history": payload["history"],
     }
-    resp = httpx.post(webapp_url, json=body, timeout=20.0)
+    resp = httpx.post(webapp_url, json=body, timeout=20.0, follow_redirects=True)
     resp.raise_for_status()
     result = resp.json()
     if not result.get("ok"):
