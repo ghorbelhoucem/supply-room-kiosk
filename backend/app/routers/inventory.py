@@ -80,7 +80,7 @@ def receive(
     if existing:
         return existing
     actor = f"{user.name}/{user.role.value}"
-    result = inv.receive_stock(db, body.item, body.qty, actor, body.reason)
+    result = inv.receive_stock(db, body.item, body.qty, actor, body.reason, category=body.category)
     if not result.get("ok"):
         db.rollback()
         return result
