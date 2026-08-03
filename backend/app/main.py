@@ -35,7 +35,7 @@ async def lifespan(_app: FastAPI):
         finally:
             db.close()
 
-    if settings.google_sheet_sync_enabled:
+    if (settings.legacy_webapp_url or "").strip():
         scheduler.add_job(
             _scheduled_sync,
             "interval",
