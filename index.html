@@ -1363,7 +1363,7 @@
       <div class="item-list">
         ${items.length ? items.map(it=>{
           const avail = availableOf(it.item);
-          const low = it.reference==='Station Parts' && Number(it.quantity) <= 3;
+          const low = it.reference==='Station Parts' && Number(it.quantity) <= Number(it.reorder_min || 5);
           return `<div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
               ${itemThumbHTML(it.item, 56, 36)}
@@ -1677,6 +1677,10 @@
         <button class="nav-btn ${reportTab==='all'?'active':''}" data-t="all">Full History</button>
         <button class="nav-btn ${reportTab==='stock'?'active':''}" data-t="stock">Inventory Status</button>
         <button class="nav-btn ${reportTab==='weekly'?'active':''}" data-t="weekly">Weekly Report</button>
+        <button class="nav-btn ${reportTab==='purchase'?'active':''}" data-t="purchase">Purchase List${(()=>{
+          const n = Object.values(inventoryMap).filter(it=>Number(it.quantity) <= Number(it.reorder_min || 5)).length;
+          return n ? ` (${n})` : '';
+        })()}</button>
       </div>
       ${reportTab==='stock' ? `
         <div>
@@ -1688,10 +1692,13 @@
             const q = reportStockSearchQuery.trim().toLowerCase();
             const filteredTools = q ? toolItems.filter(it=>it.item.toLowerCase().includes(q)) : toolItems;
             if(!filteredTools.length) return `<div class="empty-note">${toolItems.length ? 'No tools match your search.' : 'No tools yet.'}</div>`;
-            return `<div class="stock-grid">${filteredTools.map(it=>`<div class="stockbar">
+            return `<div class="stock-grid">${filteredTools.map(it=>{
+              const toolLow = Number(it.quantity) <= Number(it.reorder_min || 5);
+              return `<div class="stockbar">
               <span>${iconForRef('Tools')} ${esc(it.item)}</span>
-              <span class="stock ${String(it.availability||'').includes('missing')?'low':''}">${esc(it.availability||'—')}</span>
-            </div>`).join('')}</div>`;
+              <span class="stock ${toolLow || String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
+            </div>`;
+            }).join('')}</div>`;
           })()}
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:18px 0 8px;">Station Parts</div>
           ${(()=>{
@@ -1699,7 +1706,7 @@
             const filteredParts = q ? partItems.filter(it=>it.item.toLowerCase().includes(q)) : partItems;
             if(!filteredParts.length) return `<div class="empty-note">${partItems.length ? 'No parts match your search.' : 'No station parts yet.'}</div>`;
             return `<div class="stock-grid">${filteredParts.map(it=>{
-              const low = Number(it.quantity) <= 3;
+              const low = Number(it.quantity) <= Number(it.reorder_min || 5);
               return `<div class="stockbar">
                 <span>${iconForRef('Station Parts')} ${esc(it.item)}</span>
                 <span class="stock ${low?'low':''}">${it.quantity!=null?it.quantity:'—'} left ${it.availability==='X'?'— OUT':''}</span>
@@ -1751,6 +1758,22 @@
               </table>
               ` : `<div class="empty-note">Nothing happened this week.</div>`}
             `;
+          })()}
+        </div>
+      ` : reportTab==='purchase' ? `
+        <div>
+          <div class="hint" style="margin-top:0;margin-bottom:16px;">Items at or below their reorder point — restock these soon. Updates automatically as stock changes.</div>
+          ${(()=>{
+            const needsPurchase = Object.values(inventoryMap)
+              .filter(it=>Number(it.quantity) <= Number(it.reorder_min || 5))
+              .sort((a,b)=> Number(a.quantity) - Number(b.quantity));
+            if(!needsPurchase.length) return `<div class="empty-note">Nothing needs restocking right now — everything is above its reorder point.</div>`;
+            return `<div class="stock-grid">${needsPurchase.map(it=>`
+              <div class="stockbar" style="border-color:var(--danger);">
+                <span>${itemThumbHTML(it.item, 26)} ${esc(it.item)}</span>
+                <span class="stock low">${it.quantity} left (min ${it.reorder_min || 5})</span>
+              </div>
+            `).join('')}</div>`;
           })()}
         </div>
       ` : `
