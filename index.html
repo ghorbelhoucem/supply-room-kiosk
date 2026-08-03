@@ -105,7 +105,8 @@
   .pill.open{color:var(--accent);border-color:var(--accent-dim);}
   .pill.done{color:var(--success);border-color:#255c37;}
   .pill.over{color:var(--danger);border-color:#5c2527;}
-  .stockbar{background:var(--panel-alt);border:1px solid var(--border);border-radius:5px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .stockbar{background:var(--panel-alt);border:1px solid var(--border);border-radius:5px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .stock-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:8px;margin-bottom:8px;}
   .empty-note{color:var(--text-dim);text-align:center;padding:30px 0;font-size:13px;}
   .error-msg{color:var(--danger);font-size:12.5px;margin:-8px 0 12px;}
   .confirm-panel{max-width:420px;margin:24px auto 0;background:var(--panel-alt);border:1px solid var(--border);border-radius:6px;padding:20px;}
@@ -1667,22 +1668,24 @@
           ${(()=>{
             const q = reportStockSearchQuery.trim().toLowerCase();
             const filteredTools = q ? toolItems.filter(it=>it.item.toLowerCase().includes(q)) : toolItems;
-            return filteredTools.length ? filteredTools.map(it=>`<div class="stockbar">
+            if(!filteredTools.length) return `<div class="empty-note">${toolItems.length ? 'No tools match your search.' : 'No tools yet.'}</div>`;
+            return `<div class="stock-grid">${filteredTools.map(it=>`<div class="stockbar">
               <span>${iconForRef('Tools')} ${esc(it.item)}</span>
               <span class="stock ${String(it.availability||'').includes('missing')?'low':''}">${esc(it.availability||'—')}</span>
-            </div>`).join('') : `<div class="empty-note">${toolItems.length ? 'No tools match your search.' : 'No tools yet.'}</div>`;
+            </div>`).join('')}</div>`;
           })()}
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:18px 0 8px;">Station Parts</div>
           ${(()=>{
             const q = reportStockSearchQuery.trim().toLowerCase();
             const filteredParts = q ? partItems.filter(it=>it.item.toLowerCase().includes(q)) : partItems;
-            return filteredParts.length ? filteredParts.map(it=>{
+            if(!filteredParts.length) return `<div class="empty-note">${partItems.length ? 'No parts match your search.' : 'No station parts yet.'}</div>`;
+            return `<div class="stock-grid">${filteredParts.map(it=>{
               const low = Number(it.quantity) <= 3;
               return `<div class="stockbar">
                 <span>${iconForRef('Station Parts')} ${esc(it.item)}</span>
                 <span class="stock ${low?'low':''}">${it.quantity!=null?it.quantity:'—'} left ${it.availability==='X'?'— OUT':''}</span>
               </div>`;
-            }).join('') : `<div class="empty-note">${partItems.length ? 'No parts match your search.' : 'No station parts yet.'}</div>`;
+            }).join('')}</div>`;
           })()}
         </div>
       ` : `
