@@ -211,6 +211,7 @@
       currentPerson = null;
       basket = [];
       returnBasket = [];
+      restockBasket = [];
       authToken = null;
       apiClient.clearToken();
       autoLoggedOut = true;
@@ -313,14 +314,15 @@
 
   // Renders a small photo thumbnail if we have one for this item, otherwise
   // falls back to the emoji icon — used everywhere an item is shown.
-  function itemThumbHTML(itemName, sizePx){
-    sizePx = sizePx || 30;
+  function itemThumbHTML(itemName, width, height){
+    width = width || 30;
+    height = height || width;
     const photo = PHOTO_MAP[itemName];
     const fallbackIcon = iconForItem(itemName);
     if(photo){
-      return `<img src="${photo}" alt="" style="width:${sizePx}px;height:${sizePx}px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid var(--border);background:#fff;" onerror="this.outerHTML='<span style=\\'font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;\\'>${fallbackIcon}</span>'">`;
+      return `<img src="${photo}" alt="" style="width:${width}px;height:${height}px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid var(--border);background:#fff;" onerror="this.outerHTML='<span style=\\'font-size:${Math.round(Math.min(width,height)*0.72)}px;vertical-align:middle;\\'>${fallbackIcon}</span>'">`;
     }
-    return `<span style="font-size:${Math.round(sizePx*0.72)}px;vertical-align:middle;">${fallbackIcon}</span>`;
+    return `<span style="font-size:${Math.round(Math.min(width,height)*0.72)}px;vertical-align:middle;">${fallbackIcon}</span>`;
   }
 
   let lastFetchTime = 0;
@@ -389,7 +391,7 @@
     document.getElementById('reportBtn').onclick = async ()=>{
       if(screen==='report'){
         const ret = reportReturnScreen;
-        if(ret === 'idle'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); }
+        if(ret === 'idle'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken(); }
         screen = ret;
         renderStage();
         return;
@@ -454,6 +456,7 @@
     else if(screen==='report') stageReport(stage, banner);
     else if(screen==='restockCategory') stageRestockCategory(stage, banner);
     else if(screen==='restockPick') stageRestockPick(stage, banner);
+    else if(screen==='restockBasketReview') stageRestockBasketReview(stage, banner);
     updateReportBtn();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{ stage.style.opacity='1'; stage.style.transition='opacity .13s ease'; }));
   }
@@ -761,7 +764,7 @@
             <span class="due">${isOverdue(h)?'OVERDUE · ':'due '}${fmtDate(h.expectedReturn)}</span>
           </div>`).join('')}
         </div>` : ''}
-      <div style="text-align:center;margin-top:22px;"><span class="back-link" id="signOut">Sign out</span></div>
+      <div style="text-align:center;margin-top:26px;"><button class="go-btn" id="signOut" style="padding:14px 40px;font-size:15px;">🚪 Sign out</button></div>
     `;
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
@@ -770,7 +773,7 @@
     if(canRestock){
       document.getElementById('restockCard').onclick = ()=>{ restockError=null; restockSearchQuery=''; screen='restockCategory'; renderStage(); };
     }
-    document.getElementById('signOut').onclick = ()=>{ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); };
+    document.getElementById('signOut').onclick = ()=>{ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); };
   }
 
   function stageRestockCategory(stage, banner){
@@ -787,8 +790,19 @@
           <div class="label">Station Parts</div>
         </div>
       </div>
+      ${restockBasket.length ? `
+        <div style="text-align:center;margin-top:18px;">
+          <button class="go-btn" id="restockReviewFromCatBtn">Review &amp; Confirm (${restockBasket.length})</button>
+        </div>
+      ` : ''}
     `;
-    document.getElementById('back').onclick = ()=>{ screen='menu'; renderStage(); };
+    document.getElementById('back').onclick = ()=>{
+      if(restockBasket.length){
+        // don't silently discard an in-progress basket
+        screen='restockBasketReview'; renderStage(); return;
+      }
+      screen='menu'; renderStage();
+    };
     document.getElementById('restockToolsCard').onclick = ()=>{
       restockCategory = 'Tools'; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
       screen = 'restockPick'; renderStage();
@@ -797,6 +811,9 @@
       restockCategory = 'Station Parts'; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
       screen = 'restockPick'; renderStage();
     };
+    if(restockBasket.length){
+      document.getElementById('restockReviewFromCatBtn').onclick = ()=>{ screen='restockBasketReview'; renderStage(); };
+    }
   }
 
   function stageRestockPick(stage, banner){
@@ -823,7 +840,7 @@
         ${items.length ? items.map(it=>`
           <div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div>
-              <div class="item-name" style="margin-top:5px;">${itemThumbHTML(it.item, 26)} ${esc(it.item)}</div>
+              <div class="item-name" style="margin-top:5px;">${itemThumbHTML(it.item, 56, 36)} ${esc(it.item)}</div>
               <div class="item-meta">Current stock: ${it.quantity}</div>
             </div>
           </div>
@@ -837,8 +854,21 @@
         <label>How many are you adding?</label>
         <input type="number" id="restockQtyInput" min="1" value="${restockQty}" />
         ${restockError ? `<div class="error-msg">${esc(restockError)}</div>` : ''}
-        <button class="go-btn" id="restockConfirmBtn" style="width:100%;">${isNewItem ? 'Add New Item to Inventory' : 'Add to Inventory'}</button>
+        <button class="go-btn" id="restockConfirmBtn" style="width:100%;">${isNewItem ? 'Add New Item to List' : 'Add to List'}</button>
       </div>
+      ${restockBasket.length ? `
+        <div class="open-list">
+          <h3>In your restock list (${restockBasket.length})</h3>
+          ${restockBasket.map(b=>`
+            <div class="open-row">
+              <span>${itemThumbHTML(b.itemName, 26)} ${esc(b.itemName)} × ${b.qty}</span>
+              <span class="due">${b.category}</span>
+            </div>`).join('')}
+        </div>
+        <div style="text-align:center;margin-top:18px;">
+          <button class="go-btn" id="restockReviewBtn">Review &amp; Confirm (${restockBasket.length})</button>
+        </div>
+      ` : ''}
     `;
     document.getElementById('back').onclick = ()=>{ restockError=null; screen='restockCategory'; renderStage(); };
     const searchInput = document.getElementById('restockSearchInput');
@@ -866,35 +896,97 @@
       const nameInput = document.getElementById('restockNewNameInput');
       nameInput.oninput = ()=>{ restockNewItemName = nameInput.value; };
     }
+    if(restockBasket.length){
+      document.getElementById('restockReviewBtn').onclick = ()=>{ screen='restockBasketReview'; renderStage(); };
+    }
     if(selected){
-      document.getElementById('restockConfirmBtn').onclick = async ()=>{
+      document.getElementById('restockConfirmBtn').onclick = ()=>{
         let itemName = selected;
         if(isNewItem){
           itemName = document.getElementById('restockNewNameInput').value.trim();
           if(!itemName){ restockError='Enter a name for the new item.'; renderStage(); return; }
           const dupe = Object.values(inventoryMap).find(it=>it.item.toLowerCase() === itemName.toLowerCase());
           if(dupe){ restockError = `"${itemName}" already exists — select it from the list above instead.`; renderStage(); return; }
+          const dupeInBasket = restockBasket.find(b=>b.itemName.toLowerCase() === itemName.toLowerCase());
+          if(dupeInBasket){ restockError = `"${itemName}" is already in your restock list below.`; renderStage(); return; }
         }
         const qty = parseInt(document.getElementById('restockQtyInput').value,10);
         if(!qty || qty < 1){ restockError='Enter a quantity of at least 1.'; renderStage(); return; }
-        const btn = document.getElementById('restockConfirmBtn');
-        setButtonBusy(btn, true, 'Saving...');
-        const result = await postAction({
-          action:'restock', person: currentPerson.name, role: currentPerson.role,
-          item: itemName, qty,
-          category: isNewItem ? restockCategory : undefined,
-          reason: isNewItem ? 'New item added via kiosk' : undefined
+        restockBasket.push({
+          itemName, qty, category: restockCategory, isNewItem: isNewItem
         });
-        await refreshRemote();
-        if(!result.ok){
-          restockError = result.error || 'Something went wrong — check your connection and try again.';
-          renderStage();
-          return;
-        }
-        confirmInfo = { icon:'📥', msg: isNewItem ? 'New item added' : 'Stock updated', detail: `+${qty} × ${itemName}` };
         restockSelectedItem = null;
         restockNewItemName = '';
         restockQty = 1;
+        restockError = null;
+        renderStage();
+      };
+    }
+  }
+
+  function stageRestockBasketReview(stage, banner){
+    stage.innerHTML = banner + `
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Restocking (${restockBasket.length})</div></div>
+      <table>
+        <thead><tr><th>Item</th><th>Qty</th><th>Category</th><th></th></tr></thead>
+        <tbody>
+          ${restockBasket.length ? restockBasket.map((b,idx)=>`
+            <tr>
+              <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}${b.isNewItem ? ' <span class="pill open">new</span>' : ''}</td>
+              <td>${b.qty}</td>
+              <td>${esc(b.category)}</td>
+              <td><button class="btn-ghost" data-remove="${idx}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
+            </tr>
+          `).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Nothing added yet.</td></tr>`}
+        </tbody>
+      </table>
+      ${restockBasketError ? `<div class="error-msg" style="margin-top:14px;">${esc(restockBasketError)}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:22px;max-width:460px;margin-left:auto;margin-right:auto;">
+        <button class="btn-ghost" id="restockAddMoreBtn" style="flex:1;padding:12px;">➕ Add another item</button>
+        <button class="go-btn" id="restockConfirmAllBtn" style="flex:1;margin-top:0;" ${!restockBasket.length?'disabled':''}>Confirm &amp; Add All (${restockBasket.length})</button>
+      </div>
+      <div style="text-align:center;margin-top:16px;"><span class="back-link" id="cancelRestockBasket">Cancel, back to menu</span></div>
+    `;
+    document.getElementById('restockAddMoreBtn').onclick = ()=>{ restockBasketError=null; screen='restockCategory'; renderStage(); };
+    document.getElementById('cancelRestockBasket').onclick = ()=>{ restockBasket=[]; restockBasketError=null; screen='menu'; renderStage(); };
+    stage.querySelectorAll('[data-remove]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const idx = parseInt(btn.getAttribute('data-remove'),10);
+        restockBasket.splice(idx,1);
+        renderStage();
+      };
+    });
+    if(restockBasket.length){
+      document.getElementById('restockConfirmAllBtn').onclick = async ()=>{
+        const btn = document.getElementById('restockConfirmAllBtn');
+        setButtonBusy(btn, true, 'Saving...');
+        restockBasketError = null;
+        const succeeded = [];
+        const remaining = [];
+        for(const entry of restockBasket){
+          const result = await postAction({
+            action:'restock', person: currentPerson.name, role: currentPerson.role,
+            item: entry.itemName, qty: entry.qty,
+            category: entry.isNewItem ? entry.category : undefined,
+            reason: entry.isNewItem ? 'New item added via kiosk' : undefined
+          });
+          if(result.ok){
+            succeeded.push(entry);
+          }else{
+            remaining.push(entry);
+            if(!restockBasketError){
+              restockBasketError = `Stopped at "${entry.itemName}": ${result.error || 'something went wrong'}. ${succeeded.length} of ${restockBasket.length} were saved — the rest are still in your list to retry.`;
+            }
+          }
+        }
+        await refreshRemote();
+        restockBasket = remaining;
+        if(remaining.length){
+          renderStage();
+          return;
+        }
+        const detailLines = succeeded.map(b=>`${b.qty} × ${b.itemName}`).join(', ');
+        confirmInfo = { icon:'📥', msg: `${succeeded.length} item(s) restocked`, detail: detailLines };
         screen = 'confirm';
         renderStage();
       };
@@ -1195,7 +1287,7 @@
           const low = it.reference==='Station Parts' && Number(it.quantity) <= 3;
           return `<div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-              ${itemThumbHTML(it.item, 36)}
+              ${itemThumbHTML(it.item, 56, 36)}
               <div style="min-width:0;">
                 <div class="item-name">${esc(it.item)}</div>
                 <div class="item-meta">${it.reference==='Tools' ? 'Checkout &amp; return' : 'One-time use'}</div>
@@ -1291,6 +1383,8 @@
   let restockSelectedItem = null;
   const NEW_ITEM_SENTINEL = '__NEW_ITEM__';
   let restockNewItemName = '';
+  let restockBasket = [];
+  let restockBasketError = null;
   let restockQty = 1;
   let restockError = null;
 
@@ -1318,7 +1412,7 @@
         ${opens.length ? opens.map(h=>`
           <div class="item-row" data-tx="${h.txId}">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-              ${itemThumbHTML(h.item, 34)}
+              ${itemThumbHTML(h.item, 56, 36)}
               <div style="min-width:0;">
                 <div class="item-name">${esc(h.item)}</div>
                 <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
@@ -1472,8 +1566,8 @@
         <button class="go-btn" id="doneBtn" style="margin-top:26px;">Done</button>
       </div>
     `;
-    document.getElementById('doneBtn').onclick = ()=>{ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); };
-    setTimeout(()=>{ if(screen==='confirm'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); } }, 6000);
+    document.getElementById('doneBtn').onclick = ()=>{ basket=[]; returnBasket=[]; restockBasket=[]; screen='menu'; renderStage(); };
+    setTimeout(()=>{ if(screen==='confirm'){ basket=[]; returnBasket=[]; restockBasket=[]; screen='menu'; renderStage(); } }, 6000);
   }
 
   // ---------- manager report ----------
@@ -1540,7 +1634,7 @@
     `;
     document.getElementById('reportBack').onclick = ()=>{
       const ret = reportReturnScreen;
-      if(ret === 'idle'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; authToken=null; apiClient.clearToken(); }
+      if(ret === 'idle'){ clearAutoLogoutTimer(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken(); }
       screen = ret;
       renderStage();
     };
