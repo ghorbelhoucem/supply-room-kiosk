@@ -1718,18 +1718,32 @@
         <div>
           ${(()=>{
             const { weekStart, weekEnd, label } = getWeekRange(reportWeekOffset);
-            const inRange = historyRows.filter(h=>{
-              const t = new Date(h.timestamp).getTime();
+            const inWeek = (dateStr)=>{
+              const t = new Date(dateStr).getTime();
               return !isNaN(t) && t >= weekStart.getTime() && t < weekEnd.getTime();
-            });
+            };
             const summary = {};
-            inRange.forEach(h=>{
-              if(!summary[h.item]) summary[h.item] = { taken: 0, restocked: 0 };
+            const addEntry = (item, field, qty)=>{
+              if(!summary[item]) summary[item] = { taken: 0, restocked: 0 };
+              summary[item][field] += qty;
+            };
+            historyRows.forEach(h=>{
               const qty = Number(h.qty) || 1;
               if(h.expectedReturn === 'Restock' || h.expectedReturn === 'Adjustment'){
-                summary[h.item].restocked += qty;
+                if(inWeek(h.timestamp)) addEntry(h.item, 'restocked', qty);
+                return;
+              }
+              const inv = inventoryMap[h.item];
+              const isTool = inv && inv.reference === 'Tools';
+              if(isTool){
+                // Taking a tool and returning it is a net-zero cycle, not a
+                // permanent consumption — count each side on its own date.
+                if(inWeek(h.timestamp)) addEntry(h.item, 'taken', qty);
+                const returned = h.returnedAt && h.returnedAt !== 'Not returned' && h.returnedAt !== 'N/A';
+                if(returned && inWeek(h.returnedAt)) addEntry(h.item, 'restocked', qty);
               }else{
-                summary[h.item].taken += qty;
+                // Station Parts / Other: one-way, no return
+                if(inWeek(h.timestamp)) addEntry(h.item, 'taken', qty);
               }
             });
             const itemNames = Object.keys(summary).sort();
