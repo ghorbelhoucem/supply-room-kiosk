@@ -95,8 +95,38 @@ def snapshot(db: Session) -> dict:
                 "returnedAt": returned_at,
                 "returnedBy": c.returned_by,
                 "txId": c.tx_id,
+                "qty": c.qty,
             }
         )
+
+    # Also surface receive/adjust movements (restocks & manual adjustments) —
+    # these previously only showed up in the Google Sheet mirror, not here.
+    other_moves = (
+        db.execute(
+            select(Movement)
+            .where(Movement.movement_type.in_(["receive", "adjust"]))
+            .order_by(Movement.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+    for m in other_moves:
+        label = "Restock" if m.movement_type.value == "receive" else "Adjustment"
+        history.append(
+            {
+                "timestamp": m.created_at.isoformat() if m.created_at else "",
+                "personRole": m.actor,
+                "item": m.item_name,
+                "expectedReturn": label,
+                "returnedAt": "N/A",
+                "returnedBy": None,
+                "txId": m.related_tx_id or "",
+                "qty": m.qty,
+            }
+        )
+
+    history.sort(key=lambda r: r["timestamp"], reverse=True)
+
     return {"ok": True, "inventory": inventory, "history": history}
 
 
