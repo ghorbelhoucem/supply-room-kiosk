@@ -88,6 +88,7 @@ class HistoryRow(BaseModel):
     returnedAt: str
     returnedBy: str | None = None
     txId: str
+    qty: int | None = None
 
 
 class SnapshotResponse(BaseModel):
