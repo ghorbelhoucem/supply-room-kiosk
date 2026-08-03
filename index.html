@@ -804,6 +804,8 @@
     const q = restockSearchQuery.trim().toLowerCase();
     const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
     const selected = restockSelectedItem;
+    const isNewItem = selected === NEW_ITEM_SENTINEL;
+    const newItemLabel = restockCategory === 'Tools' ? '➕ Add New Tool' : '➕ Add New Item';
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Which item got restocked?</div></div>
@@ -811,6 +813,13 @@
         <input type="text" id="restockSearchInput" placeholder="Search ${restockCategory==='Tools' ? 'tools' : 'parts'}…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
       </div>
       <div class="item-list">
+        <div class="item-row ${isNewItem?'selected':''}" data-name="${NEW_ITEM_SENTINEL}" style="border-style:dashed;">
+          <div>
+            <span class="tag">➕</span>
+            <div class="item-name" style="margin-top:5px;">${newItemLabel}</div>
+            <div class="item-meta">Not in the list yet? Add it here</div>
+          </div>
+        </div>
         ${items.length ? items.map(it=>`
           <div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div>
@@ -821,10 +830,14 @@
         `).join('') : `<div class="empty-note">No items match.</div>`}
       </div>
       <div class="form-row" id="restockForm" style="display:${selected?'block':'none'}">
+        ${isNewItem ? `
+          <label>What's the new ${restockCategory==='Tools' ? 'tool' : 'item'} called?</label>
+          <input type="text" id="restockNewNameInput" placeholder="e.g. Label Printer" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(restockNewItemName)}" />
+        ` : ''}
         <label>How many are you adding?</label>
         <input type="number" id="restockQtyInput" min="1" value="${restockQty}" />
         ${restockError ? `<div class="error-msg">${esc(restockError)}</div>` : ''}
-        <button class="go-btn" id="restockConfirmBtn" style="width:100%;">Add to Inventory</button>
+        <button class="go-btn" id="restockConfirmBtn" style="width:100%;">${isNewItem ? 'Add New Item to Inventory' : 'Add to Inventory'}</button>
       </div>
     `;
     document.getElementById('back').onclick = ()=>{ restockError=null; screen='restockCategory'; renderStage(); };
@@ -841,19 +854,36 @@
       row.onclick = ()=>{
         restockSelectedItem = row.getAttribute('data-name');
         restockError = null;
+        if(restockSelectedItem !== NEW_ITEM_SENTINEL) restockNewItemName = '';
         renderStage();
-        setTimeout(()=>{ const el = document.getElementById('restockQtyInput'); if(el) el.focus(); },0);
+        setTimeout(()=>{
+          const el = document.getElementById(restockSelectedItem===NEW_ITEM_SENTINEL ? 'restockNewNameInput' : 'restockQtyInput');
+          if(el) el.focus();
+        },0);
       };
     });
+    if(isNewItem){
+      const nameInput = document.getElementById('restockNewNameInput');
+      nameInput.oninput = ()=>{ restockNewItemName = nameInput.value; };
+    }
     if(selected){
       document.getElementById('restockConfirmBtn').onclick = async ()=>{
+        let itemName = selected;
+        if(isNewItem){
+          itemName = document.getElementById('restockNewNameInput').value.trim();
+          if(!itemName){ restockError='Enter a name for the new item.'; renderStage(); return; }
+          const dupe = Object.values(inventoryMap).find(it=>it.item.toLowerCase() === itemName.toLowerCase());
+          if(dupe){ restockError = `"${itemName}" already exists — select it from the list above instead.`; renderStage(); return; }
+        }
         const qty = parseInt(document.getElementById('restockQtyInput').value,10);
         if(!qty || qty < 1){ restockError='Enter a quantity of at least 1.'; renderStage(); return; }
         const btn = document.getElementById('restockConfirmBtn');
         setButtonBusy(btn, true, 'Saving...');
         const result = await postAction({
           action:'restock', person: currentPerson.name, role: currentPerson.role,
-          item: selected, qty
+          item: itemName, qty,
+          category: isNewItem ? restockCategory : undefined,
+          reason: isNewItem ? 'New item added via kiosk' : undefined
         });
         await refreshRemote();
         if(!result.ok){
@@ -861,8 +891,9 @@
           renderStage();
           return;
         }
-        confirmInfo = { icon:'📥', msg:'Stock updated', detail: `+${qty} × ${selected}` };
+        confirmInfo = { icon:'📥', msg: isNewItem ? 'New item added' : 'Stock updated', detail: `+${qty} × ${itemName}` };
         restockSelectedItem = null;
+        restockNewItemName = '';
         restockQty = 1;
         screen = 'confirm';
         renderStage();
@@ -1258,6 +1289,8 @@
   let restockCategory = null;
   let restockSearchQuery = '';
   let restockSelectedItem = null;
+  const NEW_ITEM_SENTINEL = '__NEW_ITEM__';
+  let restockNewItemName = '';
   let restockQty = 1;
   let restockError = null;
 
