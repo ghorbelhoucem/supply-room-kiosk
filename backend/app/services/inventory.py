@@ -296,7 +296,7 @@ def receive_stock(
             name=item_name,
             category=item_category,
             qty_on_hand=0,
-            reorder_min=3,
+            reorder_min=5,
             barcode=item_name,
         )
         db.add(item)
