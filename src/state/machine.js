@@ -6,8 +6,9 @@
     operatorId: ["idle", "operatorPassword"],
     operatorPassword: ["operatorId", "menu"],
     menu: ["idle", "scanPrompt", "takeCategory", "return", "report", "restockCategory"],
-    restockCategory: ["menu", "restockPick"],
-    restockPick: ["restockCategory", "confirm"],
+    restockCategory: ["menu", "restockPick", "restockBasketReview"],
+    restockPick: ["restockCategory", "restockBasketReview"],
+    restockBasketReview: ["restockCategory", "menu", "confirm"],
     scanPrompt: ["menu", "takeCategory", "scanConfirm", "basketReview"],
     scanConfirm: ["scanPrompt", "takeCategory", "scanTakeDetail"],
     scanTakeDetail: ["scanPrompt", "basketReview"],
@@ -17,7 +18,7 @@
     return: ["menu", "returnScanPrompt", "returnBasketReview"],
     returnScanPrompt: ["return", "returnBasketReview"],
     returnBasketReview: ["return", "menu", "confirm"],
-    confirm: ["idle"],
+    confirm: ["idle", "menu"],
     report: ["idle"],
   };
 
