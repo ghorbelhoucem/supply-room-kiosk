@@ -76,7 +76,7 @@ class InventoryItem(Base):
         Enum(ItemCategory, name="item_category"), nullable=False
     )
     qty_on_hand: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    reorder_min: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    reorder_min: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     barcode: Mapped[str | None] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
