@@ -56,6 +56,16 @@ def build_mirror_payload(db: Session) -> dict:
 
         inventory_rows.append([it.category.value, it.name, it.qty_on_hand, availability])
 
+    # Purchase List: anything at or below its reorder point, lowest stock first
+    purchase_rows = sorted(
+        (
+            [it.category.value, it.name, it.qty_on_hand, it.reorder_min]
+            for it in items
+            if it.qty_on_hand <= it.reorder_min
+        ),
+        key=lambda r: r[2],
+    )
+
     # History: every checkout (take/return pair) ...
     history_rows = []
     all_checkouts = db.execute(select(Checkout).order_by(Checkout.taken_at)).scalars().all()
@@ -107,6 +117,7 @@ def build_mirror_payload(db: Session) -> dict:
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "inventory": inventory_rows,
         "history": history_rows,
+        "purchase_list": purchase_rows,
     }
 
 
@@ -115,6 +126,7 @@ def _push_to_legacy_webapp(webapp_url: str, payload: dict) -> None:
         "action": "fullSync",
         "inventory": payload["inventory"],
         "history": payload["history"],
+        "purchase_list": payload["purchase_list"],
     }
     resp = httpx.post(webapp_url, json=body, timeout=20.0, follow_redirects=True)
     resp.raise_for_status()
