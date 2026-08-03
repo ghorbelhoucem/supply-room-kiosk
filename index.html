@@ -218,11 +218,22 @@
   // shouldn't log anyone out, but closing the kiosk browser reasonably can).
   const SESSION_KEY = 'supply_kiosk_session_v1';
 
+  // Only these screens make sense to resume directly on refresh — anything
+  // mid-credential-entry or a transient success screen just falls back to menu.
+  const RESTORABLE_SCREENS = new Set([
+    'menu','scanPrompt','takeCategory','take','basketReview',
+    'return','returnScanPrompt','returnBasketReview',
+    'restockCategory','restockPick','restockBasketReview','report'
+  ]);
+
+  let sessionRestoreNotice = null;
+
   function saveSession(){
     if(!currentPerson || !authToken){ sessionStorage.removeItem(SESSION_KEY); return; }
     try{
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        currentPerson, authToken, lastActivity: Date.now()
+        currentPerson, authToken, lastActivity: Date.now(),
+        screen, basket, returnBasket, restockBasket
       }));
     }catch(e){ /* storage unavailable — session just won't survive a refresh */ }
   }
@@ -246,7 +257,42 @@
     currentPerson = data.currentPerson;
     authToken = data.authToken;
     apiClient.setToken(authToken);
+    screen = RESTORABLE_SCREENS.has(data.screen) ? data.screen : 'menu';
+    basket = Array.isArray(data.basket) ? data.basket : [];
+    returnBasket = Array.isArray(data.returnBasket) ? data.returnBasket : [];
+    restockBasket = Array.isArray(data.restockBasket) ? data.restockBasket : [];
+    revalidateRestoredBaskets(); // stock may have changed while the tab was away
     return true;
+  }
+
+  // Re-checks every in-progress basket against current stock right after a
+  // restore — someone else may have taken/returned/restocked items while
+  // this tab was sitting refreshed or backgrounded.
+  function revalidateRestoredBaskets(){
+    let changed = false;
+
+    basket = basket.filter(b=>{
+      if(!inventoryMap[b.itemName]){ changed = true; return false; }
+      const cap = availableOf(b.itemName) - basketQtyForExcluding(b.itemName, b.id);
+      if(cap < 1){ changed = true; return false; }
+      if(b.qty > cap){ b.qty = cap; changed = true; }
+      return true;
+    });
+
+    returnBasket = returnBasket.filter(tx=>{
+      const stillOpen = historyRows.some(h=>h.txId===tx.txId && h.returnedAt==='Not returned');
+      if(!stillOpen){ changed = true; }
+      return stillOpen;
+    });
+
+    restockBasket = restockBasket.filter(b=>{
+      if(b.isNewItem && inventoryMap[b.itemName]){ changed = true; return false; }
+      return true;
+    });
+
+    if(changed){
+      sessionRestoreNotice = 'Welcome back — some items in your lists were adjusted since stock may have changed while you were away.';
+    }
   }
 
   function startAutoLogoutTimer(){
@@ -536,6 +582,10 @@
     stage.style.opacity = '0';
     let banner = '';
     if(loadError) banner = `<div class="banner-error">${esc(loadError)}</div>`;
+    if(sessionRestoreNotice){
+      banner += `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">${esc(sessionRestoreNotice)}</div>`;
+      sessionRestoreNotice = null;
+    }
     if(screen==='idle') stageRoleSelect(stage, banner);
     else if(screen==='deptPin') stageDeptPin(stage, banner);
     else if(screen==='deptPinPickName') stageDeptPinPickName(stage, banner);
@@ -557,6 +607,7 @@
     else if(screen==='restockPick') stageRestockPick(stage, banner);
     else if(screen==='restockBasketReview') stageRestockBasketReview(stage, banner);
     updateReportBtn();
+    saveSession();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{ stage.style.opacity='1'; stage.style.transition='opacity .13s ease'; }));
   }
 
@@ -1956,7 +2007,6 @@
     renderLoading(document.getElementById('stage'));
     await refreshRemote();
     if(restoreSession()){
-      screen = 'menu';
       startAutoLogoutTimer();
     }
     renderStage();
