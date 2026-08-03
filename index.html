@@ -251,6 +251,7 @@
   let confirmInfo = null;
   let reportTab = 'open';
   let reportStockSearchQuery = '';
+  let reportWeekOffset = 0; // 0 = current week, -1 = last week, etc. (never goes positive)
   let reportReturnScreen = 'idle'; // where the report back-button goes
   let basket = [];
   let basketIdCounter = 0;
@@ -417,6 +418,22 @@
   function allOpenToolCheckouts(){ return domain.allOpenToolCheckouts(inventoryMap, historyRows); }
   function isOverdue(h){ return domain.isOverdue(h); }
   function fmtDate(d){ return domain.fmtDate(d); }
+
+  function getWeekRange(offset){
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun..6=Sat
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const monday = new Date(now);
+    monday.setHours(0,0,0,0);
+    monday.setDate(now.getDate() + diffToMonday + (offset * 7));
+    const nextMonday = new Date(monday);
+    nextMonday.setDate(monday.getDate() + 7);
+    const sunday = new Date(nextMonday);
+    sunday.setDate(nextMonday.getDate() - 1);
+    const fmt = (d)=> d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    const label = `Week of ${fmt(monday)} – ${fmt(sunday)}${offset===0 ? ' (this week)' : ''}`;
+    return { weekStart: monday, weekEnd: nextMonday, label };
+  }
 
   // ---------- render shell ----------
   function render(){
@@ -1659,6 +1676,7 @@
         <button class="nav-btn ${reportTab==='overdue'?'active':''}" data-t="overdue">Overdue (${overdueTx.length})</button>
         <button class="nav-btn ${reportTab==='all'?'active':''}" data-t="all">Full History</button>
         <button class="nav-btn ${reportTab==='stock'?'active':''}" data-t="stock">Inventory Status</button>
+        <button class="nav-btn ${reportTab==='weekly'?'active':''}" data-t="weekly">Weekly Report</button>
       </div>
       ${reportTab==='stock' ? `
         <div>
@@ -1687,6 +1705,52 @@
                 <span class="stock ${low?'low':''}">${it.quantity!=null?it.quantity:'—'} left ${it.availability==='X'?'— OUT':''}</span>
               </div>`;
             }).join('')}</div>`;
+          })()}
+        </div>
+      ` : reportTab==='weekly' ? `
+        <div>
+          ${(()=>{
+            const { weekStart, weekEnd, label } = getWeekRange(reportWeekOffset);
+            const inRange = historyRows.filter(h=>{
+              const t = new Date(h.timestamp).getTime();
+              return !isNaN(t) && t >= weekStart.getTime() && t < weekEnd.getTime();
+            });
+            const summary = {};
+            inRange.forEach(h=>{
+              if(!summary[h.item]) summary[h.item] = { taken: 0, restocked: 0 };
+              const qty = Number(h.qty) || 1;
+              if(h.expectedReturn === 'Restock' || h.expectedReturn === 'Adjustment'){
+                summary[h.item].restocked += qty;
+              }else{
+                summary[h.item].taken += qty;
+              }
+            });
+            const itemNames = Object.keys(summary).sort();
+            return `
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                <button class="btn-ghost" id="weekPrevBtn">← Previous week</button>
+                <div style="font-family:'Oswald',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:0.04em;">${label}</div>
+                <button class="btn-ghost" id="weekNextBtn" ${reportWeekOffset>=0?'disabled':''}>Next week →</button>
+              </div>
+              ${itemNames.length ? `
+              <table>
+                <thead><tr><th>Item</th><th>Taken</th><th>Restocked</th><th>Net</th></tr></thead>
+                <tbody>
+                  ${itemNames.map(name=>{
+                    const s = summary[name];
+                    const net = s.restocked - s.taken;
+                    const netStr = net > 0 ? `+${net}` : `${net}`;
+                    return `<tr>
+                      <td>${itemThumbHTML(name, 26)} ${esc(name)}</td>
+                      <td>${s.taken > 0 ? '-'+s.taken : '—'}</td>
+                      <td>${s.restocked > 0 ? '+'+s.restocked : '—'}</td>
+                      <td style="color:${net<0?'var(--danger)':net>0?'var(--success)':'var(--text-dim)'};font-weight:600;">${netStr}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+              ` : `<div class="empty-note">Nothing happened this week.</div>`}
+            `;
           })()}
         </div>
       ` : `
@@ -1727,6 +1791,10 @@
         },0);
       };
     }
+    const weekPrevBtn = document.getElementById('weekPrevBtn');
+    if(weekPrevBtn) weekPrevBtn.onclick = ()=>{ reportWeekOffset -= 1; renderStage(); };
+    const weekNextBtn = document.getElementById('weekNextBtn');
+    if(weekNextBtn) weekNextBtn.onclick = ()=>{ if(reportWeekOffset < 0){ reportWeekOffset += 1; renderStage(); } };
   }
 
   // ---------- barcode/QR scanner support ----------
