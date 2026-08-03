@@ -88,7 +88,13 @@
   .confirm-box .icon{font-size:42px;margin-bottom:10px;}
   .confirm-box .msg{font-family:'Oswald',sans-serif;font-size:18px;text-transform:uppercase;letter-spacing:0.03em;}
   .confirm-box .detail{color:var(--text-dim);font-size:13px;margin-top:8px;}
-  .report-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .report-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;}
+  .report-tabs .nav-btn{flex-shrink:0;}
+  .qty-stepper{display:flex;align-items:center;gap:10px;}
+  .qty-btn{width:46px;height:46px;font-size:24px;line-height:1;border-radius:8px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);cursor:pointer;flex-shrink:0;user-select:none;transition:all .12s ease;}
+  .qty-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .qty-btn:active{transform:scale(0.92);}
+  .qty-stepper-input{width:64px;text-align:center;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:11px 6px;border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:16px;}
   table{width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
   th{text-align:left;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:10.5px;padding:10px;background:var(--panel-alt);border-bottom:1px solid var(--border);}
   td{padding:9px 10px;border-bottom:1px solid var(--border);}
@@ -223,6 +229,15 @@
   function clearAutoLogoutTimer(){
     if(autoLogoutTimer){ clearTimeout(autoLogoutTimer); autoLogoutTimer = null; }
   }
+
+  // Resets the 10-minute countdown on any real activity, so it's 10 minutes
+  // of INACTIVITY, not a fixed timer from login. Only matters while signed in.
+  ['mousemove','mousedown','keydown','touchstart','click','scroll'].forEach(evt=>{
+    document.addEventListener(evt, ()=>{
+      if(currentPerson) startAutoLogoutTimer();
+    }, { passive: true });
+  });
+
   let takeCategory = null; // 'Tools' | 'Station Parts'
   let takeSelection = null; // {itemName, qty, hours}
   let takeSearchQuery = '';
@@ -233,6 +248,7 @@
   let pendingReturnMatches = null;
   let confirmInfo = null;
   let reportTab = 'open';
+  let reportStockSearchQuery = '';
   let reportReturnScreen = 'idle'; // where the report back-button goes
   let basket = [];
   let basketIdCounter = 0;
@@ -314,6 +330,32 @@
 
   // Renders a small photo thumbnail if we have one for this item, otherwise
   // falls back to the emoji icon — used everywhere an item is shown.
+  function qtyStepperHTML(inputId, value, min){
+    min = min || 1;
+    return `<div class="qty-stepper">
+      <button type="button" class="qty-btn" data-qty-target="${inputId}" data-qty-dir="-1">−</button>
+      <input type="number" id="${inputId}" min="${min}" value="${value}" class="qty-stepper-input" />
+      <button type="button" class="qty-btn" data-qty-target="${inputId}" data-qty-dir="1">+</button>
+    </div>`;
+  }
+
+  // One global handler covers every qty stepper rendered anywhere, current or future.
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.qty-btn');
+    if(!btn) return;
+    const targetId = btn.getAttribute('data-qty-target');
+    const dir = parseInt(btn.getAttribute('data-qty-dir'),10);
+    const input = document.getElementById(targetId);
+    if(!input) return;
+    const min = parseInt(input.getAttribute('min'),10) || 1;
+    let val = parseInt(input.value,10) || min;
+    val += dir;
+    if(val < min) val = min;
+    input.value = val;
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+    input.dispatchEvent(new Event('change', {bubbles:true}));
+  });
+
   function itemThumbHTML(itemName, width, height){
     width = width || 30;
     height = height || width;
@@ -852,7 +894,7 @@
           <input type="text" id="restockNewNameInput" placeholder="e.g. Label Printer" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(restockNewItemName)}" />
         ` : ''}
         <label>How many are you adding?</label>
-        <input type="number" id="restockQtyInput" min="1" value="${restockQty}" />
+        ${qtyStepperHTML('restockQtyInput', restockQty)}
         ${restockError ? `<div class="error-msg">${esc(restockError)}</div>` : ''}
         <button class="go-btn" id="restockConfirmBtn" style="width:100%;">${isNewItem ? 'Add New Item to List' : 'Add to List'}</button>
       </div>
@@ -907,14 +949,16 @@
           if(!itemName){ restockError='Enter a name for the new item.'; renderStage(); return; }
           const dupe = Object.values(inventoryMap).find(it=>it.item.toLowerCase() === itemName.toLowerCase());
           if(dupe){ restockError = `"${itemName}" already exists — select it from the list above instead.`; renderStage(); return; }
-          const dupeInBasket = restockBasket.find(b=>b.itemName.toLowerCase() === itemName.toLowerCase());
-          if(dupeInBasket){ restockError = `"${itemName}" is already in your restock list below.`; renderStage(); return; }
         }
         const qty = parseInt(document.getElementById('restockQtyInput').value,10);
         if(!qty || qty < 1){ restockError='Enter a quantity of at least 1.'; renderStage(); return; }
-        restockBasket.push({
-          itemName, qty, category: restockCategory, isNewItem: isNewItem
-        });
+
+        const existingEntry = restockBasket.find(b=>b.itemName.toLowerCase() === itemName.toLowerCase());
+        if(existingEntry){
+          existingEntry.qty += qty;
+        }else{
+          restockBasket.push({ itemName, qty, category: restockCategory, isNewItem: isNewItem });
+        }
         restockSelectedItem = null;
         restockNewItemName = '';
         restockQty = 1;
@@ -933,7 +977,7 @@
           ${restockBasket.length ? restockBasket.map((b,idx)=>`
             <tr>
               <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}${b.isNewItem ? ' <span class="pill open">new</span>' : ''}</td>
-              <td>${b.qty}</td>
+              <td><div class="qty-stepper"><button type="button" class="qty-btn" data-qty-target="restockQtyRow_${idx}" data-qty-dir="-1">−</button><input type="number" min="1" value="${b.qty}" id="restockQtyRow_${idx}" data-restock-qty-for="${idx}" class="qty-stepper-input" style="width:56px;" /><button type="button" class="qty-btn" data-qty-target="restockQtyRow_${idx}" data-qty-dir="1">+</button></div></td>
               <td>${esc(b.category)}</td>
               <td><button class="btn-ghost" data-remove="${idx}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
             </tr>
@@ -948,6 +992,17 @@
       <div style="text-align:center;margin-top:16px;"><span class="back-link" id="cancelRestockBasket">Cancel, back to menu</span></div>
     `;
     document.getElementById('restockAddMoreBtn').onclick = ()=>{ restockBasketError=null; screen='restockCategory'; renderStage(); };
+    stage.querySelectorAll('[data-restock-qty-for]').forEach(input=>{
+      input.onchange = ()=>{
+        const idx = parseInt(input.getAttribute('data-restock-qty-for'),10);
+        const entry = restockBasket[idx];
+        if(!entry) return;
+        let newQty = parseInt(input.value,10);
+        if(!newQty || newQty < 1) newQty = 1;
+        entry.qty = newQty;
+        renderStage();
+      };
+    });
     document.getElementById('cancelRestockBasket').onclick = ()=>{ restockBasket=[]; restockBasketError=null; screen='menu'; renderStage(); };
     stage.querySelectorAll('[data-remove]').forEach(btn=>{
       btn.onclick = ()=>{
@@ -1082,10 +1137,10 @@
           <label>What did you take?</label>
           <input type="text" id="otherDescInput" placeholder="e.g. Zip tie gun, borrowed HDMI splitter…" style="font-family:'Inter',sans-serif;letter-spacing:normal;" />
           <label>Quantity</label>
-          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+          ${qtyStepperHTML('qtyInput', takeSelection.qty)}
         ` : takeCategory==='Station Parts' ? `
           <label>Quantity</label>
-          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+          ${qtyStepperHTML('qtyInput', takeSelection.qty)}
         ` : `
           <label>Expected return</label>
           <select id="hoursSelect">
@@ -1173,7 +1228,12 @@
   }
 
   function addToBasketAndReview(itemName, category, qty, hours){
-    basket.push({ id: ++basketIdCounter, itemName, category, qty, hours });
+    const existing = basket.find(b=>b.itemName === itemName);
+    if(existing){
+      existing.qty += qty;
+    }else{
+      basket.push({ id: ++basketIdCounter, itemName, category, qty, hours });
+    }
     screen = 'basketReview';
     renderStage();
   }
@@ -1189,7 +1249,7 @@
           ${basket.length ? basket.map(b=>`
             <tr>
               <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}</td>
-              <td><input type="number" min="1" value="${b.qty}" data-qty-for="${b.id}" style="width:56px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:5px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;" /></td>
+              <td><div class="qty-stepper"><button type="button" class="qty-btn" data-qty-target="qtyRow_${b.id}" data-qty-dir="-1">−</button><input type="number" min="1" value="${b.qty}" id="qtyRow_${b.id}" data-qty-for="${b.id}" class="qty-stepper-input" style="width:56px;" /><button type="button" class="qty-btn" data-qty-target="qtyRow_${b.id}" data-qty-dir="1">+</button></div></td>
               <td>${b.category==='Tools' ? 'Return ' + hoursLabel(b.hours) : (b.category==='Station Parts' ? 'One-time use' : '')}</td>
               <td><button class="btn-ghost" data-remove="${b.id}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
             </tr>
@@ -1313,10 +1373,10 @@
           <label>What did you take?</label>
           <input type="text" id="otherDescInput" placeholder="e.g. Zip tie gun, borrowed HDMI splitter…" style="font-family:'Inter',sans-serif;letter-spacing:normal;" />
           <label>Quantity</label>
-          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+          ${qtyStepperHTML('qtyInput', takeSelection.qty)}
         ` : takeCategory==='Station Parts' ? `
           <label>Quantity</label>
-          <input type="number" id="qtyInput" min="1" value="${takeSelection.qty}" />
+          ${qtyStepperHTML('qtyInput', takeSelection.qty)}
         ` : `
           <label>Expected return</label>
           <select id="hoursSelect">
@@ -1600,19 +1660,30 @@
       </div>
       ${reportTab==='stock' ? `
         <div>
+          <div class="form-row" style="margin-top:0;margin-bottom:16px;max-width:none;">
+            <input type="text" id="reportStockSearchInput" placeholder="Search inventory…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(reportStockSearchQuery)}" />
+          </div>
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:0 0 8px;">Tools</div>
-          ${toolItems.length ? toolItems.map(it=>`<div class="stockbar">
+          ${(()=>{
+            const q = reportStockSearchQuery.trim().toLowerCase();
+            const filteredTools = q ? toolItems.filter(it=>it.item.toLowerCase().includes(q)) : toolItems;
+            return filteredTools.length ? filteredTools.map(it=>`<div class="stockbar">
               <span>${iconForRef('Tools')} ${esc(it.item)}</span>
               <span class="stock ${String(it.availability||'').includes('missing')?'low':''}">${esc(it.availability||'—')}</span>
-            </div>`).join('') : `<div class="empty-note">No tools yet.</div>`}
+            </div>`).join('') : `<div class="empty-note">${toolItems.length ? 'No tools match your search.' : 'No tools yet.'}</div>`;
+          })()}
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:18px 0 8px;">Station Parts</div>
-          ${partItems.length ? partItems.map(it=>{
-            const low = Number(it.quantity) <= 3;
-            return `<div class="stockbar">
-              <span>${iconForRef('Station Parts')} ${esc(it.item)}</span>
-              <span class="stock ${low?'low':''}">${it.quantity!=null?it.quantity:'—'} left ${it.availability==='X'?'— OUT':''}</span>
-            </div>`;
-          }).join('') : `<div class="empty-note">No station parts yet.</div>`}
+          ${(()=>{
+            const q = reportStockSearchQuery.trim().toLowerCase();
+            const filteredParts = q ? partItems.filter(it=>it.item.toLowerCase().includes(q)) : partItems;
+            return filteredParts.length ? filteredParts.map(it=>{
+              const low = Number(it.quantity) <= 3;
+              return `<div class="stockbar">
+                <span>${iconForRef('Station Parts')} ${esc(it.item)}</span>
+                <span class="stock ${low?'low':''}">${it.quantity!=null?it.quantity:'—'} left ${it.availability==='X'?'— OUT':''}</span>
+              </div>`;
+            }).join('') : `<div class="empty-note">${partItems.length ? 'No parts match your search.' : 'No station parts yet.'}</div>`;
+          })()}
         </div>
       ` : `
         ${rows.length ? `
@@ -1641,6 +1712,17 @@
     stage.querySelectorAll('.report-tabs button').forEach(b=>{
       b.onclick = ()=>{ reportTab = b.getAttribute('data-t'); renderStage(); };
     });
+    const stockSearchInput = document.getElementById('reportStockSearchInput');
+    if(stockSearchInput){
+      stockSearchInput.oninput = ()=>{
+        reportStockSearchQuery = stockSearchInput.value;
+        renderStage();
+        setTimeout(()=>{
+          const el = document.getElementById('reportStockSearchInput');
+          if(el){ el.focus(); const v = el.value; el.value=''; el.value=v; }
+        },0);
+      };
+    }
   }
 
   // ---------- barcode/QR scanner support ----------
@@ -1706,7 +1788,12 @@
     }
     scanNotFoundError = null;
     const hours = inv.reference==='Tools' ? 24 : null; // default; adjustable in the review list
-    basket.push({ id: ++basketIdCounter, itemName: matchName, category: inv.reference, qty: 1, hours });
+    const existingScanEntry = basket.find(b=>b.itemName === matchName);
+    if(existingScanEntry){
+      existingScanEntry.qty += 1;
+    }else{
+      basket.push({ id: ++basketIdCounter, itemName: matchName, category: inv.reference, qty: 1, hours });
+    }
     lastScanAdded = matchName;
     renderStage(); // stay on the scan screen — ready for the next scan immediately
   }
