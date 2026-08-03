@@ -61,6 +61,7 @@ class ReceiveRequest(BaseModel):
     item: str
     qty: int = Field(..., gt=0)
     reason: str | None = None
+    category: str | None = None  # required only when creating a brand-new item
 
 
 class AdjustRequest(BaseModel):
