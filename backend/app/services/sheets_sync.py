@@ -1,155 +1,139 @@
-"""Google Sheets mirror sync for purchasing view.
+"""
+Google Sheets sync — writes into the SAME Inventory / History tabs and
+column layout the kiosk has always used.
 
-When GOOGLE_SHEET_SYNC_ENABLED is false (default), sync is a no-op that still
-builds the payload so exports and logs work. Enable with a service account JSON
-and sheet ID in env to push live tabs.
+No Google Cloud service account needed: this forwards the full current
+state to your existing (free) Apps Script Web App deployment, which does
+the actual writing using its own built-in Google authorization.
+
+Enable with: LEGACY_WEBAPP_URL=<your Apps Script /exec URL>
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import AuditEvent, Checkout, InventoryItem, Movement
-from app.services.inventory import available_qty
+from app.models import AuditEvent, Checkout, InventoryItem, ItemCategory, Movement
 
 logger = logging.getLogger(__name__)
 
 
+def _fmt(dt) -> str:
+    if not dt:
+        return ""
+    return dt.isoformat()
+
+
 def build_mirror_payload(db: Session) -> dict:
     items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
+
+    # Open (not-returned) Tools checkouts, grouped by item, for the "missing" count
+    open_qty_by_item: dict = {}
+    open_checkouts = db.execute(
+        select(Checkout).where(Checkout.returned_at.is_(None))
+    ).scalars().all()
+    for c in open_checkouts:
+        open_qty_by_item[c.item_id] = open_qty_by_item.get(c.item_id, 0) + c.qty
+
     inventory_rows = []
     for it in items:
-        avail = available_qty(db, it)
-        inventory_rows.append(
-            [
-                it.sku,
-                it.name,
-                it.category.value,
-                it.qty_on_hand,
-                avail,
-                it.reorder_min,
-                "YES" if avail <= it.reorder_min else "NO",
-                it.barcode or "",
-            ]
-        )
+        if it.category == ItemCategory.tools:
+            missing = open_qty_by_item.get(it.id, 0)
+            if it.qty_on_hand <= 0:
+                availability = "X"
+            elif missing <= 0:
+                availability = "✓"
+            else:
+                availability = f"{missing} part(s) missing"
+        else:
+            availability = "X" if it.qty_on_hand <= 0 else "✓"
 
-    opens = db.execute(select(Checkout).where(Checkout.returned_at.is_(None))).scalars().all()
-    open_rows = []
-    for c in opens:
+        inventory_rows.append([it.category.value, it.name, it.qty_on_hand, availability])
+
+    # History: every checkout (take/return pair) ...
+    history_rows = []
+    all_checkouts = db.execute(select(Checkout).order_by(Checkout.taken_at)).scalars().all()
+    for c in all_checkouts:
         item = db.get(InventoryItem, c.item_id)
-        open_rows.append(
+        is_tool = item and item.category == ItemCategory.tools
+        expected = _fmt(c.expected_return) if (is_tool and c.expected_return) else "None"
+        if is_tool:
+            returned_at = _fmt(c.returned_at) if c.returned_at else "Not returned"
+        else:
+            returned_at = _fmt(c.returned_at) if c.returned_at else "N/A"
+        history_rows.append(
             [
-                c.tx_id,
-                item.name if item else "",
+                _fmt(c.taken_at),
                 c.person_role,
-                c.taken_at.isoformat() if c.taken_at else "",
-                c.expected_return.isoformat() if c.expected_return else "",
+                item.name if item else "",
+                expected,
+                returned_at,
+                c.tx_id,
+                c.qty,
+                c.returned_by or "",
             ]
         )
 
-    moves = (
-        db.execute(select(Movement).order_by(Movement.created_at.desc()).limit(300)).scalars().all()
-    )
-    move_rows = [
-        [
-            m.created_at.isoformat() if m.created_at else "",
-            m.movement_type.value,
-            m.item_name,
-            m.qty,
-            m.actor,
-            m.reason or "",
-        ]
-        for m in moves
-    ]
+    # ... plus receive/adjust movements (restocks and manual adjustments)
+    other_moves = db.execute(
+        select(Movement)
+        .where(Movement.movement_type.in_(["receive", "adjust"]))
+        .order_by(Movement.created_at)
+    ).scalars().all()
+    for m in other_moves:
+        label = "Restock" if m.movement_type.value == "receive" else "Adjustment"
+        history_rows.append(
+            [
+                _fmt(m.created_at),
+                m.actor,
+                m.item_name,
+                label,
+                "N/A",
+                m.related_tx_id or "",
+                m.qty,
+                "",
+            ]
+        )
+
+    history_rows.sort(key=lambda r: r[0])
 
     return {
         "updated_at": datetime.now(timezone.utc).isoformat(),
-        "inventory": {
-            "headers": [
-                "SKU",
-                "Item",
-                "Category",
-                "Qty On Hand",
-                "Available",
-                "Reorder Min",
-                "Below Min",
-                "Barcode",
-            ],
-            "rows": inventory_rows,
-        },
-        "open_checkouts": {
-            "headers": ["TxId", "Item", "Taken By", "Taken At", "Expected Return"],
-            "rows": open_rows,
-        },
-        "movements": {
-            "headers": ["When", "Type", "Item", "Qty", "Actor", "Reason"],
-            "rows": move_rows,
-        },
+        "inventory": inventory_rows,
+        "history": history_rows,
     }
 
 
-def _write_sheet_values(sheet_id: str, service_account_json: str, payload: dict) -> None:
-    # Lazy import so API boots without Google libs when sync is disabled.
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-
-    info = json.loads(service_account_json)
-    creds = service_account.Credentials.from_service_account_info(
-        info, scopes=["https://www.googleapis.com/auth/spreadsheets"]
-    )
-    service = build("sheets", "v4", credentials=creds, cache_discovery=False)
-
-    def upsert_tab(title: str, headers: list, rows: list) -> None:
-        values = [headers] + rows
-        # Clear + write a fixed range; create sheet if missing is out of scope —
-        # purchasing workbook should pre-create tabs Inventory / OpenCheckouts / Movements.
-        range_name = f"{title}!A1"
-        service.spreadsheets().values().clear(
-            spreadsheetId=sheet_id, range=f"{title}!A:Z"
-        ).execute()
-        service.spreadsheets().values().update(
-            spreadsheetId=sheet_id,
-            range=range_name,
-            valueInputOption="RAW",
-            body={"values": values},
-        ).execute()
-
-    upsert_tab("Inventory", payload["inventory"]["headers"], payload["inventory"]["rows"])
-    upsert_tab(
-        "OpenCheckouts",
-        payload["open_checkouts"]["headers"],
-        payload["open_checkouts"]["rows"],
-    )
-    upsert_tab("Movements", payload["movements"]["headers"], payload["movements"]["rows"])
+def _push_to_legacy_webapp(webapp_url: str, payload: dict) -> None:
+    body = {
+        "action": "fullSync",
+        "inventory": payload["inventory"],
+        "history": payload["history"],
+    }
+    resp = httpx.post(webapp_url, json=body, timeout=20.0)
+    resp.raise_for_status()
+    result = resp.json()
+    if not result.get("ok"):
+        raise RuntimeError(f"Apps Script rejected sync: {result.get('error')}")
 
 
 def sync_mirror(db: Session) -> dict:
     settings = get_settings()
     payload = build_mirror_payload(db)
-    if not settings.google_sheet_sync_enabled:
-        logger.info("Sheet sync skipped (disabled). rows=%s", len(payload["inventory"]["rows"]))
-        return {"ok": True, "skipped": True, "payload_preview_rows": len(payload["inventory"]["rows"])}
+    webapp_url = (settings.legacy_webapp_url or "").strip()
 
-    if not settings.google_sheet_id or not settings.google_service_account_json:
-        db.add(
-            AuditEvent(
-                event_type="sheet_sync_failed",
-                detail="Missing GOOGLE_SHEET_ID or GOOGLE_SERVICE_ACCOUNT_JSON",
-            )
-        )
-        db.commit()
-        return {"ok": False, "error": "Sheet sync misconfigured"}
+    if not webapp_url:
+        logger.info("Sheet sync skipped (no LEGACY_WEBAPP_URL set). rows=%s", len(payload["inventory"]))
+        return {"ok": True, "skipped": True, "payload_preview_rows": len(payload["inventory"])}
 
     try:
-        _write_sheet_values(
-            settings.google_sheet_id, settings.google_service_account_json, payload
-        )
+        _push_to_legacy_webapp(webapp_url, payload)
         db.add(AuditEvent(event_type="sheet_sync_ok", detail=payload["updated_at"]))
         db.commit()
         return {"ok": True, "updated_at": payload["updated_at"]}
@@ -162,5 +146,5 @@ def sync_mirror(db: Session) -> dict:
 
 def maybe_sync_after_mutation(db: Session) -> None:
     settings = get_settings()
-    if settings.google_sheet_sync_enabled:
+    if (settings.legacy_webapp_url or "").strip():
         sync_mirror(db)
