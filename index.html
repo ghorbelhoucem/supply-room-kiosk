@@ -213,9 +213,12 @@
   let autoLogoutTimer = null;
   let autoLoggedOut = false;
 
-  // Session persistence — survives a page refresh (sessionStorage clears
-  // itself when the tab/browser actually closes, which is fine — a refresh
-  // shouldn't log anyone out, but closing the kiosk browser reasonably can).
+  // Session persistence — survives a page refresh. Using localStorage (not
+  // sessionStorage) since some managed/enterprise browser setups clear
+  // sessionStorage more aggressively than expected. The actual 10-minute
+  // logout boundary is enforced by the lastActivity timestamp check below,
+  // not by which storage type this is — closing the browser does NOT clear
+  // this by itself, so the idle-timeout check is what really matters.
   const SESSION_KEY = 'supply_kiosk_session_v1';
 
   // Only these screens make sense to resume directly on refresh — anything
@@ -229,9 +232,9 @@
   let sessionRestoreNotice = null;
 
   function saveSession(){
-    if(!currentPerson || !authToken){ sessionStorage.removeItem(SESSION_KEY); return; }
+    if(!currentPerson || !authToken){ localStorage.removeItem(SESSION_KEY); return; }
     try{
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
         currentPerson, authToken, lastActivity: Date.now(),
         screen, basket, returnBasket, restockBasket
       }));
@@ -239,12 +242,12 @@
   }
 
   function clearSession(){
-    try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){}
+    try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   }
 
   function restoreSession(){
     let raw;
-    try{ raw = sessionStorage.getItem(SESSION_KEY); }catch(e){ return false; }
+    try{ raw = localStorage.getItem(SESSION_KEY); }catch(e){ return false; }
     if(!raw) return false;
     let data;
     try{ data = JSON.parse(raw); }catch(e){ return false; }
