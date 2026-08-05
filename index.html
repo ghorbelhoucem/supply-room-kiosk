@@ -331,6 +331,7 @@
   let takeSearchQuery = '';
   let takeError = null;
   let pendingReturnTx = null;
+  let pendingReturnExtraTxIds = []; // when returning >1 of the same item at once
   let returnScanError = null;
   let returnFirstError = null;
   let pendingReturnMatches = null;
@@ -911,11 +912,23 @@
         ` : ''}
       </div>
       ${myOpens.length ? `<div class="open-list"><h3>Currently checked out to you</h3>
-        ${myOpens.map(h=>`
-          <div class="open-row ${isOverdue(h)?'overdue':''}">
-            <span>${itemThumbHTML(h.item, 26)} ${esc(h.item)}</span>
-            <span class="due">${isOverdue(h)?'OVERDUE · ':'due '}${fmtDate(h.expectedReturn)}</span>
-          </div>`).join('')}
+        ${(()=>{
+          const groups = {};
+          myOpens.forEach(h=>{
+            if(!groups[h.item]) groups[h.item] = [];
+            groups[h.item].push(h);
+          });
+          return Object.keys(groups).map(itemName=>{
+            const rows = groups[itemName];
+            const anyOverdue = rows.some(isOverdue);
+            // show the earliest (most urgent) due date among this group
+            const earliest = rows.reduce((a,b)=> new Date(a.expectedReturn) < new Date(b.expectedReturn) ? a : b);
+            return `<div class="open-row ${anyOverdue?'overdue':''}">
+              <span>${itemThumbHTML(itemName, 26)} ${esc(itemName)}${rows.length>1?` <span class="tag">× ${rows.length}</span>`:''}</span>
+              <span class="due">${anyOverdue?'OVERDUE · ':'due '}${fmtDate(earliest.expectedReturn)}</span>
+            </div>`;
+          }).join('');
+        })()}
         </div>` : ''}
       <div style="text-align:center;margin-top:26px;"><button class="go-btn" id="signOut" style="padding:14px 40px;font-size:15px;">🚪 Sign out</button></div>
     `;
@@ -1575,22 +1588,53 @@
       lastReturnAdded = null;
     }
     const opens = allOpenToolCheckouts().filter(h=>!isInReturnBasket(h.txId));
+    const groups = {};
+    opens.forEach(h=>{
+      if(!groups[h.item]) groups[h.item] = [];
+      groups[h.item].push(h);
+    });
+    // oldest-first within each group, so "return 3" closes the longest-out ones first
+    Object.values(groups).forEach(rows=>rows.sort((a,b)=> new Date(a.timestamp) - new Date(b.timestamp)));
+    const itemNames = Object.keys(groups);
+
     stage.innerHTML = banner + flash + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you returning?</div></div>
       <div class="hint" style="margin-top:0;margin-bottom:14px;">Showing tools checked out by anyone on the team</div>
       <div class="item-list">
-        ${opens.length ? opens.map(h=>`
-          <div class="item-row" data-tx="${h.txId}">
+        ${itemNames.length ? itemNames.map((itemName, gi)=>{
+          const rows = groups[itemName];
+          const anyOverdue = rows.some(isOverdue);
+          const earliest = rows[0];
+          if(rows.length === 1){
+            const h = rows[0];
+            return `<div class="item-row" data-tx="${h.txId}">
+              <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+                ${itemThumbHTML(h.item, 56, 36)}
+                <div style="min-width:0;">
+                  <div class="item-name">${esc(h.item)}</div>
+                  <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
+                </div>
+              </div>
+              <div class="stock ${isOverdue(h)?'low':''}" style="flex-shrink:0;padding-left:8px;">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
+            </div>`;
+          }
+          return `<div class="item-row" style="cursor:default;flex-wrap:wrap;">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-              ${itemThumbHTML(h.item, 56, 36)}
+              ${itemThumbHTML(itemName, 56, 36)}
               <div style="min-width:0;">
-                <div class="item-name">${esc(h.item)}</div>
-                <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
+                <div class="item-name">${esc(itemName)} <span class="tag">× ${rows.length} out</span></div>
+                <div class="item-meta">${anyOverdue?'some overdue':'due '+fmtDate(earliest.expectedReturn)}</div>
               </div>
             </div>
-            <div class="stock ${isOverdue(h)?'low':''}" style="flex-shrink:0;padding-left:8px;">${isOverdue(h)?'OVERDUE':('due '+fmtDate(h.expectedReturn))}</div>
-          </div>`).join('') : `<div class="empty-note">Nothing left to return.</div>`}
+            <div class="qty-stepper" style="flex-shrink:0;">
+              <button type="button" class="qty-btn" data-qty-target="returnGroupQty_${gi}" data-qty-dir="-1">−</button>
+              <input type="number" id="returnGroupQty_${gi}" min="1" max="${rows.length}" value="1" class="qty-stepper-input" style="width:52px;" />
+              <button type="button" class="qty-btn" data-qty-target="returnGroupQty_${gi}" data-qty-dir="1">+</button>
+            </div>
+            <button class="go-btn" data-group-return="${gi}" style="margin-top:10px;width:100%;">Return this many</button>
+          </div>`;
+        }).join('') : `<div class="empty-note">Nothing left to return.</div>`}
       </div>
       ${returnBasket.length ? `
         <div style="text-align:center;margin-top:18px;">
@@ -1599,9 +1643,27 @@
       ` : ''}
     `;
     document.getElementById('back').onclick = ()=>{ screen='menu'; renderStage(); };
-    stage.querySelectorAll('.item-row').forEach(row=>{
+    stage.querySelectorAll('.item-row[data-tx]').forEach(row=>{
       row.onclick = ()=>{
         pendingReturnTx = row.getAttribute('data-tx');
+        pendingReturnExtraTxIds = [];
+        returnScanError = null;
+        screen = 'returnScanPrompt';
+        renderStage();
+      };
+    });
+    stage.querySelectorAll('[data-group-return]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const gi = parseInt(btn.getAttribute('data-group-return'),10);
+        const itemName = itemNames[gi];
+        const rows = groups[itemName];
+        const qtyInput = document.getElementById(`returnGroupQty_${gi}`);
+        let qty = parseInt(qtyInput.value,10);
+        if(!qty || qty < 1) qty = 1;
+        if(qty > rows.length) qty = rows.length;
+        const chosen = rows.slice(0, qty);
+        pendingReturnTx = chosen[0].txId;
+        pendingReturnExtraTxIds = chosen.slice(1).map(h=>h.txId);
         returnScanError = null;
         screen = 'returnScanPrompt';
         renderStage();
@@ -1616,24 +1678,31 @@
     const tx = historyRows.find(h=>h.txId===pendingReturnTx);
     if(!tx){
       pendingReturnTx = null;
+      pendingReturnExtraTxIds = [];
       screen = 'return';
       renderStage();
       return;
     }
+    const extraCount = pendingReturnExtraTxIds.length;
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Cancel, back to list</span>
       <div class="reader-wrap" style="padding-top:6px;">
         <div class="scan-pulse" style="font-size:56px;margin-bottom:6px;">📷</div>
-        <div class="hint" style="margin-top:12px;font-size:15px;">Scan the QR code on <strong style="color:var(--text);">${esc(tx.item)}</strong> to confirm the return</div>
+        <div class="hint" style="margin-top:12px;font-size:15px;">Scan the QR code on <strong style="color:var(--text);">${esc(tx.item)}</strong> to confirm the return${extraCount ? ` (returning ${extraCount+1} total — scan just one, the rest are matched automatically)` : ''}</div>
         ${returnScanError ? `<div class="error-msg" style="margin-top:16px;">${esc(returnScanError)}</div>` : ''}
         <button class="btn-ghost" id="noQrReturnBtn" style="margin-top:60px;">Return without QR code</button>
       </div>
     `;
-    document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; returnScanError=null; screen='return'; renderStage(); };
+    document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; pendingReturnExtraTxIds=[]; returnScanError=null; screen='return'; renderStage(); };
     document.getElementById('noQrReturnBtn').onclick = ()=>{
       addToReturnBasket(tx);
-      lastReturnAdded = tx.item;
+      pendingReturnExtraTxIds.forEach(txId=>{
+        const extra = historyRows.find(h=>h.txId===txId);
+        if(extra) addToReturnBasket(extra);
+      });
+      lastReturnAdded = extraCount ? `${tx.item} × ${extraCount+1}` : tx.item;
       pendingReturnTx = null;
+      pendingReturnExtraTxIds = [];
       returnScanError = null;
       screen = 'return';
       renderStage();
@@ -1664,8 +1733,14 @@
     }
     returnScanError = null;
     addToReturnBasket(tx);
-    lastReturnAdded = tx.item;
+    const extraCount = pendingReturnExtraTxIds.length;
+    pendingReturnExtraTxIds.forEach(txId=>{
+      const extra = historyRows.find(h=>h.txId===txId);
+      if(extra) addToReturnBasket(extra);
+    });
+    lastReturnAdded = extraCount ? `${tx.item} × ${extraCount+1}` : tx.item;
     pendingReturnTx = null;
+    pendingReturnExtraTxIds = [];
     screen = 'return';
     renderStage();
   }
