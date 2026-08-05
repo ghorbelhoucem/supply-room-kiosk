@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     google_service_account_json: str = ""
     legacy_webapp_url: str = ""
     sheet_sync_interval_minutes: int = 10
+    slack_transactions_webhook_url: str = ""
+    slack_purchase_webhook_url: str = ""
 
 
 @lru_cache
