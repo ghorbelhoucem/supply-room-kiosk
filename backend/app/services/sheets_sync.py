@@ -34,14 +34,16 @@ def _consolidate_history_rows(rows: list) -> list:
     """
     Rows here are [Timestamp, Person/Role, Item, ExpectedReturn, ReturnedAt,
     TxID, Qty, ReturnedBy]. Merge rows that are identical except for TxID/Qty
-    — same item, same person, same moment, same return status — into one
-    row with a combined Qty, instead of one line per individual unit.
+    — same item, same person, same exact moment, same return status — into
+    one row with a combined Qty. Grouping by the exact timestamp correctly
+    represents "one transaction": every row created by a single take/return/
+    restock action shares the same server-side transaction timestamp.
     """
     groups: dict = {}
     order: list = []
     for row in rows:
         timestamp, person_role, item, expected, returned_at, tx_id, qty, returned_by = row
-        key = (timestamp, person_role, item, expected, returned_at, returned_by)
+        key = (item, person_role, timestamp, expected, returned_at, returned_by)
         if key not in groups:
             groups[key] = {"row": row, "qty": 0}
             order.append(key)
