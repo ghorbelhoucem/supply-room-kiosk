@@ -50,7 +50,10 @@ def take_batch(
     maybe_sync_after_mutation(db)
     who = body.person or user.name
     role = body.role or user.role.value
-    items_desc = ", ".join(f"{i.qty} × {i.item}" for i in body.items)
+    take_totals = {}
+    for i in body.items:
+        take_totals[i.item] = take_totals.get(i.item, 0) + i.qty
+    items_desc = ", ".join(f"{qty} × {name}" for name, qty in take_totals.items())
     notify_transaction(f"📤 *{who}* ({role}) took: {items_desc}")
     check_and_notify_purchase_alerts(db)
     db.commit()
@@ -77,10 +80,12 @@ def return_batch(
     maybe_sync_after_mutation(db)
     returned_by = body.returnedBy or f"{user.name}/{user.role.value}"
     checkouts = db.execute(select(Checkout).where(Checkout.tx_id.in_(body.txIds))).scalars().all()
-    parts = []
+    return_totals = {}
     for c in checkouts:
         item = db.get(InventoryItem, c.item_id)
-        parts.append(f"{c.qty} × {item.name if item else 'unknown item'}")
+        name = item.name if item else "unknown item"
+        return_totals[name] = return_totals.get(name, 0) + c.qty
+    parts = [f"{qty} × {name}" for name, qty in return_totals.items()]
     notify_transaction(f"📥 *{returned_by}* returned: {', '.join(parts) if parts else 'item(s)'}")
     return result
 
