@@ -496,6 +496,12 @@
     btn.classList.toggle('active', inReport);
   }
 
+  function updateSignOutBtn(){
+    const btn = document.getElementById('topSignOutBtn');
+    if(!btn) return;
+    btn.style.display = currentPerson ? '' : 'none';
+  }
+
   async function postAction(payload){
     return apiClient.postAction(payload);
   }
@@ -531,11 +537,16 @@
         <div class="topbar-right">
           <span class="status-dot ${loadError?'offline':''}" id="statusDot"><span class="dot"></span>${loadError ? 'Offline' : 'Connected'}</span>
           <div class="clock" id="clockDisplay"></div>
+          <button class="nav-btn" id="topSignOutBtn" style="display:none;">🚪 Sign out</button>
           <button class="nav-btn ${screen==='report'?'active':''}" id="reportBtn">${screen==='report' ? 'Close Report' : 'Manager Report'}</button>
         </div>
       </div>
       <div class="stage" id="stage"></div>
     `;
+    document.getElementById('topSignOutBtn').onclick = ()=>{
+      clearAutoLogoutTimer(); clearSession(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken();
+      screen='idle'; renderStage();
+    };
     document.getElementById('reportBtn').onclick = async ()=>{
       if(screen==='report'){
         const ret = reportReturnScreen;
@@ -610,6 +621,7 @@
     else if(screen==='restockPick') stageRestockPick(stage, banner);
     else if(screen==='restockBasketReview') stageRestockBasketReview(stage, banner);
     updateReportBtn();
+    updateSignOutBtn();
     saveSession();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{ stage.style.opacity='1'; stage.style.transition='opacity .13s ease'; }));
   }
@@ -930,7 +942,6 @@
           }).join('');
         })()}
         </div>` : ''}
-      <div style="text-align:center;margin-top:26px;"><button class="go-btn" id="signOut" style="padding:14px 40px;font-size:15px;">🚪 Sign out</button></div>
     `;
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
@@ -939,7 +950,6 @@
     if(canRestock){
       document.getElementById('restockCard').onclick = ()=>{ restockError=null; restockSearchQuery=''; screen='restockCategory'; renderStage(); };
     }
-    document.getElementById('signOut').onclick = ()=>{ clearAutoLogoutTimer(); clearSession(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken(); screen='idle'; renderStage(); };
   }
 
   function stageRestockCategory(stage, banner){
@@ -1746,19 +1756,30 @@
   }
 
   function stageReturnBasketReview(stage, banner){
+    const groups = {};
+    returnBasket.forEach(tx=>{
+      if(!groups[tx.item]) groups[tx.item] = [];
+      groups[tx.item].push(tx);
+    });
+    const itemNames = Object.keys(groups);
     stage.innerHTML = banner + `
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Returning (${returnBasket.length})</div></div>
       <table>
         <thead><tr><th>Item</th><th>Taken By</th><th>Due</th><th></th></tr></thead>
         <tbody>
-          ${returnBasket.length ? returnBasket.map(tx=>`
-            <tr class="${isOverdue(tx)?'overdue':''}">
-              <td>${itemThumbHTML(tx.item, 28)} ${esc(tx.item)}</td>
-              <td>${esc(tx.personRole)}</td>
-              <td>${isOverdue(tx) ? '<span class="pill over">overdue</span>' : fmtDate(tx.expectedReturn)}</td>
-              <td><button class="btn-ghost" data-remove="${tx.txId}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
-            </tr>
-          `).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Nothing added yet.</td></tr>`}
+          ${itemNames.length ? itemNames.map(itemName=>{
+            const rows = groups[itemName];
+            const anyOverdue = rows.some(isOverdue);
+            const earliest = rows.reduce((a,b)=> new Date(a.expectedReturn) < new Date(b.expectedReturn) ? a : b);
+            const people = new Set(rows.map(r=>r.personRole));
+            const takenBy = people.size === 1 ? esc(rows[0].personRole) : `${people.size} people`;
+            return `<tr class="${anyOverdue?'overdue':''}">
+              <td>${itemThumbHTML(itemName, 28)} ${esc(itemName)}${rows.length>1?` <span class="tag">× ${rows.length}</span>`:''}</td>
+              <td>${takenBy}</td>
+              <td>${anyOverdue ? '<span class="pill over">overdue</span>' : fmtDate(earliest.expectedReturn)}</td>
+              <td><button class="btn-ghost" data-remove-item="${esc(itemName)}" style="padding:4px 10px;font-size:10.5px;">Remove${rows.length>1?' all':''}</button></td>
+            </tr>`;
+          }).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">Nothing added yet.</td></tr>`}
         </tbody>
       </table>
       ${returnBasketError ? `<div class="error-msg" style="margin-top:14px;">${esc(returnBasketError)}</div>` : ''}
@@ -1770,10 +1791,10 @@
     `;
     document.getElementById('returnAddMoreBtn').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
     document.getElementById('cancelReturnBasket').onclick = ()=>{ returnBasket=[]; returnBasketError=null; screen='menu'; renderStage(); };
-    stage.querySelectorAll('[data-remove]').forEach(btn=>{
+    stage.querySelectorAll('[data-remove-item]').forEach(btn=>{
       btn.onclick = ()=>{
-        const txId = btn.getAttribute('data-remove');
-        returnBasket = returnBasket.filter(tx=>tx.txId!==txId);
+        const itemName = btn.getAttribute('data-remove-item');
+        returnBasket = returnBasket.filter(tx=>tx.item!==itemName);
         renderStage();
       };
     });
@@ -1794,7 +1815,9 @@
           renderStage();
           return;
         }
-        const detailLines = returnBasket.map(tx=>tx.item).join(', ');
+        const summaryGroups = {};
+        returnBasket.forEach(tx=>{ summaryGroups[tx.item] = (summaryGroups[tx.item]||0) + 1; });
+        const detailLines = Object.keys(summaryGroups).map(name=> summaryGroups[name]>1 ? `${name} × ${summaryGroups[name]}` : name).join(', ');
         confirmInfo = { icon:'✅', msg: `${returnBasket.length} item(s) returned`, detail: detailLines };
         returnBasket = [];
         screen = 'confirm';
