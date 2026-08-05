@@ -91,6 +91,10 @@ def login_operator(body: LoginOperatorRequest, db: Session = Depends(get_db)):
     if not role:
         raise HTTPException(status_code=400, detail="Unknown role")
 
+    # Supervisor and Tele-operator share one credential pool by design — any
+    # operator_id/password pair works under either menu card. The account's
+    # own stored role is only a fallback label, not an access restriction
+    # here, since both roles currently carry identical permissions.
     user = db.execute(
         select(User).where(
             User.operator_id == body.operator_id.strip(),
@@ -99,15 +103,15 @@ def login_operator(body: LoginOperatorRequest, db: Session = Depends(get_db)):
         )
     ).scalar_one_or_none()
 
-    if not user or user.role != role or not verify_secret(body.password, user.password_hash):
+    if not user or not verify_secret(body.password, user.password_hash):
         audit(db, "auth_failed", detail=f"operator id={body.operator_id}")
         db.commit()
         return {"ok": False, "error": "Incorrect password, try again.", "code": "BAD_PASSWORD"}
 
-    token = create_access_token(user)
-    audit(db, "auth_ok", actor=f"{user.name}/{user.role.value}")
+    token = create_access_token(user, role_override=role)
+    audit(db, "auth_ok", actor=f"{user.name}/{role.value}")
     db.commit()
     return LoginResponse(
         token=token,
-        person=PersonOut(name=user.name, role=user.role.value, code=f"{user.name}/{user.role.value}"),
+        person=PersonOut(name=user.name, role=role.value, code=f"{user.name}/{role.value}"),
     )
