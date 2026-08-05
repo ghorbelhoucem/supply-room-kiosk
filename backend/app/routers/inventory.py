@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_manager, require_restock_access
 from app.database import get_db
-from app.models import User
+from app.models import Checkout, InventoryItem, User
 from app.schemas import (
     AdjustRequest,
     ReceiveRequest,
@@ -12,6 +13,7 @@ from app.schemas import (
 )
 from app.services import inventory as inv
 from app.services.sheets_sync import maybe_sync_after_mutation
+from app.services.slack_notify import check_and_notify_purchase_alerts, notify_transaction
 
 router = APIRouter(tags=["inventory"])
 
@@ -46,6 +48,12 @@ def take_batch(
     inv.save_idempotent(db, body.client_request_id, "takeBatch", result)
     db.commit()
     maybe_sync_after_mutation(db)
+    who = body.person or user.name
+    role = body.role or user.role.value
+    items_desc = ", ".join(f"{i.qty} × {i.item}" for i in body.items)
+    notify_transaction(f"📤 *{who}* ({role}) took: {items_desc}")
+    check_and_notify_purchase_alerts(db)
+    db.commit()
     return result
 
 
@@ -67,6 +75,13 @@ def return_batch(
     inv.save_idempotent(db, body.client_request_id, "returnBatch", result)
     db.commit()
     maybe_sync_after_mutation(db)
+    returned_by = body.returnedBy or f"{user.name}/{user.role.value}"
+    checkouts = db.execute(select(Checkout).where(Checkout.tx_id.in_(body.txIds))).scalars().all()
+    parts = []
+    for c in checkouts:
+        item = db.get(InventoryItem, c.item_id)
+        parts.append(f"{c.qty} × {item.name if item else 'unknown item'}")
+    notify_transaction(f"📥 *{returned_by}* returned: {', '.join(parts) if parts else 'item(s)'}")
     return result
 
 
@@ -80,6 +95,9 @@ def receive(
     if existing:
         return existing
     actor = f"{user.name}/{user.role.value}"
+    item_existed_before = db.execute(
+        select(InventoryItem).where(InventoryItem.name == body.item)
+    ).scalar_one_or_none() is not None
     result = inv.receive_stock(db, body.item, body.qty, actor, body.reason, category=body.category)
     if not result.get("ok"):
         db.rollback()
@@ -87,6 +105,10 @@ def receive(
     inv.save_idempotent(db, body.client_request_id, "receive", result)
     db.commit()
     maybe_sync_after_mutation(db)
+    label = "🆕 new item added" if not item_existed_before else "restocked"
+    notify_transaction(f"🚚 *{actor}* {label}: +{body.qty} × {body.item}")
+    check_and_notify_purchase_alerts(db)
+    db.commit()
     return result
 
 
@@ -107,4 +129,8 @@ def adjust(
     inv.save_idempotent(db, body.client_request_id, "adjust", result)
     db.commit()
     maybe_sync_after_mutation(db)
+    sign = "+" if body.qty_delta >= 0 else ""
+    notify_transaction(f"⚙️ *{actor}* adjusted {body.item}: {sign}{body.qty_delta} (now {result.get('quantity')})")
+    check_and_notify_purchase_alerts(db)
+    db.commit()
     return result
