@@ -12,16 +12,18 @@ PIN_USERS = [
     ("Hamza", UserRole.maintenance, "4719", None),
     ("Rosa", UserRole.management, "4685", None),
     ("Clarissa", UserRole.management, "4728", None),
-    # shared PIN groups
-    ("Ahmed", UserRole.maintenance, "0000", "maintenance-shared"),
-    ("Felix", UserRole.maintenance, "0000", "maintenance-shared"),
-    ("Yie Hang", UserRole.maintenance, "0000", "maintenance-shared"),
-    ("Bingie", UserRole.management, "0000", "management-shared"),
-    ("Winnie", UserRole.management, "0000", "management-shared"),
+    ("Ahmed", UserRole.maintenance, "5307", None),
+    ("Felix", UserRole.maintenance, "5316", None),
+    ("Yie Hang", UserRole.maintenance, "4192", None),
+    ("Bingie", UserRole.management, "4332", None),
+    ("Winnie", UserRole.management, "4207", None),
     ("Developer", UserRole.devs, "7346", "devs-shared"),
 ]
 
-# Demo operators — replace via seed_secrets / import in production
+# Demo operators — the real 300-operator credential set is seeded separately
+# via `python -m app.seed_operators_2026` (run once, directly against the
+# live database). These two remain only as a minimal fallback for a brand
+# new install before that script has ever been run.
 DEMO_OPERATORS = [
     ("1", "Senate!now1", UserRole.supervisor),
     ("2", "Punch+love2", UserRole.teleoperator),
