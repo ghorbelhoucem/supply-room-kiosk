@@ -30,6 +30,30 @@ def _fmt(dt) -> str:
     return dt.isoformat()
 
 
+def _consolidate_history_rows(rows: list) -> list:
+    """
+    Rows here are [Timestamp, Person/Role, Item, ExpectedReturn, ReturnedAt,
+    TxID, Qty, ReturnedBy]. Merge rows that are identical except for TxID/Qty
+    — same item, same person, same moment, same return status — into one
+    row with a combined Qty, instead of one line per individual unit.
+    """
+    groups: dict = {}
+    order: list = []
+    for row in rows:
+        timestamp, person_role, item, expected, returned_at, tx_id, qty, returned_by = row
+        key = (timestamp, person_role, item, expected, returned_at, returned_by)
+        if key not in groups:
+            groups[key] = {"row": row, "qty": 0}
+            order.append(key)
+        groups[key]["qty"] += qty or 0
+
+    merged = []
+    for key in order:
+        row, qty = groups[key]["row"], groups[key]["qty"]
+        merged.append([row[0], row[1], row[2], row[3], row[4], row[5], qty, row[7]])
+    return merged
+
+
 def build_mirror_payload(db: Session) -> dict:
     items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
 
@@ -112,6 +136,7 @@ def build_mirror_payload(db: Session) -> dict:
         )
 
     history_rows.sort(key=lambda r: r[0])
+    history_rows = _consolidate_history_rows(history_rows)
 
     return {
         "updated_at": datetime.now(timezone.utc).isoformat(),
