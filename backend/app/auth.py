@@ -37,13 +37,17 @@ def verify_secret(plain: str, hashed: str | None) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(user: User) -> str:
+def create_access_token(user: User, role_override=None) -> str:
+    # role_override lets Supervisor/Tele-operator share one credential pool —
+    # the session role becomes whichever menu card was tapped at login,
+    # not a fixed property baked into the operator account.
     settings = get_settings()
+    effective_role = role_override or user.role
     payload = {
         "sub": str(user.id),
         "name": user.name,
-        "role": user.role.value,
-        "code": f"{user.name}/{user.role.value}",
+        "role": effective_role.value,
+        "code": f"{user.name}/{effective_role.value}",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
