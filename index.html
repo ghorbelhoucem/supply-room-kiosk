@@ -2065,7 +2065,7 @@
         <button class="nav-btn ${reportTab==='stock'?'active':''}" data-t="stock">Inventory Status</button>
         <button class="nav-btn ${reportTab==='weekly'?'active':''}" data-t="weekly">Weekly Report</button>
         <button class="nav-btn ${reportTab==='purchase'?'active':''}" data-t="purchase">Purchase List${(()=>{
-          const n = Object.values(inventoryMap).filter(it=>inRoom(it.reference) && Number(it.quantity) <= Number(it.reorder_min || 5)).length;
+          const n = Object.values(inventoryMap).filter(it=>inRoom(it.reference) && it.reference !== 'SOPs' && Number(it.quantity) <= Number(it.reorder_min || 5)).length;
           return n ? ` (${n})` : '';
         })()}</button>
       </div>
@@ -2111,11 +2111,10 @@
             const filteredSops = q ? sopItems.filter(it=>it.item.toLowerCase().includes(q)) : sopItems;
             if(!filteredSops.length) return `<div class="empty-note">${sopItems.length ? 'No SOPs match your search.' : 'No SOPs yet.'}</div>`;
             return `<div class="stock-grid">${filteredSops.map(it=>{
-              const sopLow = Number(it.quantity) <= Number(it.reorder_min || 5);
               const statusBadge = it.sop_status ? ` <span class="tag">${esc(it.sop_status)}</span>` : '';
               return `<div class="stockbar">
               <span>${iconForRef('SOPs')} ${esc(it.item)}${statusBadge}</span>
-              <span class="stock ${sopLow || String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
+              <span class="stock ${String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
             </div>`;
             }).join('')}</div>`;
           })()}
@@ -2186,7 +2185,7 @@
           <div class="hint" style="margin-top:0;margin-bottom:16px;">Items at or below their reorder point — restock these soon. Updates automatically as stock changes.</div>
           ${(()=>{
             const needsPurchase = Object.values(inventoryMap)
-              .filter(it=>inRoom(it.reference) && Number(it.quantity) <= Number(it.reorder_min || 5))
+              .filter(it=>inRoom(it.reference) && it.reference !== 'SOPs' && Number(it.quantity) <= Number(it.reorder_min || 5))
               .sort((a,b)=> Number(a.quantity) - Number(b.quantity));
             if(!needsPurchase.length) return `<div class="empty-note">Nothing needs restocking right now — everything is above its reorder point.</div>`;
             return `<div class="stock-grid">${needsPurchase.map(it=>`
