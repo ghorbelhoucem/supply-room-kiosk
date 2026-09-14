@@ -1,12 +1,15 @@
 """
-Google Sheets sync — writes into the SAME Inventory / History tabs and
-column layout the kiosk has always used.
+Google Sheets sync — pushes Storage Room and SOP Room data to two
+COMPLETELY SEPARATE Google Sheets (different access permissions per room).
 
-No Google Cloud service account needed: this forwards the full current
-state to your existing (free) Apps Script Web App deployment, which does
-the actual writing using its own built-in Google authorization.
+No Google Cloud service account needed: this forwards each room's current
+state to its own (free) Apps Script Web App deployment, which does the
+actual writing using its own built-in Google authorization.
 
-Enable with: LEGACY_WEBAPP_URL=<your Apps Script /exec URL>
+Enable with:
+  LEGACY_WEBAPP_URL=<Storage Room Apps Script /exec URL>
+  SOP_WEBAPP_URL=<SOP Room Apps Script /exec URL>
+Either can be left blank to skip syncing that room.
 """
 
 from __future__ import annotations
@@ -23,6 +26,9 @@ from app.models import AuditEvent, Checkout, InventoryItem, ItemCategory, Moveme
 
 logger = logging.getLogger(__name__)
 
+STORAGE_CATEGORIES = {ItemCategory.tools, ItemCategory.station_parts}
+SOP_CATEGORIES = {ItemCategory.sops}
+
 
 def _fmt(dt) -> str:
     if not dt:
@@ -35,9 +41,7 @@ def _consolidate_history_rows(rows: list) -> list:
     Rows here are [Timestamp, Person/Role, Item, ExpectedReturn, ReturnedAt,
     TxID, Qty, ReturnedBy]. Merge rows that are identical except for TxID/Qty
     — same item, same person, same exact moment, same return status — into
-    one row with a combined Qty. Grouping by the exact timestamp correctly
-    represents "one transaction": every row created by a single take/return/
-    restock action shares the same server-side transaction timestamp.
+    one row with a combined Qty.
     """
     groups: dict = {}
     order: list = []
@@ -56,16 +60,24 @@ def _consolidate_history_rows(rows: list) -> list:
     return merged
 
 
-def build_mirror_payload(db: Session) -> dict:
-    items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
+def _build_payload_for_categories(db: Session, categories: set) -> dict:
+    """Builds an Inventory/History/Purchase-List payload limited to just the
+    given set of ItemCategory values — used to keep Storage Room and SOP
+    Room data fully separate from each other."""
+    items = [
+        it
+        for it in db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
+        if it.category in categories
+    ]
+    item_ids = {it.id for it in items}
 
-    # Open (not-returned) Tools checkouts, grouped by item, for the "missing" count
     open_qty_by_item: dict = {}
     open_checkouts = db.execute(
         select(Checkout).where(Checkout.returned_at.is_(None))
     ).scalars().all()
     for c in open_checkouts:
-        open_qty_by_item[c.item_id] = open_qty_by_item.get(c.item_id, 0) + c.qty
+        if c.item_id in item_ids:
+            open_qty_by_item[c.item_id] = open_qty_by_item.get(c.item_id, 0) + c.qty
 
     inventory_rows = []
     for it in items:
@@ -82,7 +94,6 @@ def build_mirror_payload(db: Session) -> dict:
 
         inventory_rows.append([it.category.value, it.name, it.qty_on_hand, availability])
 
-    # Purchase List: anything at or below its reorder point, lowest stock first
     purchase_rows = sorted(
         (
             [it.category.value, it.name, it.qty_on_hand, it.reorder_min]
@@ -92,14 +103,15 @@ def build_mirror_payload(db: Session) -> dict:
         key=lambda r: r[2],
     )
 
-    # History: every checkout (take/return pair) ...
     history_rows = []
     all_checkouts = db.execute(select(Checkout).order_by(Checkout.taken_at)).scalars().all()
     for c in all_checkouts:
+        if c.item_id not in item_ids:
+            continue
         item = db.get(InventoryItem, c.item_id)
-        is_tool = item and item.category in (ItemCategory.tools, ItemCategory.sops)
-        expected = _fmt(c.expected_return) if (is_tool and c.expected_return) else "None"
-        if is_tool:
+        is_tool_like = item and item.category in (ItemCategory.tools, ItemCategory.sops)
+        expected = _fmt(c.expected_return) if (is_tool_like and c.expected_return) else "None"
+        if is_tool_like:
             returned_at = _fmt(c.returned_at) if c.returned_at else "Not returned"
         else:
             returned_at = _fmt(c.returned_at) if c.returned_at else "N/A"
@@ -116,13 +128,14 @@ def build_mirror_payload(db: Session) -> dict:
             ]
         )
 
-    # ... plus receive/adjust movements (restocks and manual adjustments)
     other_moves = db.execute(
         select(Movement)
         .where(Movement.movement_type.in_(["receive", "adjust"]))
         .order_by(Movement.created_at)
     ).scalars().all()
     for m in other_moves:
+        if m.item_id not in item_ids:
+            continue
         label = "Restock" if m.movement_type.value == "receive" else "Adjustment"
         history_rows.append(
             [
@@ -148,7 +161,7 @@ def build_mirror_payload(db: Session) -> dict:
     }
 
 
-def _push_to_legacy_webapp(webapp_url: str, payload: dict) -> None:
+def _push_to_webapp(webapp_url: str, payload: dict) -> None:
     body = {
         "action": "fullSync",
         "inventory": payload["inventory"],
@@ -164,26 +177,45 @@ def _push_to_legacy_webapp(webapp_url: str, payload: dict) -> None:
 
 def sync_mirror(db: Session) -> dict:
     settings = get_settings()
-    payload = build_mirror_payload(db)
-    webapp_url = (settings.legacy_webapp_url or "").strip()
+    storage_url = (settings.legacy_webapp_url or "").strip()
+    sop_url = (settings.sop_webapp_url or "").strip()
 
-    if not webapp_url:
-        logger.info("Sheet sync skipped (no LEGACY_WEBAPP_URL set). rows=%s", len(payload["inventory"]))
-        return {"ok": True, "skipped": True, "payload_preview_rows": len(payload["inventory"])}
+    results = {}
 
-    try:
-        _push_to_legacy_webapp(webapp_url, payload)
-        db.add(AuditEvent(event_type="sheet_sync_ok", detail=payload["updated_at"]))
-        db.commit()
-        return {"ok": True, "updated_at": payload["updated_at"]}
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Sheet sync failed")
-        db.add(AuditEvent(event_type="sheet_sync_failed", detail=str(exc)))
-        db.commit()
-        return {"ok": False, "error": str(exc)}
+    if storage_url:
+        storage_payload = _build_payload_for_categories(db, STORAGE_CATEGORIES)
+        try:
+            _push_to_webapp(storage_url, storage_payload)
+            results["storage"] = {"ok": True, "updated_at": storage_payload["updated_at"]}
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Storage Room sheet sync failed")
+            results["storage"] = {"ok": False, "error": str(exc)}
+    else:
+        logger.info("Storage Room sheet sync skipped (no LEGACY_WEBAPP_URL set).")
+        results["storage"] = {"ok": True, "skipped": True}
+
+    if sop_url:
+        sop_payload = _build_payload_for_categories(db, SOP_CATEGORIES)
+        try:
+            _push_to_webapp(sop_url, sop_payload)
+            results["sop"] = {"ok": True, "updated_at": sop_payload["updated_at"]}
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("SOP Room sheet sync failed")
+            results["sop"] = {"ok": False, "error": str(exc)}
+    else:
+        logger.info("SOP Room sheet sync skipped (no SOP_WEBAPP_URL set).")
+        results["sop"] = {"ok": True, "skipped": True}
+
+    overall_ok = results["storage"]["ok"] and results["sop"]["ok"]
+    db.add(AuditEvent(
+        event_type="sheet_sync_ok" if overall_ok else "sheet_sync_failed",
+        detail=str(results),
+    ))
+    db.commit()
+    return {"ok": overall_ok, **results}
 
 
 def maybe_sync_after_mutation(db: Session) -> None:
     settings = get_settings()
-    if (settings.legacy_webapp_url or "").strip():
+    if (settings.legacy_webapp_url or "").strip() or (settings.sop_webapp_url or "").strip():
         sync_mirror(db)
