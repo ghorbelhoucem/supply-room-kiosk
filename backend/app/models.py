@@ -159,6 +159,7 @@ class WarrantyReport(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     part_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    serial_number: Mapped[str] = mapped_column(String(100), nullable=False)
     issue: Mapped[str] = mapped_column(Text, nullable=False)
     reported_by: Mapped[str] = mapped_column(String(200), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
