@@ -208,6 +208,17 @@
   const ROOM_LABELS = { storage: 'Storage Room', sop: 'SOP Room' };
   function roomCategories(){ return ROOM_CATEGORIES[selectedRoom] || ROOM_CATEGORIES.storage; }
   function inRoom(reference){ return roomCategories().includes(reference); }
+
+  // Storage Room: Maintenance/Management/Devs only. SOP Room additionally
+  // allows Supervisor. Intentionally different allow-lists per room.
+  function canManageCurrentRoom(){
+    if(!currentPerson) return false;
+    const role = currentPerson.role;
+    if(selectedRoom === 'sop'){
+      return role === 'Supervisor' || role === 'Management' || role === 'Maintenance' || role === 'Devs';
+    }
+    return role === 'Maintenance' || role === 'Management' || role === 'Devs';
+  }
   let pendingRole = null;
   let pendingName = null;
   let pendingSharedNames = null;
@@ -232,7 +243,7 @@
   // Only these screens make sense to resume directly on refresh — anything
   // mid-credential-entry or a transient success screen just falls back to menu.
   const RESTORABLE_SCREENS = new Set([
-    'roomSelect','menu','scanPrompt','scanConfirm','takeCategory','take','basketReview',
+    'menu','scanPrompt','takeCategory','take','basketReview',
     'return','returnScanPrompt','returnBasketReview',
     'restockCategory','restockPick','restockBasketReview','report'
   ]);
@@ -562,9 +573,9 @@
         renderStage();
         return;
       }
-      const role = currentPerson && currentPerson.role;
-      if(!role || (role !== 'Management' && role !== 'Devs' && role !== 'Maintenance')){
-        loadError = 'Manager Report requires a Maintenance, Management, or Devs sign-in.';
+      if(!canManageCurrentRoom()){
+        const allowedRoles = selectedRoom === 'sop' ? 'Supervisor, Maintenance, Management, or Devs' : 'Maintenance, Management, or Devs';
+        loadError = `Manager Report requires a ${allowedRoles} sign-in.`;
         renderStage();
         updateStatusDot();
         return;
@@ -662,7 +673,7 @@
     stage.querySelectorAll('.menu-card[data-room]').forEach(card=>{
       card.onclick = ()=>{
         selectedRoom = card.getAttribute('data-room');
-        screen = currentPerson ? 'menu' : 'idle';
+        screen = 'idle';
         renderStage();
       };
     });
@@ -942,10 +953,9 @@
     const myOpens = openCheckoutsFor(currentPerson.code).filter(inRoomFilter);
     const teamOpens = allOpenToolCheckouts().filter(inRoomFilter);
     const anyTeamOpen = teamOpens.length > 0;
-    const canRestock = currentPerson.role === 'Maintenance' || currentPerson.role === 'Management' || currentPerson.role === 'Devs';
+    const canRestock = canManageCurrentRoom();
     stage.innerHTML = banner + `
-      <span class="back-link" id="changeRoomFromMenu">&larr; ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')} · change</span>
-      <div class="greet" style="margin-top:14px;">
+      <div class="greet">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
         <div class="code">${esc(currentPerson.role)} · ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')}</div>
       </div>
@@ -988,7 +998,6 @@
         })()}
         </div>` : ''}
     `;
-    document.getElementById('changeRoomFromMenu').onclick = ()=>{ screen='roomSelect'; renderStage(); };
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
@@ -1277,7 +1286,6 @@
     const displayName = isOtherScan ? 'Other (not labelled)' : pendingScanItem;
     const displayIcon = isOtherScan ? '<div class="icon">❓</div>' : `<div>${itemThumbHTML(pendingScanItem, 72)}</div>`;
     stage.innerHTML = banner + `
-      <span class="back-link" id="back">&larr; Cancel, back to menu</span>
       <div class="confirm-box">
         ${displayIcon}
         <div class="msg">Is this correct?</div>
@@ -1289,7 +1297,6 @@
         <button id="scanAgainBtn" class="go-btn" style="margin-top:40px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);">🔄 Scan again</button>
       </div>
     `;
-    document.getElementById('back').onclick = ()=>{ pendingScanItem=null; scanNotFoundError=null; screen='menu'; renderStage(); };
     document.getElementById('scanNo').onclick = ()=>{
       pendingScanItem = null;
       screen = 'takeCategory';
