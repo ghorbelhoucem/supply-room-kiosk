@@ -669,6 +669,7 @@
     else if(screen==='restockCategory') stageRestockCategory(stage, banner);
     else if(screen==='restockPick') stageRestockPick(stage, banner);
     else if(screen==='restockBasketReview') stageRestockBasketReview(stage, banner);
+    else if(screen==='warranty') stageWarranty(stage, banner);
     updateReportBtn();
     updateSignOutBtn();
     saveSession();
@@ -1100,6 +1101,11 @@
           <div class="label">Station Parts</div>
         </div>
       </div>
+      <div class="menu-card" id="warrantyCard" style="max-width:560px;margin:14px auto 0;">
+        <div class="big">🛡️</div>
+        <div class="label">Warranty</div>
+        <div class="sub">Report a part issue</div>
+      </div>
       ${restockBasket.length ? `
         <div style="text-align:center;margin-top:18px;">
           <button class="go-btn" id="restockReviewFromCatBtn">Review &amp; Confirm (${restockBasket.length})</button>
@@ -1113,6 +1119,7 @@
       }
       screen='menu'; renderStage();
     };
+    document.getElementById('warrantyCard').onclick = ()=>{ warrantyError=null; screen='warranty'; renderStage(); };
     document.getElementById('restockToolsCard').onclick = ()=>{
       restockCategory = 'Tools'; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
       screen = 'restockPick'; renderStage();
@@ -1322,6 +1329,70 @@
         }
         const detailLines = succeeded.map(b=>`${b.qty} × ${b.itemName}`).join(', ');
         confirmInfo = { icon:'📥', msg: `${succeeded.length} item(s) restocked`, detail: detailLines };
+        screen = 'confirm';
+        renderStage();
+      };
+    }
+  }
+
+  function stageWarranty(stage, banner){
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Back</span>
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">🛡️ Warranty</div></div>
+      <div class="hint" style="margin-top:0;margin-bottom:18px;">Report an issue with a part — this goes straight to the Warranty log.</div>
+      ${!warrantyShowForm ? `
+        <div class="menu-card" id="addPartCard" style="max-width:400px;margin:0 auto;">
+          <div class="big">➕</div>
+          <div class="label">Add Part</div>
+          <div class="sub">Report a new warranty issue</div>
+        </div>
+      ` : `
+        <div class="form-row" style="margin-top:0;">
+          <label>Part name</label>
+          <input type="text" id="warrantyPartInput" placeholder="e.g. Franka Arm" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(warrantyPartName)}" />
+          <label>Issue</label>
+          <textarea id="warrantyIssueInput" placeholder="Describe what's wrong…" style="font-family:'Inter',sans-serif;letter-spacing:normal;width:100%;min-height:100px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;resize:vertical;">${esc(warrantyIssue)}</textarea>
+          ${warrantyError ? `<div class="error-msg">${esc(warrantyError)}</div>` : ''}
+          <button class="go-btn" id="warrantySubmitBtn" style="width:100%;">Submit Report</button>
+        </div>
+      `}
+    `;
+    document.getElementById('back').onclick = ()=>{
+      if(warrantyShowForm){ warrantyShowForm=false; warrantyError=null; renderStage(); return; }
+      screen='restockCategory'; renderStage();
+    };
+    if(!warrantyShowForm){
+      document.getElementById('addPartCard').onclick = ()=>{
+        warrantyShowForm = true; warrantyPartName=''; warrantyIssue=''; warrantyError=null;
+        renderStage();
+      };
+    }else{
+      const partInput = document.getElementById('warrantyPartInput');
+      const issueInput = document.getElementById('warrantyIssueInput');
+      partInput.oninput = ()=>{ warrantyPartName = partInput.value; };
+      issueInput.oninput = ()=>{ warrantyIssue = issueInput.value; };
+      document.getElementById('warrantySubmitBtn').onclick = async ()=>{
+        const partName = partInput.value.trim();
+        const issue = issueInput.value.trim();
+        if(!partName){ warrantyError = 'Enter the part name.'; renderStage(); return; }
+        if(!issue){ warrantyError = 'Describe the issue.'; renderStage(); return; }
+        const btn = document.getElementById('warrantySubmitBtn');
+        setButtonBusy(btn, true, 'Submitting...');
+        const result = await apiClient.warranty({
+          client_request_id: apiClient.newRequestId(),
+          part_name: partName,
+          issue: issue,
+        });
+        if(!result.ok){
+          warrantyError = result.error || 'Something went wrong — check your connection and try again.';
+          renderStage();
+          return;
+        }
+        confirmInfo = { icon:'🛡️', msg: 'Warranty issue reported', detail: `${partName}: ${issue}` };
+        warrantyShowForm = false;
+        warrantyPartName = '';
+        warrantyIssue = '';
+        warrantyError = null;
         screen = 'confirm';
         renderStage();
       };
@@ -1769,6 +1840,10 @@
   const NEW_ITEM_SENTINEL = '__NEW_ITEM__';
   let restockNewItemName = '';
   let restockSopFilter = null; // 'Active' | 'Non-Active' — chosen at the category-picker step in SOP Room
+  let warrantyError = null;
+  let warrantyShowForm = false;
+  let warrantyPartName = '';
+  let warrantyIssue = '';
   let restockBasket = [];
   let restockBasketError = null;
   let restockQty = 1;
