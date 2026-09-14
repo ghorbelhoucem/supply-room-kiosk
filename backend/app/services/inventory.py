@@ -13,6 +13,7 @@ from app.models import (
     ItemCategory,
     Movement,
     MovementType,
+    WarrantyReport,
 )
 
 
@@ -128,7 +129,23 @@ def snapshot(db: Session) -> dict:
 
     history.sort(key=lambda r: r["timestamp"], reverse=True)
 
-    return {"ok": True, "inventory": inventory, "history": history}
+    warranty_reports = (
+        db.execute(select(WarrantyReport).order_by(WarrantyReport.created_at.desc()))
+        .scalars()
+        .all()
+    )
+    warranty = [
+        {
+            "timestamp": w.created_at.isoformat() if w.created_at else "",
+            "reportedBy": w.reported_by,
+            "partName": w.part_name,
+            "serialNumber": w.serial_number,
+            "issue": w.issue,
+        }
+        for w in warranty_reports
+    ]
+
+    return {"ok": True, "inventory": inventory, "history": history, "warranty": warranty}
 
 
 def take_batch(db: Session, person: str, role: str, items: list[dict]) -> dict:
