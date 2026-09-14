@@ -1,6 +1,6 @@
 (() => {
   const transitions = {
-    roomSelect: ["idle"],
+    roomSelect: ["idle", "menu"],
     idle: ["roomSelect", "deptPin", "operatorId", "report"],
     deptPin: ["idle", "deptPinPickName", "menu"],
     deptPinPickName: ["deptPin", "menu"],
@@ -11,7 +11,7 @@
     restockPick: ["restockCategory", "restockBasketReview", "menu"],
     restockBasketReview: ["restockCategory", "menu", "confirm"],
     scanPrompt: ["menu", "takeCategory", "scanConfirm", "basketReview"],
-    scanConfirm: ["scanPrompt", "takeCategory", "scanTakeDetail"],
+    scanConfirm: ["scanPrompt", "takeCategory", "scanTakeDetail", "menu"],
     scanTakeDetail: ["scanPrompt", "basketReview"],
     takeCategory: ["menu", "take"],
     take: ["takeCategory", "basketReview", "menu"],
