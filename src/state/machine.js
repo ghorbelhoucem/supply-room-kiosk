@@ -1,25 +1,26 @@
 (() => {
   const transitions = {
-    idle: ["deptPin", "operatorId", "report"],
+    roomSelect: ["idle"],
+    idle: ["roomSelect", "deptPin", "operatorId", "report"],
     deptPin: ["idle", "deptPinPickName", "menu"],
     deptPinPickName: ["deptPin", "menu"],
     operatorId: ["idle", "operatorPassword"],
     operatorPassword: ["operatorId", "menu"],
-    menu: ["idle", "scanPrompt", "takeCategory", "return", "report", "restockCategory"],
+    menu: ["roomSelect", "scanPrompt", "takeCategory", "return", "report", "restockCategory"],
     restockCategory: ["menu", "restockPick", "restockBasketReview"],
-    restockPick: ["restockCategory", "restockBasketReview"],
+    restockPick: ["restockCategory", "restockBasketReview", "menu"],
     restockBasketReview: ["restockCategory", "menu", "confirm"],
     scanPrompt: ["menu", "takeCategory", "scanConfirm", "basketReview"],
     scanConfirm: ["scanPrompt", "takeCategory", "scanTakeDetail"],
     scanTakeDetail: ["scanPrompt", "basketReview"],
     takeCategory: ["menu", "take"],
-    take: ["takeCategory", "basketReview"],
+    take: ["takeCategory", "basketReview", "menu"],
     basketReview: ["scanPrompt", "menu", "confirm"],
     return: ["menu", "returnScanPrompt", "returnBasketReview"],
     returnScanPrompt: ["return", "returnBasketReview"],
     returnBasketReview: ["return", "menu", "confirm"],
-    confirm: ["idle", "menu"],
-    report: ["idle"],
+    confirm: ["roomSelect", "idle", "menu"],
+    report: ["roomSelect", "idle", "menu", "return", "restockCategory", "takeCategory", "scanPrompt"],
   };
 
   function createSupplyMachine() {
