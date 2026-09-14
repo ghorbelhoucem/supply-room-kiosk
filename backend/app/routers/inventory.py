@@ -2,17 +2,18 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import can_restock_category, get_current_user, require_manager
+from app.auth import can_restock_category, get_current_user, require_manager, require_restock_access
 from app.database import get_db
-from app.models import Checkout, InventoryItem, ItemCategory, User
+from app.models import Checkout, InventoryItem, ItemCategory, User, WarrantyReport
 from app.schemas import (
     AdjustRequest,
     ReceiveRequest,
     ReturnBatchRequest,
     TakeBatchRequest,
+    WarrantyRequest,
 )
 from app.services import inventory as inv
-from app.services.sheets_sync import maybe_sync_after_mutation
+from app.services.sheets_sync import append_warranty_report, maybe_sync_after_mutation
 from app.services.slack_notify import check_and_notify_purchase_alerts, notify_transaction
 
 router = APIRouter(tags=["inventory"])
@@ -158,3 +159,28 @@ def adjust(
     check_and_notify_purchase_alerts(db)
     db.commit()
     return result
+
+
+@router.post("/warranty")
+def warranty(
+    body: WarrantyRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_restock_access),  # Management/Maintenance/Devs only, no Supervisor
+):
+    existing = inv.get_idempotent(db, body.client_request_id)
+    if existing:
+        return existing
+
+    actor = f"{user.name}/{user.role.value}"
+    report = WarrantyReport(part_name=body.part_name, issue=body.issue, reported_by=actor)
+    db.add(report)
+    db.flush()
+
+    result = {"ok": True, "id": str(report.id)}
+    inv.save_idempotent(db, body.client_request_id, "warranty", result)
+    db.commit()
+
+    sheet_result = append_warranty_report(body.part_name, body.issue, actor, report.created_at)
+    notify_transaction(f"🛡️ *{actor}* reported a warranty issue — {body.part_name}: {body.issue}")
+
+    return {**result, "sheet": sheet_result}
