@@ -710,7 +710,9 @@
   }
 
   function stageRoleSelect(stage, banner){
-    const mainRoles = ['maintenance','management','supervisor','teleoperator'];
+    const mainRoles = selectedRoom === 'sop'
+      ? ['supervisor','management','maintenance','teleoperator']
+      : ['maintenance','management','supervisor','teleoperator'];
     let logoutNotice = '';
     if(autoLoggedOut){
       logoutNotice = `<div class="banner-error" style="background:#3a2f1f;border-color:var(--accent);color:#f2d9b9;">⏱️ You were automatically signed out after 10 minutes.</div>`;
