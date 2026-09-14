@@ -955,7 +955,8 @@
     const anyTeamOpen = teamOpens.length > 0;
     const canRestock = canManageCurrentRoom();
     stage.innerHTML = banner + `
-      <div class="greet">
+      <span class="back-link" id="changeRoomFromMenu">&larr; ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')} · change</span>
+      <div class="greet" style="margin-top:14px;">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
         <div class="code">${esc(currentPerson.role)} · ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')}</div>
       </div>
@@ -998,6 +999,7 @@
         })()}
         </div>` : ''}
     `;
+    document.getElementById('changeRoomFromMenu').onclick = ()=>{ screen='roomSelect'; renderStage(); };
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
