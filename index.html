@@ -1012,6 +1012,13 @@
           <div class="sub">Got new stock in? Add it to inventory</div>
         </div>
         ` : ''}
+        ${canRestock && selectedRoom !== 'sop' ? `
+        <div class="menu-card" id="warrantyCard" style="grid-column:1/-1;">
+          <div class="big">🛡️</div>
+          <div class="label">Warranty</div>
+          <div class="sub">Report a part issue</div>
+        </div>
+        ` : ''}
       </div>
       ${myOpens.length ? `<div class="open-list"><h3>Currently checked out to you</h3>
         ${(()=>{
@@ -1040,6 +1047,9 @@
     }
     if(canRestock){
       document.getElementById('restockCard').onclick = ()=>{ restockError=null; restockSearchQuery=''; screen='restockCategory'; renderStage(); };
+    }
+    if(canRestock && selectedRoom !== 'sop'){
+      document.getElementById('warrantyCard').onclick = ()=>{ warrantyError=null; screen='warranty'; renderStage(); };
     }
   }
 
@@ -1101,11 +1111,6 @@
           <div class="label">Station Parts</div>
         </div>
       </div>
-      <div class="menu-card" id="warrantyCard" style="max-width:560px;margin:14px auto 0;">
-        <div class="big">🛡️</div>
-        <div class="label">Warranty</div>
-        <div class="sub">Report a part issue</div>
-      </div>
       ${restockBasket.length ? `
         <div style="text-align:center;margin-top:18px;">
           <button class="go-btn" id="restockReviewFromCatBtn">Review &amp; Confirm (${restockBasket.length})</button>
@@ -1119,7 +1124,6 @@
       }
       screen='menu'; renderStage();
     };
-    document.getElementById('warrantyCard').onclick = ()=>{ warrantyError=null; screen='warranty'; renderStage(); };
     document.getElementById('restockToolsCard').onclick = ()=>{
       restockCategory = 'Tools'; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
       screen = 'restockPick'; renderStage();
@@ -1359,7 +1363,7 @@
     `;
     document.getElementById('back').onclick = ()=>{
       if(warrantyShowForm){ warrantyShowForm=false; warrantyError=null; renderStage(); return; }
-      screen='restockCategory'; renderStage();
+      screen='menu'; renderStage();
     };
     if(!warrantyShowForm){
       document.getElementById('addPartCard').onclick = ()=>{
