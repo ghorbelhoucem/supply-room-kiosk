@@ -1124,6 +1124,17 @@
           <label>What's the new ${catNoun} called?</label>
           <input type="text" id="restockNewNameInput" placeholder="e.g. Label Printer" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(restockNewItemName)}" />
         ` : ''}
+        ${isNewItem && restockCategory === 'SOPs' ? `
+          <label>Status</label>
+          <div class="menu-grid" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+            <div class="menu-card ${restockSopStatus==='Active'?'selected':''}" data-sop-status="Active" style="padding:12px;">
+              <div class="label" style="font-size:13px;">✅ Active</div>
+            </div>
+            <div class="menu-card ${restockSopStatus==='Non-Active'?'selected':''}" data-sop-status="Non-Active" style="padding:12px;">
+              <div class="label" style="font-size:13px;">⏸️ Non-Active</div>
+            </div>
+          </div>
+        ` : ''}
         <label>How many are you adding?</label>
         ${qtyStepperHTML('restockQtyInput', restockQty)}
         ${restockError ? `<div class="error-msg">${esc(restockError)}</div>` : ''}
@@ -1134,7 +1145,7 @@
           <h3>In your restock list (${restockBasket.length})</h3>
           ${restockBasket.map(b=>`
             <div class="open-row">
-              <span>${itemThumbHTML(b.itemName, 26)} ${esc(b.itemName)} × ${b.qty}</span>
+              <span>${itemThumbHTML(b.itemName, 26)} ${esc(b.itemName)} × ${b.qty}${b.sopStatus?` <span class="tag">${esc(b.sopStatus)}</span>`:''}</span>
               <span class="due">${b.category}</span>
             </div>`).join('')}
         </div>
@@ -1168,6 +1179,9 @@
     if(isNewItem){
       const nameInput = document.getElementById('restockNewNameInput');
       nameInput.oninput = ()=>{ restockNewItemName = nameInput.value; };
+      stage.querySelectorAll('[data-sop-status]').forEach(card=>{
+        card.onclick = ()=>{ restockSopStatus = card.getAttribute('data-sop-status'); renderStage(); };
+      });
     }
     if(restockBasket.length){
       document.getElementById('restockReviewBtn').onclick = ()=>{ screen='restockBasketReview'; renderStage(); };
@@ -1188,11 +1202,15 @@
         if(existingEntry){
           existingEntry.qty += qty;
         }else{
-          restockBasket.push({ itemName, qty, category: restockCategory, isNewItem: isNewItem });
+          restockBasket.push({
+            itemName, qty, category: restockCategory, isNewItem: isNewItem,
+            sopStatus: (isNewItem && restockCategory === 'SOPs') ? restockSopStatus : null
+          });
         }
         restockSelectedItem = null;
         restockNewItemName = '';
         restockQty = 1;
+        restockSopStatus = 'Active';
         restockError = null;
         renderStage();
       };
@@ -1254,6 +1272,7 @@
             action:'restock', person: currentPerson.name, role: currentPerson.role,
             item: entry.itemName, qty: entry.qty,
             category: entry.isNewItem ? entry.category : undefined,
+            sop_status: entry.sopStatus || undefined,
             reason: entry.isNewItem ? 'New item added via kiosk' : undefined
           });
           if(result.ok){
@@ -1685,6 +1704,7 @@
   let restockSelectedItem = null;
   const NEW_ITEM_SENTINEL = '__NEW_ITEM__';
   let restockNewItemName = '';
+  let restockSopStatus = 'Active'; // only relevant when creating a new SOP
   let restockBasket = [];
   let restockBasketError = null;
   let restockQty = 1;
@@ -2028,8 +2048,9 @@
             if(!filteredSops.length) return `<div class="empty-note">${sopItems.length ? 'No SOPs match your search.' : 'No SOPs yet.'}</div>`;
             return `<div class="stock-grid">${filteredSops.map(it=>{
               const sopLow = Number(it.quantity) <= Number(it.reorder_min || 5);
+              const statusBadge = it.sop_status ? ` <span class="tag">${esc(it.sop_status)}</span>` : '';
               return `<div class="stockbar">
-              <span>${iconForRef('SOPs')} ${esc(it.item)}</span>
+              <span>${iconForRef('SOPs')} ${esc(it.item)}${statusBadge}</span>
               <span class="stock ${sopLow || String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
             </div>`;
             }).join('')}</div>`;
