@@ -88,7 +88,7 @@
       async loadInventory() {
         const data = await requestJson('/inventory', { method: 'GET', auth: false });
         if (data && data.ok === false) return data;
-        return { ok: true, inventory: data.inventory || [], history: data.history || [] };
+        return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [] };
       },
       async loginPin({ roleKey, pin, name }) {
         return requestJson('/auth/login/pin', {
