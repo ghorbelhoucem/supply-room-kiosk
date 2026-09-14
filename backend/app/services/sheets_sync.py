@@ -225,7 +225,7 @@ def maybe_sync_after_mutation(db: Session) -> None:
         sync_mirror(db)
 
 
-def append_warranty_report(part_name: str, issue: str, reported_by: str, created_at) -> dict:
+def append_warranty_report(part_name: str, serial_number: str, issue: str, reported_by: str, created_at) -> dict:
     """
     Warranty reports are a one-shot log entry, not tracked inventory state —
     so this appends a single row directly to the Storage Room Sheet's own
@@ -244,6 +244,7 @@ def append_warranty_report(part_name: str, issue: str, reported_by: str, created
             "timestamp": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
             "reported_by": reported_by,
             "part_name": part_name,
+            "serial_number": serial_number,
             "issue": issue,
         }
         resp = httpx.post(webapp_url, json=body, timeout=20.0, follow_redirects=True)
