@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     sheet_sync_interval_minutes: int = 10
     slack_transactions_webhook_url: str = ""
     slack_purchase_webhook_url: str = ""
+    sop_webapp_url: str = ""
 
 
 @lru_cache
