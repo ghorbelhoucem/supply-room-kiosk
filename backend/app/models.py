@@ -146,3 +146,19 @@ class AuditEvent(Base):
     actor: Mapped[str | None] = mapped_column(String(200))
     detail: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WarrantyReport(Base):
+    """
+    A warranty issue report — deliberately NOT inventory-tracked (no
+    quantity, no checkout/return). Just a log: who reported an issue with
+    which part, and what the issue was. Goes straight to the Storage Room
+    Sheet's own dedicated "Warranty" tab.
+    """
+    __tablename__ = "warranty_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    part_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    issue: Mapped[str] = mapped_column(Text, nullable=False)
+    reported_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
