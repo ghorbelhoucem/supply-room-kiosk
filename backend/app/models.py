@@ -79,6 +79,10 @@ class InventoryItem(Base):
     qty_on_hand: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reorder_min: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
     needs_purchase_alerted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Plain string, not an enum — only meaningful for SOPs ("Active" / "Non-Active").
+    # Deliberately not an enum type to avoid the exact enum-value pitfall we
+    # just hit with 'category' above.
+    sop_status: Mapped[str | None] = mapped_column(String(20))
     barcode: Mapped[str | None] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
