@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import InventoryItem
+from app.models import InventoryItem, ItemCategory
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,11 @@ def check_and_notify_purchase_alerts(db: Session) -> None:
     triggers a fresh alert instead of staying silent forever).
     """
     settings = get_settings()
-    items = db.execute(select(InventoryItem)).scalars().all()
+    # SOPs are deliberately excluded — no reorder-point/low-stock concept
+    # applies to them, only Tools and Station Parts.
+    items = db.execute(
+        select(InventoryItem).where(InventoryItem.category != ItemCategory.sops)
+    ).scalars().all()
     newly_low = []
     for it in items:
         is_low = it.qty_on_hand <= it.reorder_min
