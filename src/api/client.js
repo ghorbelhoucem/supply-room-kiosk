@@ -139,6 +139,7 @@
             qty: payload.qty,
             reason: payload.reason || 'restock',
             category: payload.category || null,
+            sop_status: payload.sop_status || null,
           },
           retry: false,
         });
@@ -152,6 +153,7 @@
             qty: payload.qty,
             reason: payload.reason || 'restock',
             category: payload.category,
+            sop_status: payload.sop_status,
           });
         }
         return { ok: false, error: 'Unsupported action', code: 'UNSUPPORTED' };
