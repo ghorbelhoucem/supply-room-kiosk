@@ -187,7 +187,7 @@
   const machine = window.SupplyMachine.createSupplyMachine();
   const store = window.SupplyStore.createStore(machine, { current: 'idle' });
 
-  const ICONS = { 'Tools': '🧰', 'Station Parts': '🔌' };
+  const ICONS = { 'Tools': '🧰', 'Station Parts': '🔌', 'SOPs': '📋' };
 
   const ROLES = {
     maintenance: { label: 'Maintenance', sub: 'Repairs & upkeep', icon: '🔧', kind: 'pin' },
@@ -199,7 +199,15 @@
 
   // Credentials live on the API (hashed). Kiosk only collects PIN/password.
 
-  let screen = 'idle'; // idle, deptPin, deptPinPickName, operatorId, menu, takeCategory, take, return, confirm, report
+  let screen = 'roomSelect'; // roomSelect, idle, deptPin, deptPinPickName, operatorId, menu, takeCategory, take, return, confirm, report
+  let selectedRoom = null; // 'storage' | 'sop'
+  const ROOM_CATEGORIES = {
+    storage: ['Tools', 'Station Parts'],
+    sop: ['SOPs'],
+  };
+  const ROOM_LABELS = { storage: 'Storage Room', sop: 'SOP Room' };
+  function roomCategories(){ return ROOM_CATEGORIES[selectedRoom] || ROOM_CATEGORIES.storage; }
+  function inRoom(reference){ return roomCategories().includes(reference); }
   let pendingRole = null;
   let pendingName = null;
   let pendingSharedNames = null;
@@ -236,7 +244,7 @@
     try{
       localStorage.setItem(SESSION_KEY, JSON.stringify({
         currentPerson, authToken, lastActivity: Date.now(),
-        screen, basket, returnBasket, restockBasket
+        screen, basket, returnBasket, restockBasket, selectedRoom
       }));
     }catch(e){ /* storage unavailable — session just won't survive a refresh */ }
   }
@@ -260,6 +268,7 @@
     currentPerson = data.currentPerson;
     authToken = data.authToken;
     apiClient.setToken(authToken);
+    selectedRoom = ROOM_CATEGORIES[data.selectedRoom] ? data.selectedRoom : 'storage';
     screen = RESTORABLE_SCREENS.has(data.screen) ? data.screen : 'menu';
     basket = Array.isArray(data.basket) ? data.basket : [];
     returnBasket = Array.isArray(data.returnBasket) ? data.returnBasket : [];
@@ -309,7 +318,7 @@
       apiClient.clearToken();
       clearSession();
       autoLoggedOut = true;
-      screen = 'idle';
+      screen = 'roomSelect';
       renderStage();
     }, AUTO_LOGOUT_MS);
   }
@@ -545,7 +554,7 @@
     `;
     document.getElementById('topSignOutBtn').onclick = ()=>{
       clearAutoLogoutTimer(); clearSession(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken();
-      screen='idle'; renderStage();
+      screen='roomSelect'; renderStage();
     };
     document.getElementById('reportBtn').onclick = async ()=>{
       if(screen==='report'){
@@ -598,7 +607,8 @@
       banner += `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">${esc(sessionRestoreNotice)}</div>`;
       sessionRestoreNotice = null;
     }
-    if(screen==='idle') stageRoleSelect(stage, banner);
+    if(screen==='roomSelect') stageRoomSelect(stage, banner);
+    else if(screen==='idle') stageRoleSelect(stage, banner);
     else if(screen==='deptPin') stageDeptPin(stage, banner);
     else if(screen==='deptPinPickName') stageDeptPinPickName(stage, banner);
     else if(screen==='operatorId') stageOperatorId(stage, banner);
@@ -625,6 +635,39 @@
   }
 
   // ---------- sign-in ----------
+  function stageRoomSelect(stage, banner){
+    let logoutNotice = '';
+    if(autoLoggedOut){
+      logoutNotice = `<div class="banner-error" style="background:#3a2f1f;border-color:var(--accent);color:#f2d9b9;">⏱️ You were automatically signed out after 10 minutes.</div>`;
+      autoLoggedOut = false;
+    }
+    stage.innerHTML = banner + logoutNotice + `
+      <div class="reader-wrap" style="padding-top:6px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Which room?</div>
+        <div class="hint" style="margin-top:0;margin-bottom:24px;">Tap to continue</div>
+        <div class="menu-grid" style="max-width:560px;">
+          <div class="menu-card" data-room="storage">
+            <div class="big">📦</div>
+            <div class="label">Storage Room</div>
+            <div class="sub">Tools &amp; Station Parts</div>
+          </div>
+          <div class="menu-card" data-room="sop">
+            <div class="big">📋</div>
+            <div class="label">SOP Room</div>
+            <div class="sub">Standard Operating Procedures</div>
+          </div>
+        </div>
+      </div>
+    `;
+    stage.querySelectorAll('.menu-card[data-room]').forEach(card=>{
+      card.onclick = ()=>{
+        selectedRoom = card.getAttribute('data-room');
+        screen = 'idle';
+        renderStage();
+      };
+    });
+  }
+
   function stageRoleSelect(stage, banner){
     const mainRoles = ['maintenance','management','supervisor','teleoperator'];
     let logoutNotice = '';
@@ -634,7 +677,8 @@
     }
     stage.innerHTML = banner + logoutNotice + `
       <div class="reader-wrap" style="padding-top:6px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Who's checking in?</div>
+        <span class="back-link" id="changeRoom">&larr; ${esc(ROOM_LABELS[selectedRoom] || 'Change room')} · change</span>
+        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;margin-top:14px;">Who's checking in?</div>
         <div class="hint" style="margin-top:0;margin-bottom:24px;">Tap your role to continue</div>
         <div class="menu-grid" style="max-width:560px;">
           ${mainRoles.map(key=>`
@@ -652,6 +696,7 @@
         </div>
       </div>
     `;
+    document.getElementById('changeRoom').onclick = ()=>{ screen='roomSelect'; renderStage(); };
     stage.querySelectorAll('.menu-card[data-role]').forEach(card=>{
       card.onclick = ()=>{
         clearAutoLogoutTimer();
@@ -893,14 +938,15 @@
 
   // ---------- menu ----------
   function stageMenu(stage, banner){
-    const myOpens = openCheckoutsFor(currentPerson.code);
-    const teamOpens = allOpenToolCheckouts();
+    const inRoomFilter = h=>{ const inv = inventoryMap[h.item]; return inv && inRoom(inv.reference); };
+    const myOpens = openCheckoutsFor(currentPerson.code).filter(inRoomFilter);
+    const teamOpens = allOpenToolCheckouts().filter(inRoomFilter);
     const anyTeamOpen = teamOpens.length > 0;
     const canRestock = currentPerson.role === 'Maintenance' || currentPerson.role === 'Management' || currentPerson.role === 'Devs';
     stage.innerHTML = banner + `
       <div class="greet">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
-        <div class="code">${esc(currentPerson.role)}</div>
+        <div class="code">${esc(currentPerson.role)} · ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')}</div>
       </div>
       <div class="menu-grid" style="${canRestock ? '' : ''}">
         <div class="menu-card" id="takeCard">
@@ -951,6 +997,13 @@
   }
 
   function stageRestockCategory(stage, banner){
+    const cats = roomCategories();
+    if(cats.length === 1){
+      restockCategory = cats[0]; restockSelectedItem = null; restockSearchQuery = ''; restockError = null;
+      screen = 'restockPick';
+      renderStage();
+      return;
+    }
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Adding new stock — which kind?</div></div>
@@ -996,12 +1049,13 @@
     const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
     const selected = restockSelectedItem;
     const isNewItem = selected === NEW_ITEM_SENTINEL;
-    const newItemLabel = restockCategory === 'Tools' ? '➕ Add New Tool' : '➕ Add New Item';
+    const catNoun = restockCategory === 'Tools' ? 'tool' : (restockCategory === 'SOPs' ? 'SOP' : 'item');
+    const newItemLabel = restockCategory === 'Tools' ? '➕ Add New Tool' : (restockCategory === 'SOPs' ? '➕ Add New SOP' : '➕ Add New Item');
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Which item got restocked?</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;">
-        <input type="text" id="restockSearchInput" placeholder="Search ${restockCategory==='Tools' ? 'tools' : 'parts'}…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
+        <input type="text" id="restockSearchInput" placeholder="Search ${catNoun}s…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
       </div>
       <div class="item-list">
         <div class="item-row ${isNewItem?'selected':''}" data-name="${NEW_ITEM_SENTINEL}" style="border-style:dashed;">
@@ -1022,7 +1076,7 @@
       </div>
       <div class="form-row" id="restockForm" style="display:${selected?'block':'none'}">
         ${isNewItem ? `
-          <label>What's the new ${restockCategory==='Tools' ? 'tool' : 'item'} called?</label>
+          <label>What's the new ${catNoun} called?</label>
           <input type="text" id="restockNewNameInput" placeholder="e.g. Label Printer" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(restockNewItemName)}" />
         ` : ''}
         <label>How many are you adding?</label>
@@ -1044,7 +1098,7 @@
         </div>
       ` : ''}
     `;
-    document.getElementById('back').onclick = ()=>{ restockError=null; screen='restockCategory'; renderStage(); };
+    document.getElementById('back').onclick = ()=>{ restockError=null; screen = roomCategories().length===1 ? 'menu' : 'restockCategory'; renderStage(); };
     const searchInput = document.getElementById('restockSearchInput');
     searchInput.oninput = ()=>{
       restockSearchQuery = searchInput.value;
@@ -1262,7 +1316,7 @@
       <div class="greet" style="margin-bottom:10px;">
         <div style="font-size:40px;">${isOther ? '❓' : itemThumbHTML(itemName, 64)}</div>
         <div class="name" style="font-size:20px;margin-top:8px;">${isOther ? 'Other (not labelled)' : esc(itemName)}</div>
-        <div class="code">${takeCategory==='Tools' ? 'Checkout & return' : 'One-time use'}</div>
+        <div class="code">${(takeCategory==='Tools' || takeCategory==='SOPs') ? 'Checkout & return' : 'One-time use'}</div>
       </div>
       <div class="form-row">
         ${isOther ? `
@@ -1302,13 +1356,23 @@
         if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
         if(qty > avail){ takeError = 'Only ' + avail + ' available right now (accounting for items already in your list).'; renderStage(); return; }
       }
-      const hours = (takeCategory==='Tools' && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
+      const hours = ((takeCategory==='Tools' || takeCategory==='SOPs') && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
       takeError = null;
       addToBasketAndReview(finalItemName, takeCategory, qty, hours);
     };
   }
 
   function stageTakeCategory(stage, banner){
+    const cats = roomCategories();
+    if(cats.length === 1){
+      takeCategory = cats[0];
+      takeSelection = {itemName:null, qty:1, hours:24};
+      takeError = null;
+      takeSearchQuery = '';
+      screen = 'take';
+      renderStage();
+      return;
+    }
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you taking?</div></div>
@@ -1467,11 +1531,12 @@
       scanBanner = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">📷 Scanned: ${esc(scanNotice)}</div>`;
       scanNotice = null;
     }
+    const categoryNoun = takeCategory==='Tools' ? 'tool' : (takeCategory==='SOPs' ? 'SOP' : 'part');
     stage.innerHTML = banner + scanBanner + `
       <span class="back-link" id="back">&larr; Back</span>
-      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${takeCategory==='Tools' ? 'Which tool?' : 'Which part?'}</div></div>
+      <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Which ${categoryNoun}?</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;max-width:none;">
-        <input type="text" id="searchInput" placeholder="Search ${takeCategory==='Tools' ? 'tools' : 'parts'}…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
+        <input type="text" id="searchInput" placeholder="Search ${categoryNoun}s…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
       </div>
       <div class="item-list">
         ${items.length ? items.map(it=>{
@@ -1522,7 +1587,7 @@
         <button class="go-btn" id="confirmTake" style="width:100%;">Confirm</button>
       </div>
     `;
-    document.getElementById('back').onclick = ()=>{ takeError=null; screen='takeCategory'; renderStage(); };
+    document.getElementById('back').onclick = ()=>{ takeError=null; screen = roomCategories().length===1 ? 'menu' : 'takeCategory'; renderStage(); };
     const searchInput = document.getElementById('searchInput');
     searchInput.oninput = ()=>{
       takeSearchQuery = searchInput.value;
@@ -1559,7 +1624,7 @@
           if(qty < 1){ takeError='Enter a quantity of at least 1.'; renderStage(); return; }
           if(qty > avail){ takeError = 'Only ' + avail + ' available right now (accounting for items already in your list).'; renderStage(); return; }
         }
-        const hours = (takeCategory==='Tools' && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
+        const hours = ((takeCategory==='Tools' || takeCategory==='SOPs') && !isOther) ? parseInt(document.getElementById('hoursSelect').value,10) : null;
         takeError = null;
         addToBasketAndReview(finalItemName, takeCategory, qty, hours);
       };
@@ -1595,7 +1660,9 @@
       flash = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">✅ Added: ${esc(lastReturnAdded)} — pick another, or review below</div>`;
       lastReturnAdded = null;
     }
-    const opens = allOpenToolCheckouts().filter(h=>!isInReturnBasket(h.txId));
+    const opens = allOpenToolCheckouts()
+      .filter(h=>!isInReturnBasket(h.txId))
+      .filter(h=>{ const inv = inventoryMap[h.item]; return inv && inRoom(inv.reference); });
     const groups = {};
     opens.forEach(h=>{
       if(!groups[h.item]) groups[h.item] = [];
@@ -1839,14 +1906,17 @@
 
   // ---------- manager report ----------
   function stageReport(stage, banner){
-    const toolItems = Object.values(inventoryMap).filter(it=>it.reference==='Tools');
-    const partItems = Object.values(inventoryMap).filter(it=>it.reference==='Station Parts');
+    const toolItems = Object.values(inventoryMap).filter(it=>it.reference==='Tools' && inRoom(it.reference));
+    const partItems = Object.values(inventoryMap).filter(it=>it.reference==='Station Parts' && inRoom(it.reference));
+    const sopItems = Object.values(inventoryMap).filter(it=>it.reference==='SOPs' && inRoom(it.reference));
     const openTx = historyRows.filter(h=>{
       const inv = inventoryMap[h.item];
-      return inv && inv.reference==='Tools' && h.returnedAt==='Not returned';
+      return inv && inRoom(inv.reference) && (inv.reference==='Tools' || inv.reference==='SOPs') && h.returnedAt==='Not returned';
     });
     const overdueTx = openTx.filter(isOverdue);
-    const allTx = [...historyRows].sort((a,b)=> new Date(b.timestamp)-new Date(a.timestamp));
+    const allTx = historyRows
+      .filter(h=>{ const inv = inventoryMap[h.item]; return inv && inRoom(inv.reference); })
+      .sort((a,b)=> new Date(b.timestamp)-new Date(a.timestamp));
 
     let rows = [];
     if(reportTab==='open') rows = openTx;
@@ -1866,7 +1936,7 @@
         <button class="nav-btn ${reportTab==='stock'?'active':''}" data-t="stock">Inventory Status</button>
         <button class="nav-btn ${reportTab==='weekly'?'active':''}" data-t="weekly">Weekly Report</button>
         <button class="nav-btn ${reportTab==='purchase'?'active':''}" data-t="purchase">Purchase List${(()=>{
-          const n = Object.values(inventoryMap).filter(it=>Number(it.quantity) <= Number(it.reorder_min || 5)).length;
+          const n = Object.values(inventoryMap).filter(it=>inRoom(it.reference) && Number(it.quantity) <= Number(it.reorder_min || 5)).length;
           return n ? ` (${n})` : '';
         })()}</button>
       </div>
@@ -1875,6 +1945,7 @@
           <div class="form-row" style="margin-top:0;margin-bottom:16px;max-width:none;">
             <input type="text" id="reportStockSearchInput" placeholder="Search inventory…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(reportStockSearchQuery)}" />
           </div>
+          ${roomCategories().includes('Tools') ? `
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:0 0 8px;">Tools</div>
           ${(()=>{
             const q = reportStockSearchQuery.trim().toLowerCase();
@@ -1888,6 +1959,8 @@
             </div>`;
             }).join('')}</div>`;
           })()}
+          ` : ''}
+          ${roomCategories().includes('Station Parts') ? `
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:18px 0 8px;">Station Parts</div>
           ${(()=>{
             const q = reportStockSearchQuery.trim().toLowerCase();
@@ -1901,6 +1974,22 @@
               </div>`;
             }).join('')}</div>`;
           })()}
+          ` : ''}
+          ${roomCategories().includes('SOPs') ? `
+          <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:0 0 8px;">SOPs</div>
+          ${(()=>{
+            const q = reportStockSearchQuery.trim().toLowerCase();
+            const filteredSops = q ? sopItems.filter(it=>it.item.toLowerCase().includes(q)) : sopItems;
+            if(!filteredSops.length) return `<div class="empty-note">${sopItems.length ? 'No SOPs match your search.' : 'No SOPs yet.'}</div>`;
+            return `<div class="stock-grid">${filteredSops.map(it=>{
+              const sopLow = Number(it.quantity) <= Number(it.reorder_min || 5);
+              return `<div class="stockbar">
+              <span>${iconForRef('SOPs')} ${esc(it.item)}</span>
+              <span class="stock ${sopLow || String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
+            </div>`;
+            }).join('')}</div>`;
+          })()}
+          ` : ''}
         </div>
       ` : reportTab==='weekly' ? `
         <div>
@@ -1967,7 +2056,7 @@
           <div class="hint" style="margin-top:0;margin-bottom:16px;">Items at or below their reorder point — restock these soon. Updates automatically as stock changes.</div>
           ${(()=>{
             const needsPurchase = Object.values(inventoryMap)
-              .filter(it=>Number(it.quantity) <= Number(it.reorder_min || 5))
+              .filter(it=>inRoom(it.reference) && Number(it.quantity) <= Number(it.reorder_min || 5))
               .sort((a,b)=> Number(a.quantity) - Number(b.quantity));
             if(!needsPurchase.length) return `<div class="empty-note">Nothing needs restocking right now — everything is above its reorder point.</div>`;
             return `<div class="stock-grid">${needsPurchase.map(it=>`
@@ -2060,17 +2149,18 @@
       renderStage();
       return;
     }
-    let matchName = Object.keys(inventoryMap).find(name => {
+    const candidateNames = Object.keys(inventoryMap).filter(name => inRoom(inventoryMap[name].reference));
+    let matchName = candidateNames.find(name => {
       const inv = inventoryMap[name];
       const barcode = inv && inv.barcode ? normalizeText(inv.barcode) : '';
       return barcode && barcode === norm;
     });
     if(!matchName){
-      matchName = Object.keys(inventoryMap).find(name => normalizeText(name) === norm);
+      matchName = candidateNames.find(name => normalizeText(name) === norm);
     }
     if(!matchName){
       // fallback fuzzy match only if no exact barcode/name hit
-      matchName = Object.keys(inventoryMap).find(name => {
+      matchName = candidateNames.find(name => {
         const n = normalizeText(name);
         return n.length >= 4 && (norm.includes(n) || n.includes(norm));
       });
@@ -2080,7 +2170,7 @@
       // layout mangled characters like ( ) / — e.g. "Power Cable (PC/Monitor)".
       const normAlnum = domain.normalizeAlnum(trimmed);
       if(normAlnum.length >= 2){
-        matchName = Object.keys(inventoryMap).find(name => domain.normalizeAlnum(name) === normAlnum);
+        matchName = candidateNames.find(name => domain.normalizeAlnum(name) === normAlnum);
       }
     }
     if(!matchName){
@@ -2096,7 +2186,7 @@
       return;
     }
     scanNotFoundError = null;
-    const hours = inv.reference==='Tools' ? 24 : null; // default; adjustable in the review list
+    const hours = (inv.reference==='Tools' || inv.reference==='SOPs') ? 24 : null; // default; adjustable in the review list
     const existingScanEntry = basket.find(b=>b.itemName === matchName);
     if(existingScanEntry){
       existingScanEntry.qty += 1;
