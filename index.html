@@ -400,6 +400,7 @@
 
   let inventoryMap = {}; // itemName -> {reference, item, quantity, availability}
   let historyRows = [];  // [{timestamp, personRole, item, expectedReturn, returnedAt, txId}]
+  let warrantyReports = []; // [{timestamp, reportedBy, partName, serialNumber, issue}]
   let loadError = null;
 
   function setScreen(next){
@@ -515,6 +516,7 @@
       inventoryMap = {};
       (result.inventory||[]).forEach(row=>{ inventoryMap[row.item] = row; });
       historyRows = result.history || [];
+      warrantyReports = result.warranty || [];
       loadError = null;
       lastFetchTime = Date.now();
     } else {
@@ -2156,6 +2158,7 @@
           const n = Object.values(inventoryMap).filter(it=>inRoom(it.reference) && it.reference !== 'SOPs' && Number(it.quantity) <= Number(it.reorder_min || 5)).length;
           return n ? ` (${n})` : '';
         })()}</button>
+        ${selectedRoom !== 'sop' ? `<button class="nav-btn ${reportTab==='warranty'?'active':''}" data-t="warranty">🛡️ Warranty${warrantyReports.length ? ` (${warrantyReports.length})` : ''}</button>` : ''}
       </div>
       ${reportTab==='stock' ? `
         <div>
@@ -2267,6 +2270,26 @@
               ` : `<div class="empty-note">Nothing happened this week.</div>`}
             `;
           })()}
+        </div>
+      ` : reportTab==='warranty' ? `
+        <div>
+          <div class="hint" style="margin-top:0;margin-bottom:16px;">Every warranty issue reported, most recent first.</div>
+          ${warrantyReports.length ? `
+          <table>
+            <thead><tr><th>Reported</th><th>By</th><th>Part</th><th>Serial #</th><th>Issue</th></tr></thead>
+            <tbody>
+              ${warrantyReports.map(w=>`
+                <tr>
+                  <td>${fmtDate(w.timestamp)}</td>
+                  <td>${esc(w.reportedBy)}</td>
+                  <td>${itemThumbHTML(w.partName, 26)} ${esc(w.partName)}</td>
+                  <td>${esc(w.serialNumber)}</td>
+                  <td>${esc(w.issue)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ` : `<div class="empty-note">No warranty issues reported yet.</div>`}
         </div>
       ` : reportTab==='purchase' ? `
         <div>
