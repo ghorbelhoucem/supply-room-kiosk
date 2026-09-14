@@ -107,4 +107,5 @@ class ActionOk(BaseModel):
 class WarrantyRequest(BaseModel):
     client_request_id: str = Field(..., min_length=8)
     part_name: str = Field(..., min_length=1)
+    serial_number: str = Field(..., min_length=1)
     issue: str = Field(..., min_length=1)
