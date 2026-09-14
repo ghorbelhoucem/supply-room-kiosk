@@ -151,6 +151,7 @@
           body: {
             client_request_id: payload.client_request_id || newRequestId(),
             part_name: payload.part_name,
+            serial_number: payload.serial_number,
             issue: payload.issue,
           },
           retry: false,
