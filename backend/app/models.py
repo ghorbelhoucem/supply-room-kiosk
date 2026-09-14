@@ -36,6 +36,7 @@ class AuthKind(str, enum.Enum):
 class ItemCategory(str, enum.Enum):
     tools = "Tools"
     station_parts = "Station Parts"
+    sops = "SOPs"
 
 
 class MovementType(str, enum.Enum):
