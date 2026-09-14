@@ -69,7 +69,7 @@ def build_mirror_payload(db: Session) -> dict:
 
     inventory_rows = []
     for it in items:
-        if it.category == ItemCategory.tools:
+        if it.category in (ItemCategory.tools, ItemCategory.sops):
             missing = open_qty_by_item.get(it.id, 0)
             if it.qty_on_hand <= 0:
                 availability = "X"
@@ -97,7 +97,7 @@ def build_mirror_payload(db: Session) -> dict:
     all_checkouts = db.execute(select(Checkout).order_by(Checkout.taken_at)).scalars().all()
     for c in all_checkouts:
         item = db.get(InventoryItem, c.item_id)
-        is_tool = item and item.category == ItemCategory.tools
+        is_tool = item and item.category in (ItemCategory.tools, ItemCategory.sops)
         expected = _fmt(c.expected_return) if (is_tool and c.expected_return) else "None"
         if is_tool:
             returned_at = _fmt(c.returned_at) if c.returned_at else "Not returned"
