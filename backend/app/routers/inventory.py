@@ -172,7 +172,12 @@ def warranty(
         return existing
 
     actor = f"{user.name}/{user.role.value}"
-    report = WarrantyReport(part_name=body.part_name, issue=body.issue, reported_by=actor)
+    report = WarrantyReport(
+        part_name=body.part_name,
+        serial_number=body.serial_number,
+        issue=body.issue,
+        reported_by=actor,
+    )
     db.add(report)
     db.flush()
 
@@ -180,7 +185,7 @@ def warranty(
     inv.save_idempotent(db, body.client_request_id, "warranty", result)
     db.commit()
 
-    sheet_result = append_warranty_report(body.part_name, body.issue, actor, report.created_at)
-    notify_transaction(f"🛡️ *{actor}* reported a warranty issue — {body.part_name}: {body.issue}")
+    sheet_result = append_warranty_report(body.part_name, body.serial_number, body.issue, actor, report.created_at)
+    notify_transaction(f"🛡️ *{actor}* reported a warranty issue — {body.part_name} (S/N {body.serial_number}): {body.issue}")
 
     return {**result, "sheet": sheet_result}
