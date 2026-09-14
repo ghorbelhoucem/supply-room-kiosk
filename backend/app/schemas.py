@@ -102,3 +102,9 @@ class SnapshotResponse(BaseModel):
 class ActionOk(BaseModel):
     ok: bool = True
     data: dict[str, Any] | None = None
+
+
+class WarrantyRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    part_name: str = Field(..., min_length=1)
+    issue: str = Field(..., min_length=1)
