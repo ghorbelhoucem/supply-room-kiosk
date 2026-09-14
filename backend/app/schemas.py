@@ -93,10 +93,19 @@ class HistoryRow(BaseModel):
     qty: int | None = None
 
 
+class WarrantyRow(BaseModel):
+    timestamp: str
+    reportedBy: str
+    partName: str
+    serialNumber: str
+    issue: str
+
+
 class SnapshotResponse(BaseModel):
     ok: bool = True
     inventory: list[InventoryRow]
     history: list[HistoryRow]
+    warranty: list[WarrantyRow] = []
 
 
 class ActionOk(BaseModel):
