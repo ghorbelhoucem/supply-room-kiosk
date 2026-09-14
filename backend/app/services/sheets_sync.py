@@ -92,7 +92,11 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
         else:
             availability = "X" if it.qty_on_hand <= 0 else "✓"
 
-        inventory_rows.append([it.category.value, it.name, it.qty_on_hand, availability])
+        if it.category == ItemCategory.sops:
+            reference = f"{it.sop_status} SOP" if it.sop_status else "SOPs"
+        else:
+            reference = it.category.value
+        inventory_rows.append([reference, it.name, it.qty_on_hand, availability])
 
     purchase_rows = sorted(
         (
