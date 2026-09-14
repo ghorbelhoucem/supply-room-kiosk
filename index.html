@@ -1354,6 +1354,8 @@
         <div class="form-row" style="margin-top:0;">
           <label>Part name</label>
           <input type="text" id="warrantyPartInput" placeholder="e.g. Franka Arm" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(warrantyPartName)}" />
+          <label>Serial number</label>
+          <input type="text" id="warrantySerialInput" placeholder="e.g. FR3-2024-00871" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(warrantySerialNumber)}" />
           <label>Issue</label>
           <textarea id="warrantyIssueInput" placeholder="Describe what's wrong…" style="font-family:'Inter',sans-serif;letter-spacing:normal;width:100%;min-height:100px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;resize:vertical;">${esc(warrantyIssue)}</textarea>
           ${warrantyError ? `<div class="error-msg">${esc(warrantyError)}</div>` : ''}
@@ -1367,24 +1369,29 @@
     };
     if(!warrantyShowForm){
       document.getElementById('addPartCard').onclick = ()=>{
-        warrantyShowForm = true; warrantyPartName=''; warrantyIssue=''; warrantyError=null;
+        warrantyShowForm = true; warrantyPartName=''; warrantySerialNumber=''; warrantyIssue=''; warrantyError=null;
         renderStage();
       };
     }else{
       const partInput = document.getElementById('warrantyPartInput');
+      const serialInput = document.getElementById('warrantySerialInput');
       const issueInput = document.getElementById('warrantyIssueInput');
       partInput.oninput = ()=>{ warrantyPartName = partInput.value; };
+      serialInput.oninput = ()=>{ warrantySerialNumber = serialInput.value; };
       issueInput.oninput = ()=>{ warrantyIssue = issueInput.value; };
       document.getElementById('warrantySubmitBtn').onclick = async ()=>{
         const partName = partInput.value.trim();
+        const serialNumber = serialInput.value.trim();
         const issue = issueInput.value.trim();
         if(!partName){ warrantyError = 'Enter the part name.'; renderStage(); return; }
+        if(!serialNumber){ warrantyError = 'Enter the serial number.'; renderStage(); return; }
         if(!issue){ warrantyError = 'Describe the issue.'; renderStage(); return; }
         const btn = document.getElementById('warrantySubmitBtn');
         setButtonBusy(btn, true, 'Submitting...');
         const result = await apiClient.warranty({
           client_request_id: apiClient.newRequestId(),
           part_name: partName,
+          serial_number: serialNumber,
           issue: issue,
         });
         if(!result.ok){
@@ -1392,9 +1399,10 @@
           renderStage();
           return;
         }
-        confirmInfo = { icon:'🛡️', msg: 'Warranty issue reported', detail: `${partName}: ${issue}` };
+        confirmInfo = { icon:'🛡️', msg: 'Warranty issue reported', detail: `${partName} (S/N ${serialNumber}): ${issue}` };
         warrantyShowForm = false;
         warrantyPartName = '';
+        warrantySerialNumber = '';
         warrantyIssue = '';
         warrantyError = null;
         screen = 'confirm';
@@ -1847,6 +1855,7 @@
   let warrantyError = null;
   let warrantyShowForm = false;
   let warrantyPartName = '';
+  let warrantySerialNumber = '';
   let warrantyIssue = '';
   let restockBasket = [];
   let restockBasketError = null;
