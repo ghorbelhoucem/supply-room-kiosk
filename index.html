@@ -232,7 +232,7 @@
   // Only these screens make sense to resume directly on refresh — anything
   // mid-credential-entry or a transient success screen just falls back to menu.
   const RESTORABLE_SCREENS = new Set([
-    'menu','scanPrompt','takeCategory','take','basketReview',
+    'roomSelect','menu','scanPrompt','scanConfirm','takeCategory','take','basketReview',
     'return','returnScanPrompt','returnBasketReview',
     'restockCategory','restockPick','restockBasketReview','report'
   ]);
@@ -662,7 +662,7 @@
     stage.querySelectorAll('.menu-card[data-room]').forEach(card=>{
       card.onclick = ()=>{
         selectedRoom = card.getAttribute('data-room');
-        screen = 'idle';
+        screen = currentPerson ? 'menu' : 'idle';
         renderStage();
       };
     });
@@ -944,7 +944,8 @@
     const anyTeamOpen = teamOpens.length > 0;
     const canRestock = currentPerson.role === 'Maintenance' || currentPerson.role === 'Management' || currentPerson.role === 'Devs';
     stage.innerHTML = banner + `
-      <div class="greet">
+      <span class="back-link" id="changeRoomFromMenu">&larr; ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')} · change</span>
+      <div class="greet" style="margin-top:14px;">
         <div class="name">Hi, ${esc(currentPerson.name)}</div>
         <div class="code">${esc(currentPerson.role)} · ${esc(ROOM_LABELS[selectedRoom] || 'Storage Room')}</div>
       </div>
@@ -987,6 +988,7 @@
         })()}
         </div>` : ''}
     `;
+    document.getElementById('changeRoomFromMenu').onclick = ()=>{ screen='roomSelect'; renderStage(); };
     document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
@@ -1275,6 +1277,7 @@
     const displayName = isOtherScan ? 'Other (not labelled)' : pendingScanItem;
     const displayIcon = isOtherScan ? '<div class="icon">❓</div>' : `<div>${itemThumbHTML(pendingScanItem, 72)}</div>`;
     stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel, back to menu</span>
       <div class="confirm-box">
         ${displayIcon}
         <div class="msg">Is this correct?</div>
@@ -1286,6 +1289,7 @@
         <button id="scanAgainBtn" class="go-btn" style="margin-top:40px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);">🔄 Scan again</button>
       </div>
     `;
+    document.getElementById('back').onclick = ()=>{ pendingScanItem=null; scanNotFoundError=null; screen='menu'; renderStage(); };
     document.getElementById('scanNo').onclick = ()=>{
       pendingScanItem = null;
       screen = 'takeCategory';
