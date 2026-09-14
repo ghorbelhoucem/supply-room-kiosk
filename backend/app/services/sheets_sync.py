@@ -223,3 +223,35 @@ def maybe_sync_after_mutation(db: Session) -> None:
     settings = get_settings()
     if (settings.legacy_webapp_url or "").strip() or (settings.sop_webapp_url or "").strip():
         sync_mirror(db)
+
+
+def append_warranty_report(part_name: str, issue: str, reported_by: str, created_at) -> dict:
+    """
+    Warranty reports are a one-shot log entry, not tracked inventory state —
+    so this appends a single row directly to the Storage Room Sheet's own
+    "Warranty" tab, instead of going through the periodic full-rewrite sync.
+    Always goes to the Storage Room sheet (LEGACY_WEBAPP_URL), never the SOP
+    sheet — Warranty is a Storage Room feature only.
+    """
+    settings = get_settings()
+    webapp_url = (settings.legacy_webapp_url or "").strip()
+    if not webapp_url:
+        logger.info("Warranty report not sent to Sheet (no LEGACY_WEBAPP_URL set).")
+        return {"ok": True, "skipped": True}
+    try:
+        body = {
+            "action": "appendWarranty",
+            "timestamp": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at),
+            "reported_by": reported_by,
+            "part_name": part_name,
+            "issue": issue,
+        }
+        resp = httpx.post(webapp_url, json=body, timeout=20.0, follow_redirects=True)
+        resp.raise_for_status()
+        result = resp.json()
+        if not result.get("ok"):
+            raise RuntimeError(f"Apps Script rejected warranty append: {result.get('error')}")
+        return {"ok": True}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Warranty report sheet append failed")
+        return {"ok": False, "error": str(exc)}
