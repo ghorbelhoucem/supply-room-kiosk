@@ -243,7 +243,7 @@
   // Only these screens make sense to resume directly on refresh — anything
   // mid-credential-entry or a transient success screen just falls back to menu.
   const RESTORABLE_SCREENS = new Set([
-    'menu','scanPrompt','takeCategory','take','basketReview',
+    'roomSelect','menu','scanPrompt','scanConfirm','scanTakeDetail','takeCategory','take','basketReview',
     'return','returnScanPrompt','returnBasketReview',
     'restockCategory','restockPick','restockBasketReview','report'
   ]);
@@ -287,7 +287,35 @@
     return true;
   }
 
-  // Re-checks every in-progress basket against current stock right after a
+  // Lightweight pre-login persistence — separate from saveSession() above,
+  // since no currentPerson/authToken exist yet at this stage. Only ever
+  // stores WHICH screen and room, never a typed PIN/password — those always
+  // start blank again after a refresh, by design, for security.
+  const PRELOGIN_KEY = 'supply_kiosk_prelogin_v1';
+  const PRELOGIN_RESTORABLE_SCREENS = new Set(['roomSelect','idle','deptPin','operatorId']);
+
+  function savePreLoginState(){
+    if(currentPerson) { try{ localStorage.removeItem(PRELOGIN_KEY); }catch(e){} return; }
+    if(!PRELOGIN_RESTORABLE_SCREENS.has(screen)) return;
+    try{
+      localStorage.setItem(PRELOGIN_KEY, JSON.stringify({ selectedRoom, screen, pendingRole }));
+    }catch(e){ /* storage unavailable — position just won't survive a refresh */ }
+  }
+
+  function loadPreLoginStateEarly(){
+    let raw;
+    try{ raw = localStorage.getItem(PRELOGIN_KEY); }catch(e){ return; }
+    if(!raw) return;
+    let data;
+    try{ data = JSON.parse(raw); }catch(e){ return; }
+    if(!data) return;
+    if(data.selectedRoom && ROOM_CATEGORIES[data.selectedRoom]) selectedRoom = data.selectedRoom;
+    if(PRELOGIN_RESTORABLE_SCREENS.has(data.screen)){
+      screen = data.screen;
+      if(data.pendingRole && ROLES[data.pendingRole]) pendingRole = data.pendingRole;
+    }
+  }
+
   // restore — someone else may have taken/returned/restocked items while
   // this tab was sitting refreshed or backgrounded.
   function revalidateRestoredBaskets(){
@@ -642,6 +670,7 @@
     updateReportBtn();
     updateSignOutBtn();
     saveSession();
+    savePreLoginState();
     requestAnimationFrame(()=>requestAnimationFrame(()=>{ stage.style.opacity='1'; stage.style.transition='opacity .13s ease'; }));
   }
 
@@ -2217,6 +2246,7 @@
 
   (async function init(){
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session
+    if(!restored) loadPreLoginStateEarly();
     render();
     renderLoading(document.getElementById('stage'));
     await refreshRemote();
