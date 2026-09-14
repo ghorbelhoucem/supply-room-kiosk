@@ -144,6 +144,18 @@
           retry: false,
         });
       },
+      async warranty(payload) {
+        return requestJson('/warranty', {
+          method: 'POST',
+          auth: true,
+          body: {
+            client_request_id: payload.client_request_id || newRequestId(),
+            part_name: payload.part_name,
+            issue: payload.issue,
+          },
+          retry: false,
+        });
+      },
       async postAction(payload) {
         if (payload.action === 'takeBatch') return this.takeBatch(payload);
         if (payload.action === 'returnBatch') return this.returnBatch(payload);
