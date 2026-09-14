@@ -75,6 +75,7 @@ def snapshot(db: Session) -> dict:
                 "availability": availability_label(db, it),
                 "barcode": it.barcode,
                 "reorder_min": it.reorder_min,
+                "sop_status": it.sop_status,
             }
         )
     history = []
@@ -275,6 +276,7 @@ def receive_stock(
     actor: str,
     reason: str | None,
     category: str | None = None,
+    sop_status: str | None = None,
 ) -> dict:
     item = db.execute(
         select(InventoryItem).where(InventoryItem.name == item_name).with_for_update()
@@ -298,10 +300,13 @@ def receive_stock(
             qty_on_hand=0,
             reorder_min=5,
             barcode=item_name,
+            sop_status=sop_status if item_category == ItemCategory.sops else None,
         )
         db.add(item)
         db.flush()  # get item.id before logging the movement below
         reason = reason or "New item added via kiosk"
+    elif sop_status and item.category == ItemCategory.sops:
+        item.sop_status = sop_status
 
     item.qty_on_hand += qty
     db.add(
