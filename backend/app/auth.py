@@ -26,6 +26,19 @@ MANAGER_ROLES = {UserRole.management, UserRole.devs}
 REPORT_ROLES = {UserRole.management, UserRole.maintenance, UserRole.devs}
 RESTOCK_ROLES = {UserRole.management, UserRole.maintenance, UserRole.devs}
 
+# SOP Room has a broader allow-list than Storage Room — Supervisors can
+# manage SOPs (restock, create new ones, view the SOP Manager Report) but
+# NOT Storage Room Tools/Station Parts. This is intentionally separate from
+# RESTOCK_ROLES/REPORT_ROLES above, which keep governing Storage Room only.
+SOP_MANAGER_ROLES = {UserRole.supervisor, UserRole.management, UserRole.maintenance, UserRole.devs}
+
+
+def can_restock_category(user: User, category) -> bool:
+    from app.models import ItemCategory
+    if category == ItemCategory.sops:
+        return user.role in SOP_MANAGER_ROLES
+    return user.role in RESTOCK_ROLES
+
 
 def hash_secret(value: str) -> str:
     return pwd_context.hash(value)
