@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, require_manager, require_restock_access
+from app.auth import can_restock_category, get_current_user, require_manager
 from app.database import get_db
-from app.models import Checkout, InventoryItem, User
+from app.models import Checkout, InventoryItem, ItemCategory, User
 from app.schemas import (
     AdjustRequest,
     ReceiveRequest,
@@ -94,15 +94,34 @@ def return_batch(
 def receive(
     body: ReceiveRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_restock_access),
+    user: User = Depends(get_current_user),
 ):
     existing = inv.get_idempotent(db, body.client_request_id)
     if existing:
         return existing
-    actor = f"{user.name}/{user.role.value}"
-    item_existed_before = db.execute(
+
+    existing_item = db.execute(
         select(InventoryItem).where(InventoryItem.name == body.item)
-    ).scalar_one_or_none() is not None
+    ).scalar_one_or_none()
+
+    if existing_item:
+        target_category = existing_item.category
+    elif body.category:
+        try:
+            target_category = ItemCategory(body.category)
+        except ValueError:
+            target_category = None
+    else:
+        target_category = None
+
+    # Room-aware permission: SOP items allow Supervisors too; everything
+    # else (Tools/Station Parts) keeps the original stricter allow-list.
+    allowed = can_restock_category(user, target_category) if target_category else can_restock_category(user, ItemCategory.tools)
+    if not allowed:
+        return {"ok": False, "error": "You don't have permission to restock this item.", "code": "FORBIDDEN"}
+
+    actor = f"{user.name}/{user.role.value}"
+    item_existed_before = existing_item is not None
     result = inv.receive_stock(db, body.item, body.qty, actor, body.reason, category=body.category)
     if not result.get("ok"):
         db.rollback()
