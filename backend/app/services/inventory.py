@@ -35,7 +35,7 @@ def available_qty(db: Session, item: InventoryItem) -> int:
 
 def availability_label(db: Session, item: InventoryItem) -> str:
     avail = available_qty(db, item)
-    if item.category == ItemCategory.tools:
+    if item.category in (ItemCategory.tools, ItemCategory.sops):
         missing = item.qty_on_hand - avail
         if missing > 0:
             return f"{avail}/{item.qty_on_hand} ({missing} missing)"
@@ -251,8 +251,8 @@ def return_batch(db: Session, tx_ids: list[str], returned_by: str) -> dict:
                 "code": "ALREADY_RETURNED",
             }
         item = db.get(InventoryItem, checkout.item_id)
-        if not item or item.category != ItemCategory.tools:
-            return {"ok": False, "error": "Only tools can be returned", "code": "NOT_RETURNABLE"}
+        if not item or item.category not in (ItemCategory.tools, ItemCategory.sops):
+            return {"ok": False, "error": "Only tools and SOPs can be returned", "code": "NOT_RETURNABLE"}
         checkout.returned_at = now
         checkout.returned_by = returned_by
         db.add(
