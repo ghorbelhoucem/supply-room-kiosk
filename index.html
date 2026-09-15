@@ -1000,7 +1000,7 @@
         <div class="menu-card" id="takeCard">
           <div class="big">📦</div>
           <div class="label">Take Something</div>
-          <div class="sub">${selectedRoom === 'sop' ? 'Active or Non-Active SOP' : 'Tools or Station Parts'}</div>
+          <div class="sub">Tools or Station Parts</div>
         </div>
         <div class="menu-card ${anyTeamOpen?'':'disabled'}" id="returnCard">
           <div class="big">↩️</div>
@@ -1043,13 +1043,7 @@
         </div>` : ''}
     `;
     document.getElementById('changeRoomFromMenu').onclick = ()=>{ screen='roomSelect'; renderStage(); };
-    document.getElementById('takeCard').onclick = ()=>{
-      scanNotFoundError=null;
-      if(selectedRoom === 'sop'){
-        screen='takeCategory'; renderStage(); return;
-      }
-      screen='scanPrompt'; renderStage();
-    };
+    document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
     }
@@ -1674,7 +1668,7 @@
       </div>
       <div style="text-align:center;margin-top:16px;"><span class="back-link" id="cancelBasket">Cancel, back to menu</span></div>
     `;
-    document.getElementById('addMoreBtn').onclick = ()=>{ basketError=null; screen = selectedRoom==='sop' ? 'takeCategory' : 'scanPrompt'; renderStage(); };
+    document.getElementById('addMoreBtn').onclick = ()=>{ basketError=null; screen='scanPrompt'; renderStage(); };
     document.getElementById('cancelBasket').onclick = ()=>{ basket=[]; basketError=null; screen='menu'; renderStage(); };
     stage.querySelectorAll('[data-qty-for]').forEach(input=>{
       input.onchange = ()=>{
@@ -2131,6 +2125,10 @@
 
   // ---------- manager report ----------
   function stageReport(stage, banner){
+    const storageOnlyTabs = new Set(['weekly', 'purchase', 'warranty']);
+    if(selectedRoom === 'sop' && storageOnlyTabs.has(reportTab)){
+      reportTab = 'open';
+    }
     const toolItems = Object.values(inventoryMap).filter(it=>it.reference==='Tools' && inRoom(it.reference));
     const partItems = Object.values(inventoryMap).filter(it=>it.reference==='Station Parts' && inRoom(it.reference));
     const sopItems = Object.values(inventoryMap).filter(it=>it.reference==='SOPs' && inRoom(it.reference));
@@ -2159,11 +2157,11 @@
         <button class="nav-btn ${reportTab==='overdue'?'active':''}" data-t="overdue">Overdue (${overdueTx.length})</button>
         <button class="nav-btn ${reportTab==='all'?'active':''}" data-t="all">Full History</button>
         <button class="nav-btn ${reportTab==='stock'?'active':''}" data-t="stock">Inventory Status</button>
-        <button class="nav-btn ${reportTab==='weekly'?'active':''}" data-t="weekly">Weekly Report</button>
-        <button class="nav-btn ${reportTab==='purchase'?'active':''}" data-t="purchase">Purchase List${(()=>{
+        ${selectedRoom !== 'sop' ? `<button class="nav-btn ${reportTab==='weekly'?'active':''}" data-t="weekly">Weekly Report</button>` : ''}
+        ${selectedRoom !== 'sop' ? `<button class="nav-btn ${reportTab==='purchase'?'active':''}" data-t="purchase">Purchase List${(()=>{
           const n = Object.values(inventoryMap).filter(it=>inRoom(it.reference) && it.reference !== 'SOPs' && Number(it.quantity) <= Number(it.reorder_min || 5)).length;
           return n ? ` (${n})` : '';
-        })()}</button>
+        })()}</button>` : ''}
         ${selectedRoom !== 'sop' ? `<button class="nav-btn ${reportTab==='warranty'?'active':''}" data-t="warranty">🛡️ Warranty${warrantyReports.length ? ` (${warrantyReports.length})` : ''}</button>` : ''}
       </div>
       ${reportTab==='stock' ? `
