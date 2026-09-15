@@ -1000,7 +1000,7 @@
         <div class="menu-card" id="takeCard">
           <div class="big">📦</div>
           <div class="label">Take Something</div>
-          <div class="sub">Tools or Station Parts</div>
+          <div class="sub">${selectedRoom === 'sop' ? 'Active or Non-Active SOP' : 'Tools or Station Parts'}</div>
         </div>
         <div class="menu-card ${anyTeamOpen?'':'disabled'}" id="returnCard">
           <div class="big">↩️</div>
@@ -1043,7 +1043,13 @@
         </div>` : ''}
     `;
     document.getElementById('changeRoomFromMenu').onclick = ()=>{ screen='roomSelect'; renderStage(); };
-    document.getElementById('takeCard').onclick = ()=>{ scanNotFoundError=null; screen='scanPrompt'; renderStage(); };
+    document.getElementById('takeCard').onclick = ()=>{
+      scanNotFoundError=null;
+      if(selectedRoom === 'sop'){
+        screen='takeCategory'; renderStage(); return;
+      }
+      screen='scanPrompt'; renderStage();
+    };
     if(anyTeamOpen){
       document.getElementById('returnCard').onclick = ()=>{ returnBasketError=null; screen='return'; renderStage(); };
     }
@@ -1668,7 +1674,7 @@
       </div>
       <div style="text-align:center;margin-top:16px;"><span class="back-link" id="cancelBasket">Cancel, back to menu</span></div>
     `;
-    document.getElementById('addMoreBtn').onclick = ()=>{ basketError=null; screen='scanPrompt'; renderStage(); };
+    document.getElementById('addMoreBtn').onclick = ()=>{ basketError=null; screen = selectedRoom==='sop' ? 'takeCategory' : 'scanPrompt'; renderStage(); };
     document.getElementById('cancelBasket').onclick = ()=>{ basket=[]; basketError=null; screen='menu'; renderStage(); };
     stage.querySelectorAll('[data-qty-for]').forEach(input=>{
       input.onchange = ()=>{
