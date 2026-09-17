@@ -8,13 +8,13 @@ Touchscreen kiosk for tool and station-part checkouts. **PostgreSQL is the sourc
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| UI | Vanilla HTML/CSS/JS (`index.html` + `src/`) |
-| API | Python FastAPI (`backend/`) |
-| Database | PostgreSQL |
-| Buyer view | Google Sheets mirror + `.xlsx` export |
-| Hosting | Docker Compose (nginx kiosk + api + db) |
+| Layer      | Technology                                  |
+| ---------- | ------------------------------------------- |
+| UI         | Vanilla HTML/CSS/JS (`index.html` + `src/`) |
+| API        | Python FastAPI (`backend/`)                 |
+| Database   | PostgreSQL                                  |
+| Buyer view | Google Sheets mirror + `.xlsx` export       |
+| Hosting    | Docker Compose (nginx kiosk + api + db)     |
 
 ---
 
@@ -35,26 +35,20 @@ Open:
 http://10.3.120.174:61938
 ```
 
-Seeded demo PINs (change in production via DB / reseed):
+Authentication credentials are configured separately and are not documented in this repository.
 
-| Role | PIN | User |
-|---|---|---|
-| Maintenance | `4708` | Houcem |
-| Management | `4685` | Rosa |
-| Devs | `7346` | Developer |
-
-Demo operators: ID `1` / `Senate!now1` (Supervisor), ID `2` / `Punch+love2` (Tele-operator).
+For production, manage PINs and operator credentials through the database / seed configuration.
 
 ---
 
 ## Architecture
 
-- Kiosk calls `/api/*` through nginx → FastAPI
-- Auth: `POST /api/auth/login/pin` or `/api/auth/login/operator` → JWT
-- Mutations: `POST /api/take-batch`, `/api/return-batch`, `/api/receive`, `/api/adjust` with `client_request_id` (idempotent)
-- Snapshot: `GET /api/inventory`
-- Export: `GET /api/exports/inventory.xlsx` (Management/Devs)
-- Sheet sync: enable with `GOOGLE_SHEET_SYNC_ENABLED=true` + sheet id + service account JSON
+* Kiosk calls `/api/*` through nginx → FastAPI
+* Auth: `POST /api/auth/login/pin` or `/api/auth/login/operator` → JWT
+* Mutations: `POST /api/take-batch`, `/api/return-batch`, `/api/receive`, `/api/adjust` with `client_request_id` (idempotent)
+* Snapshot: `GET /api/inventory`
+* Export: `GET /api/exports/inventory.xlsx` (Management/Devs)
+* Sheet sync: enable with `GOOGLE_SHEET_SYNC_ENABLED=true` + sheet id + service account JSON
 
 Config for the browser is [`config.js`](config.js) (`apiBaseUrl: '/api'`).
 
@@ -64,18 +58,22 @@ Config for the browser is [`config.js`](config.js) (`apiBaseUrl: '/api'`).
 
 1. **Start stack** — `docker compose up -d --build`
 2. **Import inventory/history** from legacy web app:
+
    ```bash
    docker compose exec -e LEGACY_WEBAPP_URL='https://script.google.com/.../exec' api \
      python -m app.import_legacy
    ```
 3. **Import operators** (optional) — write gitignored `backend/seed_secrets.json`, then:
+
    ```bash
    docker compose exec -w /app api python -m app.import_operators
    ```
+
    Mount or copy the file into the container first.
 4. **Point purchasing** at the mirror workbook (tabs: `Inventory`, `OpenCheckouts`, `Movements`) and enable sheet sync env vars.
 5. **Freeze** the old Apps Script web app (disable writes).
 6. **Backup Postgres** regularly:
+
    ```bash
    docker compose exec db pg_dump -U supply supply > backup-$(date +%F).sql
    ```
@@ -112,7 +110,7 @@ pytest -q
 
 ## Folder structure
 
-```
+```text
 supply-room-kiosk/
 ├── index.html                 # kiosk UI
 ├── config.js                  # API base URL
@@ -129,7 +127,7 @@ supply-room-kiosk/
 
 ## Development notes
 
-- Credentials are **not** stored in `index.html` anymore.
-- Manager Report requires Management or Devs session.
-- Client availability checks are advisory; the API enforces stock under row locks.
-- Retries after timeout are safe when the same `client_request_id` is reused.
+* Credentials are **not** stored in `index.html` or documented in the README.
+* Manager Report requires Management or Devs session.
+* Client availability checks are advisory; the API enforces stock under row locks.
+* Retries after timeout are safe when the same `client_request_id` is reused.
