@@ -90,6 +90,11 @@
         if (data && data.ok === false) return data;
         return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [] };
       },
+      async loadFurniture() {
+        const data = await requestJson('/furniture', { method: 'GET', auth: false });
+        if (data && data.ok === false) return data;
+        return { ok: true, locations: data.locations || [], categories: data.categories || [], items: data.items || [] };
+      },
       async loginPin({ roleKey, pin, name }) {
         return requestJson('/auth/login/pin', {
           method: 'POST',
