@@ -247,12 +247,20 @@
   function roomCategories(){ return ROOM_CATEGORIES[selectedRoom] || ROOM_CATEGORIES.storage; }
   function inRoom(reference){ return roomCategories().includes(reference); }
 
+  // Furniture Room: Management, Maintenance and Devs ONLY — no Supervisor, no Tele-operator.
+  // (The server enforces the same rule; this is the friendly front door, not the lock.)
+  const FURNITURE_ROLES = ['Management', 'Maintenance', 'Devs'];
+  function furnRoleAllowed(role){ return FURNITURE_ROLES.includes(role); }
+  const FURN_BLOCKED_MSG = 'The Furniture Room is only for Management, Maintenance and Devs.';
+  let roomBlockedNotice = null;
+
   // Storage Room: Maintenance/Management/Devs only. SOP Room additionally
   // allows Supervisor. Intentionally different allow-lists per room.
   function canManageCurrentRoom(){
     if(!currentPerson) return false;
     const role = currentPerson.role;
-    if(selectedRoom === 'sop' || selectedRoom === 'furniture'){
+    if(selectedRoom === 'furniture') return furnRoleAllowed(role);
+    if(selectedRoom === 'sop'){
       return role === 'Supervisor' || role === 'Management' || role === 'Maintenance' || role === 'Devs';
     }
     return role === 'Maintenance' || role === 'Management' || role === 'Devs';
@@ -284,7 +292,8 @@
     'roomSelect','menu','scanPrompt','scanConfirm','scanTakeDetail','takeCategory','take','basketReview',
     'return','returnScanPrompt','returnBasketReview',
     'restockCategory','restockPick','restockBasketReview','report','warranty',
-    'furnitureCategories','furnitureLocations','furnitureItems','furnitureItem'
+    'furnitureCategories','furnitureLocations','furnitureItems','furnitureItem',
+    'furnitureEditStock','furnitureEditItem','furnitureAdd','furnitureRemove'
   ]);
 
   let sessionRestoreNotice = null;
@@ -399,6 +408,7 @@
       apiClient.clearToken();
       clearSession();
       autoLoggedOut = true;
+      furnForget();
       screen = 'roomSelect';
       renderStage();
     }, AUTO_LOGOUT_MS);
@@ -513,7 +523,7 @@
   // Renders a small photo thumbnail if we have one for this item, otherwise
   // falls back to the emoji icon — used everywhere an item is shown.
   function qtyStepperHTML(inputId, value, min){
-    min = min || 1;
+    min = (min == null) ? 1 : min;
     return `<div class="qty-stepper">
       <button type="button" class="qty-btn" data-qty-target="${inputId}" data-qty-dir="-1">−</button>
       <input type="number" id="${inputId}" min="${min}" value="${value}" class="qty-stepper-input" />
@@ -529,8 +539,10 @@
     const dir = parseInt(btn.getAttribute('data-qty-dir'),10);
     const input = document.getElementById(targetId);
     if(!input) return;
-    const min = parseInt(input.getAttribute('min'),10) || 1;
-    let val = parseInt(input.value,10) || min;
+    const minAttr = parseInt(input.getAttribute('min'),10);
+    const min = isNaN(minAttr) ? 1 : minAttr;
+    let val = parseInt(input.value,10);
+    if(isNaN(val)) val = min;
     val += dir;
     if(val < min) val = min;
     input.value = val;
@@ -638,7 +650,7 @@
       <div class="stage" id="stage"></div>
     `;
     document.getElementById('topSignOutBtn').onclick = ()=>{
-      clearAutoLogoutTimer(); clearSession(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken();
+      clearAutoLogoutTimer(); clearSession(); currentPerson=null; basket=[]; returnBasket=[]; restockBasket=[]; authToken=null; apiClient.clearToken(); furnForget();
       screen='roomSelect'; renderStage();
     };
     document.getElementById('reportBtn').onclick = async ()=>{
@@ -692,6 +704,10 @@
       banner += `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">${esc(sessionRestoreNotice)}</div>`;
       sessionRestoreNotice = null;
     }
+    // safety net for every path (restored session, stale state…): an operator is never shown the Furniture Room
+    if(currentPerson && selectedRoom === 'furniture' && !furnRoleAllowed(currentPerson.role)){
+      selectedRoom = 'storage'; screen = 'roomSelect'; roomBlockedNotice = FURN_BLOCKED_MSG;
+    }
     if(screen==='roomSelect') stageRoomSelect(stage, banner);
     else if(screen==='idle') stageRoleSelect(stage, banner);
     else if(screen==='deptPin') stageDeptPin(stage, banner);
@@ -718,6 +734,10 @@
     else if(screen==='furnitureLocations') stageFurnitureLocations(stage, banner);
     else if(screen==='furnitureItems') stageFurnitureItems(stage, banner);
     else if(screen==='furnitureItem') stageFurnitureItem(stage, banner);
+    else if(screen==='furnitureEditStock') stageFurnitureEditStock(stage, banner);
+    else if(screen==='furnitureEditItem') stageFurnitureEditItem(stage, banner);
+    else if(screen==='furnitureAdd') stageFurnitureAdd(stage, banner);
+    else if(screen==='furnitureRemove') stageFurnitureRemove(stage, banner);
     updateReportBtn();
     updateSignOutBtn();
     saveSession();
@@ -734,6 +754,8 @@
   let furnitureData = null;        // { locations, categories, items }
   let furnitureLoadError = null;
   let furnLoading = false;
+
+  function furnForget(){ roomBlockedNotice = null; furnitureData = null; furnitureLoadError = null; furnDraft = null; furnFormError = null; furnNotice = null; }
 
   async function refreshFurniture(){
     const r = await apiClient.loadFurniture();
@@ -817,12 +839,13 @@
           ${cat.note ? `<div class="fz-meta">${esc(cat.note)}</div>` : ''}
         </div></div>`;
     }).join('');
-    stage.innerHTML = banner + `
+    stage.innerHTML = banner + furnTakeNotice() + `
       <span class="back-link" id="back">&larr; Back</span>
       <div class="fz-head"><div class="fz-title">What kind of furniture?</div>
-        <div class="fz-sub">${plural(furnitureData.items.length,'item','items')} · ${plural(furnUnits(furnitureData.items),'unit','units')}</div></div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><span class="fz-sub">${plural(furnitureData.items.length,'item','items')} · ${plural(furnUnits(furnitureData.items),'unit','units')}</span>${furnAddButtonHTML()}</div></div>
       <div class="fz-grid">${tiles}</div>`;
     document.getElementById('back').onclick = furnBackToMenu;
+    furnWireAdd(stage);
     stage.querySelectorAll('.fz-tile[data-cat]').forEach(t=>{
       t.onclick = ()=>{
         furnState = Object.assign({}, FURN_DEFAULT_STATE, { source:'category', category:t.getAttribute('data-cat') });
@@ -889,9 +912,9 @@
     const locChips = [`<span class="fz-chip ${furnState.locationId?'':'active'}" data-loc="">All locations</span>`]
       .concat(furnitureData.locations.map(l=>`<span class="fz-chip ${furnState.locationId===l.id?'active':''}" data-loc="${esc(l.id)}">📍 ${esc(l.name)}</span>`)).join('');
 
-    stage.innerHTML = banner + `
+    stage.innerHTML = banner + furnTakeNotice() + `
       <span class="back-link" id="back">&larr; Back</span>
-      <div class="fz-head"><div class="fz-title">${esc(title)}</div><div class="fz-sub" id="fzCount"></div></div>
+      <div class="fz-head"><div class="fz-title">${esc(title)}</div><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><span class="fz-sub" id="fzCount"></span>${furnAddButtonHTML()}</div></div>
       <div class="form-row" style="margin:0 0 12px;max-width:none;">
         <input type="text" id="fzSearch" placeholder="Search furniture…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(furnState.query)}" />
       </div>
@@ -903,6 +926,7 @@
       screen = furnState.source === 'category' ? 'furnitureCategories' : furnState.source === 'location' ? 'furnitureLocations' : 'menu';
       renderStage();
     };
+    furnWireAdd(stage);
     stage.querySelectorAll('.fz-chip[data-cat]').forEach(c=>{
       c.onclick = ()=>{ furnState.category = c.getAttribute('data-cat') || null; renderStage(); };
     });
@@ -937,7 +961,7 @@
       const n = it.stock[l.id] || 0;
       return `<div class="fz-stockrow ${n===0?'zero':''}"><span>📍 ${esc(l.name)}</span><span class="n">${n}</span></div>`;
     }).join('');
-    stage.innerHTML = banner + `
+    stage.innerHTML = banner + furnTakeNotice() + `
       <span class="back-link" id="back">&larr; Back to list</span>
       <div class="fz-detail">
         <div>
@@ -952,12 +976,226 @@
           ${rows}
           <div class="fz-stockrow total"><span>Total</span><span class="n">${it.total}</span></div>
           <div class="fz-sub" style="margin-top:10px;font-family:'IBM Plex Mono',monospace;">${esc(it.sku)}</div>
+          ${furnCanEdit() ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+            <button class="btn-ghost" id="fzEditStock">✏️ Edit quantities</button>
+            <button class="btn-ghost" id="fzEditItem">📝 Edit details</button>
+            <button class="btn-ghost" id="fzRemove" style="border-color:var(--danger);color:#f2b9b9;">🗑️ Remove</button>
+          </div>` : ''}
         </div>
       </div>`;
     document.getElementById('back').onclick = ()=>{ screen='furnitureItems'; renderStage(); };
+    if(furnCanEdit()){
+      document.getElementById('fzEditStock').onclick = ()=>{ furnDraft = null; furnFormError = null; screen='furnitureEditStock'; renderStage(); };
+      document.getElementById('fzEditItem').onclick = ()=>{ furnDraft = null; furnFormError = null; screen='furnitureEditItem'; renderStage(); };
+      document.getElementById('fzRemove').onclick = ()=>{ furnFormError = null; screen='furnitureRemove'; renderStage(); };
+    }
     stage.querySelectorAll('.fz-thumbs img[data-i]').forEach(t=>{
       t.onclick = ()=>{ furnState.imgIdx = parseInt(t.getAttribute('data-i'),10) || 0; renderStage(); };
     });
+  }
+
+
+  // ===== Furniture Room (manage: quantities, details, add, remove) ===========
+  // Buttons are shown only to Supervisor / Management / Maintenance / Devs, but
+  // the SERVER enforces that too — hiding a button is never the security.
+  let furnNotice = null;      // one-shot green banner after a successful save
+  let furnDraft = null;       // in-memory working copy of the open form (lost on refresh, by design)
+  let furnFormError = null;
+
+  function furnCanEdit(){ return canManageCurrentRoom(); }
+  function furnTakeNotice(){
+    if(!furnNotice) return '';
+    const h = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">✅ ${esc(furnNotice)}</div>`;
+    furnNotice = null;
+    return h;
+  }
+  function furnErrText(r, fallback){
+    // FastAPI validation errors arrive as a list, not a string
+    return (r && typeof r.error === 'string' && r.error) || fallback || 'Something went wrong. Check the connection and try again.';
+  }
+  function furnAddButtonHTML(){ return furnCanEdit() ? `<button class="nav-btn" data-furn-add="1">➕ Add furniture</button>` : ''; }
+  function furnWireAdd(stage){
+    const b = stage.querySelector('[data-furn-add]');
+    if(!b) return;
+    b.onclick = ()=>{
+      furnDraft = { mode:'add', name:'', category: furnState.category || (furnitureData.categories[0] || {}).name || '', newCategory:'', note:'', qty:{} };
+      furnFormError = null; screen = 'furnitureAdd'; renderStage();
+    };
+  }
+  function furnStepperHTML(id, value){
+    return `<div class="qty-stepper"><button type="button" class="qty-btn" data-qty-target="${id}" data-qty-dir="-1">−</button><input type="number" id="${id}" min="0" value="${value}" class="qty-stepper-input" /><button type="button" class="qty-btn" data-qty-target="${id}" data-qty-dir="1">+</button></div>`;
+  }
+  function furnCategoryFieldHTML(selected, newText){
+    const isNew = selected === '__new__';
+    return `<label>Category</label>
+      <select id="fzCatSel">${furnitureData.categories.map(c=>`<option value="${esc(c.name)}" ${selected===c.name?'selected':''}>${esc(c.icon)} ${esc(c.name)}</option>`).join('')}<option value="__new__" ${isNew?'selected':''}>➕ New category…</option></select>
+      <input type="text" id="fzCatNew" maxlength="80" placeholder="New category name" value="${esc(newText || '')}" style="${isNew ? '' : 'display:none;'}font-family:'Inter',sans-serif;letter-spacing:normal;" />`;
+  }
+  function furnWireCategory(){
+    const sel = document.getElementById('fzCatSel'), inp = document.getElementById('fzCatNew');
+    sel.onchange = ()=>{ furnDraft.category = sel.value; inp.style.display = sel.value === '__new__' ? '' : 'none'; if(sel.value === '__new__') inp.focus(); };
+    inp.oninput = ()=>{ furnDraft.newCategory = inp.value; };
+  }
+  function furnReadCategory(){ return furnDraft.category === '__new__' ? furnDraft.newCategory.trim() : furnDraft.category; }
+  const FURN_TEXTAREA_STYLE = "font-family:'Inter',sans-serif;letter-spacing:normal;width:100%;min-height:80px;background:var(--panel-alt);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:6px;resize:vertical;margin-bottom:14px;";
+
+  function furnCurrentItemOrBail(){
+    const it = furnState.itemId ? furnItemById(furnState.itemId) : null;
+    if(!it || !furnCanEdit()){ screen = it ? 'furnitureItem' : 'furnitureItems'; renderStage(); return null; }
+    return it;
+  }
+
+  // ---- edit quantities ------------------------------------------------------
+  function stageFurnitureEditStock(stage, banner){
+    if(!furnGuard(stage, banner)) return;
+    const it = furnCurrentItemOrBail(); if(!it) return;
+    if(!furnDraft || furnDraft.mode !== 'stock' || furnDraft.itemId !== it.id){
+      furnDraft = { mode:'stock', itemId:it.id, qty:Object.assign({}, it.stock), original:Object.assign({}, it.stock), reason:'' };
+    }
+    const rows = furnitureData.locations.map(l=>`
+      <div class="fz-stockrow"><span>📍 ${esc(l.name)} <span class="fz-sub" style="margin-left:8px;">now ${furnDraft.original[l.id] || 0}</span></span>
+        ${furnStepperHTML('fzQty_' + l.id, furnDraft.qty[l.id] || 0)}</div>`).join('');
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="fz-head"><div class="fz-title">Edit quantities</div><div class="fz-sub">${esc(it.name)}</div></div>
+      <div class="form-row" style="margin-top:0;">
+        ${rows}
+        <label style="margin-top:14px;">Reason (optional)</label>
+        <input type="text" id="fzReason" maxlength="200" placeholder="e.g. counted again, found 3 more" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(furnDraft.reason)}" />
+        ${furnFormError ? `<div class="error-msg">${esc(furnFormError)}</div>` : ''}
+        <button class="go-btn" id="fzSave" style="width:100%;">Save changes</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>{ furnDraft = null; furnFormError = null; screen = 'furnitureItem'; renderStage(); };
+    furnitureData.locations.forEach(l=>{
+      const inp = document.getElementById('fzQty_' + l.id);
+      inp.oninput = ()=>{ const v = parseInt(inp.value, 10); furnDraft.qty[l.id] = (isNaN(v) || v < 0) ? 0 : v; };
+    });
+    document.getElementById('fzReason').oninput = (e)=>{ furnDraft.reason = e.target.value; };
+    document.getElementById('fzSave').onclick = async ()=>{
+      const changes = furnitureData.locations
+        .filter(l=> (furnDraft.qty[l.id] || 0) !== (furnDraft.original[l.id] || 0))
+        .map(l=>({ location_id:l.id, qty:furnDraft.qty[l.id] || 0, expected:furnDraft.original[l.id] || 0 }));
+      if(!changes.length){ furnFormError = 'Nothing changed yet.'; renderStage(); return; }
+      setButtonBusy(document.getElementById('fzSave'), true, 'Saving...');
+      const r = await apiClient.furnitureAdjustStock(it.id, { client_request_id:apiClient.newRequestId(), changes, reason:furnDraft.reason.trim() || null });
+      if(!r.ok){
+        furnFormError = furnErrText(r);
+        if(r.code === 'CONFLICT'){ await refreshFurniture(); furnDraft = null; }   // show the latest numbers
+        renderStage(); return;
+      }
+      await refreshFurniture();
+      furnDraft = null; furnFormError = null; furnNotice = 'Quantities updated.'; screen = 'furnitureItem'; renderStage();
+    };
+  }
+
+  // ---- edit details (name / category / note) --------------------------------
+  function stageFurnitureEditItem(stage, banner){
+    if(!furnGuard(stage, banner)) return;
+    const it = furnCurrentItemOrBail(); if(!it) return;
+    if(!furnDraft || furnDraft.mode !== 'edit' || furnDraft.itemId !== it.id){
+      furnDraft = { mode:'edit', itemId:it.id, name:it.name, category:it.category, newCategory:'', note:it.note || '' };
+    }
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="fz-head"><div class="fz-title">Edit details</div><div class="fz-sub">${esc(it.sku)}</div></div>
+      <div class="form-row" style="margin-top:0;">
+        <label>Name</label>
+        <input type="text" id="fzName" maxlength="200" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(furnDraft.name)}" />
+        ${furnCategoryFieldHTML(furnDraft.category, furnDraft.newCategory)}
+        <label style="margin-top:14px;">Note (optional)</label>
+        <textarea id="fzNote" maxlength="2000" style="${FURN_TEXTAREA_STYLE}">${esc(furnDraft.note)}</textarea>
+        ${furnFormError ? `<div class="error-msg">${esc(furnFormError)}</div>` : ''}
+        <button class="go-btn" id="fzSave" style="width:100%;">Save changes</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>{ furnDraft = null; furnFormError = null; screen = 'furnitureItem'; renderStage(); };
+    document.getElementById('fzName').oninput = (e)=>{ furnDraft.name = e.target.value; };
+    document.getElementById('fzNote').oninput = (e)=>{ furnDraft.note = e.target.value; };
+    furnWireCategory();
+    document.getElementById('fzSave').onclick = async ()=>{
+      const name = furnDraft.name.trim(), category = furnReadCategory(), note = furnDraft.note.trim();
+      if(!name){ furnFormError = 'Give the item a name.'; renderStage(); return; }
+      if(!category){ furnFormError = 'Pick or type a category.'; renderStage(); return; }
+      const body = { client_request_id: apiClient.newRequestId() };
+      if(name !== it.name) body.name = name;
+      if(category !== it.category) body.category = category;
+      if(note !== (it.note || '')) body.note = note;
+      if(Object.keys(body).length === 1){ furnFormError = 'Nothing changed yet.'; renderStage(); return; }
+      setButtonBusy(document.getElementById('fzSave'), true, 'Saving...');
+      const r = await apiClient.furnitureUpdateItem(it.id, body);
+      if(!r.ok){ furnFormError = furnErrText(r); renderStage(); return; }
+      await refreshFurniture();
+      furnDraft = null; furnFormError = null; furnNotice = 'Details updated.'; screen = 'furnitureItem'; renderStage();
+    };
+  }
+
+  // ---- add furniture ---------------------------------------------------------
+  function stageFurnitureAdd(stage, banner){
+    if(!furnGuard(stage, banner)) return;
+    if(!furnCanEdit()){ screen = 'menu'; renderStage(); return; }
+    if(!furnDraft || furnDraft.mode !== 'add'){
+      furnDraft = { mode:'add', name:'', category:(furnitureData.categories[0] || {}).name || '__new__', newCategory:'', note:'', qty:{} };
+    }
+    const rows = furnitureData.locations.map(l=>`
+      <div class="fz-stockrow"><span>📍 ${esc(l.name)}</span>${furnStepperHTML('fzQty_' + l.id, furnDraft.qty[l.id] || 0)}</div>`).join('');
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="fz-head"><div class="fz-title">Add furniture</div><div class="fz-sub">Photos can be added later</div></div>
+      <div class="form-row" style="margin-top:0;">
+        <label>Name</label>
+        <input type="text" id="fzName" maxlength="200" placeholder="e.g. Standing desk" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(furnDraft.name)}" />
+        ${furnCategoryFieldHTML(furnDraft.category, furnDraft.newCategory)}
+        <label style="margin-top:14px;">How many are where?</label>
+        ${rows}
+        <label style="margin-top:14px;">Note (optional)</label>
+        <textarea id="fzNote" maxlength="2000" style="${FURN_TEXTAREA_STYLE}">${esc(furnDraft.note)}</textarea>
+        ${furnFormError ? `<div class="error-msg">${esc(furnFormError)}</div>` : ''}
+        <button class="go-btn" id="fzSave" style="width:100%;">Add furniture</button>
+      </div>`;
+    const back = ()=>{ furnDraft = null; furnFormError = null; screen = furnState.category ? 'furnitureItems' : 'furnitureCategories'; renderStage(); };
+    document.getElementById('back').onclick = back;
+    document.getElementById('fzName').oninput = (e)=>{ furnDraft.name = e.target.value; };
+    document.getElementById('fzNote').oninput = (e)=>{ furnDraft.note = e.target.value; };
+    furnWireCategory();
+    furnitureData.locations.forEach(l=>{
+      const inp = document.getElementById('fzQty_' + l.id);
+      inp.oninput = ()=>{ const v = parseInt(inp.value, 10); furnDraft.qty[l.id] = (isNaN(v) || v < 0) ? 0 : v; };
+    });
+    document.getElementById('fzSave').onclick = async ()=>{
+      const name = furnDraft.name.trim(), category = furnReadCategory();
+      if(!name){ furnFormError = 'Give the item a name.'; renderStage(); return; }
+      if(!category){ furnFormError = 'Pick or type a category.'; renderStage(); return; }
+      const stock = {}; furnitureData.locations.forEach(l=>{ stock[l.id] = furnDraft.qty[l.id] || 0; });
+      setButtonBusy(document.getElementById('fzSave'), true, 'Saving...');
+      const r = await apiClient.furnitureCreateItem({ client_request_id:apiClient.newRequestId(), name, category, note:furnDraft.note.trim() || null, stock });
+      if(!r.ok){ furnFormError = furnErrText(r); renderStage(); return; }
+      await refreshFurniture();
+      furnDraft = null; furnFormError = null;
+      furnState = Object.assign({}, furnState, { itemId:r.item.id, imgIdx:0 });
+      furnNotice = `Added ${r.item.name}.`; screen = 'furnitureItem'; renderStage();
+    };
+  }
+
+  // ---- remove ---------------------------------------------------------------
+  function stageFurnitureRemove(stage, banner){
+    if(!furnGuard(stage, banner)) return;
+    const it = furnCurrentItemOrBail(); if(!it) return;
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="confirm-box">
+        <div class="icon" style="font-size:52px;">🗑️</div>
+        <div class="msg">Remove ${esc(it.name)}?</div>
+        <div class="detail">${plural(it.total,'unit','units')} will disappear from every list. The history is kept, so it can be restored later.</div>
+        ${furnFormError ? `<div class="error-msg" style="margin-top:14px;">${esc(furnFormError)}</div>` : ''}
+        <button class="go-btn" id="fzConfirmRemove" style="margin-top:26px;background:var(--danger);color:#fff;">Yes, remove it</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>{ furnFormError = null; screen = 'furnitureItem'; renderStage(); };
+    document.getElementById('fzConfirmRemove').onclick = async ()=>{
+      setButtonBusy(document.getElementById('fzConfirmRemove'), true, 'Removing...');
+      const r = await apiClient.furnitureDeleteItem(it.id);
+      if(!r.ok){ furnFormError = furnErrText(r); renderStage(); return; }
+      await refreshFurniture();
+      furnFormError = null; furnNotice = `Removed ${it.name}.`; furnState = Object.assign({}, furnState, { itemId:null }); screen = 'furnitureItems'; renderStage();
+    };
   }
 
 
@@ -967,7 +1205,9 @@
       logoutNotice = `<div class="banner-error" style="background:#3a2f1f;border-color:var(--accent);color:#f2d9b9;">⏱️ You were automatically signed out after 10 minutes.</div>`;
       autoLoggedOut = false;
     }
-    stage.innerHTML = banner + logoutNotice + `
+    // stays visible until a room is picked (the page renders twice on load, so a one-shot message would vanish)
+    const blockedBanner = roomBlockedNotice ? `<div class="banner-error">🚫 ${esc(roomBlockedNotice)}</div>` : '';
+    stage.innerHTML = banner + logoutNotice + blockedBanner + `
       <div class="reader-wrap" style="padding-top:6px;">
         <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Which room?</div>
         <div class="hint" style="margin-top:0;margin-bottom:24px;">Tap to continue</div>
@@ -992,7 +1232,12 @@
     `;
     stage.querySelectorAll('.menu-card[data-room]').forEach(card=>{
       card.onclick = ()=>{
-        selectedRoom = card.getAttribute('data-room');
+        const room = card.getAttribute('data-room');
+        roomBlockedNotice = null;
+        if(room === 'furniture' && currentPerson && !furnRoleAllowed(currentPerson.role)){
+          roomBlockedNotice = FURN_BLOCKED_MSG; renderStage(); return;   // signed in as an operator: stay out
+        }
+        selectedRoom = room;
         screen = currentPerson ? 'menu' : 'idle';   // already signed in? don't ask for the PIN again
         renderStage();
       };
@@ -1000,9 +1245,11 @@
   }
 
   function stageRoleSelect(stage, banner){
-    const mainRoles = selectedRoom === 'sop'
-      ? ['supervisor','management','maintenance','teleoperator']
-      : ['maintenance','management','supervisor','teleoperator'];
+    const mainRoles = selectedRoom === 'furniture'
+      ? ['maintenance','management']                                 // + the Devs card below; no operator logins here
+      : selectedRoom === 'sop'
+        ? ['supervisor','management','maintenance','teleoperator']
+        : ['maintenance','management','supervisor','teleoperator'];
     let logoutNotice = '';
     if(autoLoggedOut){
       logoutNotice = `<div class="banner-error" style="background:#3a2f1f;border-color:var(--accent);color:#f2d9b9;">⏱️ You were automatically signed out after 10 minutes.</div>`;
@@ -2738,7 +2985,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · furniture stage 2';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · furniture stage 3b';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session
