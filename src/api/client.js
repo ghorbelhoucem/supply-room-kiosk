@@ -90,8 +90,20 @@
         if (data && data.ok === false) return data;
         return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [] };
       },
+      async furnitureCreateItem(p) {
+        return requestJson('/furniture/items', { method: 'POST', auth: true, body: p, retry: false });
+      },
+      async furnitureUpdateItem(id, p) {
+        return requestJson(`/furniture/items/${encodeURIComponent(id)}`, { method: 'PATCH', auth: true, body: p, retry: false });
+      },
+      async furnitureAdjustStock(id, p) {
+        return requestJson(`/furniture/items/${encodeURIComponent(id)}/stock`, { method: 'PATCH', auth: true, body: p, retry: false });
+      },
+      async furnitureDeleteItem(id) {
+        return requestJson(`/furniture/items/${encodeURIComponent(id)}`, { method: 'DELETE', auth: true, retry: false });
+      },
       async loadFurniture() {
-        const data = await requestJson('/furniture', { method: 'GET', auth: false });
+        const data = await requestJson('/furniture', { method: 'GET', auth: true });
         if (data && data.ok === false) return data;
         return { ok: true, locations: data.locations || [], categories: data.categories || [], items: data.items || [] };
       },
