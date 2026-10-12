@@ -1,0 +1,1356 @@
+{
+ "version": 1,
+ "source": "Houcem_inventory.xlsx (sheet 'Moving company')",
+ "locations": [
+  {
+   "name": "Koppstr. 12",
+   "sort": 1
+  },
+  {
+   "name": "Hofmannstr. 51",
+   "sort": 2
+  }
+ ],
+ "categories": [
+  {
+   "name": "Chairs & Seating",
+   "icon": "🪑",
+   "note": null,
+   "sort": 1
+  },
+  {
+   "name": "Tables & Desks",
+   "icon": "📐",
+   "note": null,
+   "sort": 2
+  },
+  {
+   "name": "Storage & Shelving",
+   "icon": "🗄️",
+   "note": null,
+   "sort": 3
+  },
+  {
+   "name": "Kitchen & Appliances",
+   "icon": "☕",
+   "note": null,
+   "sort": 4
+  },
+  {
+   "name": "Whiteboards & Displays",
+   "icon": "📺",
+   "note": null,
+   "sort": 5
+  },
+  {
+   "name": "Robots & Stations",
+   "icon": "🤖",
+   "note": null,
+   "sort": 6
+  },
+  {
+   "name": "IT",
+   "icon": "💻",
+   "note": null,
+   "sort": 7
+  },
+  {
+   "name": "Workshop / Maintenance",
+   "icon": "🔧",
+   "note": "Out of delta — waiting for Felix / Yie",
+   "sort": 8
+  },
+  {
+   "name": "Transport & Logistics",
+   "icon": "🚚",
+   "note": null,
+   "sort": 9
+  },
+  {
+   "name": "Office Essentials",
+   "icon": "🧯",
+   "note": null,
+   "sort": 10
+  }
+ ],
+ "items": [
+  {
+   "sku": "FUR-001",
+   "name": "Bar stool",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-001.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 7
+   },
+   "source_row": 2,
+   "flags": []
+  },
+  {
+   "sku": "FUR-002",
+   "name": "Meeting room chair #1",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-002.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 65
+   },
+   "source_row": 3,
+   "flags": [
+    "Same name and count (65) as another row — possible double listing"
+   ]
+  },
+  {
+   "sku": "FUR-003",
+   "name": "Station chair / standing aid",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-003.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 34
+   },
+   "source_row": 4,
+   "flags": []
+  },
+  {
+   "sku": "FUR-004",
+   "name": "Office chair #1",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-004.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 12,
+    "Hofmannstr. 51": 35
+   },
+   "source_row": 5,
+   "flags": [
+    "Two 'Office chair' rows with different counts (47 vs 84) — different models?"
+   ]
+  },
+  {
+   "sku": "FUR-005",
+   "name": "Workshop stool #1",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-005.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 6,
+   "flags": [
+    "Zero stock; same name also appears in the Workshop section"
+   ]
+  },
+  {
+   "sku": "FUR-006",
+   "name": "Office chair #2",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-006.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 12,
+    "Hofmannstr. 51": 72
+   },
+   "source_row": 7,
+   "flags": [
+    "Two 'Office chair' rows with different counts (47 vs 84) — different models?"
+   ]
+  },
+  {
+   "sku": "FUR-007",
+   "name": "Kitchen chair",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-007.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 69
+   },
+   "source_row": 8,
+   "flags": []
+  },
+  {
+   "sku": "FUR-008",
+   "name": "Meeting room chair #2",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-008.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 65
+   },
+   "source_row": 9,
+   "flags": [
+    "Same name and count (65) as another row — possible double listing"
+   ]
+  },
+  {
+   "sku": "FUR-009",
+   "name": "Guest chair",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-009.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 8
+   },
+   "source_row": 10,
+   "flags": []
+  },
+  {
+   "sku": "FUR-010",
+   "name": "Station table",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-010.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 12,
+    "Hofmannstr. 51": 88
+   },
+   "source_row": 11,
+   "flags": []
+  },
+  {
+   "sku": "FUR-011",
+   "name": "Kitchen table #1",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-011.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 16
+   },
+   "source_row": 12,
+   "flags": [
+    "Three 'Kitchen table' rows share the count 16 but show different photos — possible copy-paste"
+   ]
+  },
+  {
+   "sku": "FUR-012",
+   "name": "Meeting room table (black)",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-012.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 8
+   },
+   "source_row": 13,
+   "flags": []
+  },
+  {
+   "sku": "FUR-013",
+   "name": "Lounge: Start up table",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-013.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 14,
+   "flags": []
+  },
+  {
+   "sku": "FUR-014",
+   "name": "Round table",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-014.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 4
+   },
+   "source_row": 15,
+   "flags": []
+  },
+  {
+   "sku": "FUR-015",
+   "name": "Thor table",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-015.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 16,
+   "flags": []
+  },
+  {
+   "sku": "FUR-016",
+   "name": "Kitchen table #2",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-016.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 16
+   },
+   "source_row": 17,
+   "flags": [
+    "Three 'Kitchen table' rows share the count 16 but show different photos — possible copy-paste"
+   ]
+  },
+  {
+   "sku": "FUR-017",
+   "name": "Kitchen table #3",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-017.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 16
+   },
+   "source_row": 18,
+   "flags": [
+    "Three 'Kitchen table' rows share the count 16 — and this photo looks like balcony chairs, not a table"
+   ]
+  },
+  {
+   "sku": "FUR-018",
+   "name": "Couch",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-018.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 19,
+   "flags": []
+  },
+  {
+   "sku": "FUR-019",
+   "name": "First aid couch",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-019.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 20,
+   "flags": []
+  },
+  {
+   "sku": "FUR-020",
+   "name": "Bench",
+   "category": "Chairs & Seating",
+   "note": null,
+   "images": [
+    "furniture/FUR-020.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 21,
+   "flags": []
+  },
+  {
+   "sku": "FUR-021",
+   "name": "Filing cabinet (slim)",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-021.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 22,
+   "flags": []
+  },
+  {
+   "sku": "FUR-022",
+   "name": "Sideboard (all)",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-022.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 23
+   },
+   "source_row": 23,
+   "flags": []
+  },
+  {
+   "sku": "FUR-023",
+   "name": "Rolling container",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-023.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 84
+   },
+   "source_row": 24,
+   "flags": []
+  },
+  {
+   "sku": "FUR-024",
+   "name": "Fridge (one big, one small)",
+   "category": "Kitchen & Appliances",
+   "note": "One big, one small",
+   "images": [
+    "furniture/FUR-024.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 1,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 25,
+   "flags": [
+    "Both fridge rows have the identical split (2 = 1 + 1) — possible double listing"
+   ]
+  },
+  {
+   "sku": "FUR-025",
+   "name": "Office cabinet 2m",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-025.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 27
+   },
+   "source_row": 26,
+   "flags": []
+  },
+  {
+   "sku": "FUR-026",
+   "name": "Office shelf (slim)",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-026.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 4
+   },
+   "source_row": 27,
+   "flags": []
+  },
+  {
+   "sku": "FUR-027",
+   "name": "Workshop shelf",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-027.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 28,
+   "flags": []
+  },
+  {
+   "sku": "FUR-028",
+   "name": "Locker spaces",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-028.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 4
+   },
+   "source_row": 29,
+   "flags": []
+  },
+  {
+   "sku": "FUR-029",
+   "name": "Pallet trolley",
+   "category": "Transport & Logistics",
+   "note": null,
+   "images": [
+    "furniture/FUR-029.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 30,
+   "flags": []
+  },
+  {
+   "sku": "FUR-030",
+   "name": "Small trolley",
+   "category": "Transport & Logistics",
+   "note": null,
+   "images": [
+    "furniture/FUR-030.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 31,
+   "flags": []
+  },
+  {
+   "sku": "FUR-031",
+   "name": "Mobile desk (Stehpult)",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [
+    "furniture/FUR-031.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 17
+   },
+   "source_row": 32,
+   "flags": []
+  },
+  {
+   "sku": "FUR-032",
+   "name": "Big trolley (post)",
+   "category": "Transport & Logistics",
+   "note": null,
+   "images": [
+    "furniture/FUR-032.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 33,
+   "flags": []
+  },
+  {
+   "sku": "FUR-033",
+   "name": "Embodiment – Franka Duo",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-033.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 34,
+   "flags": []
+  },
+  {
+   "sku": "FUR-034",
+   "name": "Embodiment – H10W",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-034.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 1,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 35,
+   "flags": [
+    "The sheet itself says this picture is wrong"
+   ]
+  },
+  {
+   "sku": "FUR-035",
+   "name": "Embodiment – M1",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-035.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 2,
+    "Hofmannstr. 51": 12
+   },
+   "source_row": 36,
+   "flags": []
+  },
+  {
+   "sku": "FUR-036",
+   "name": "Embodiment – Thor",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-036.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 2,
+    "Hofmannstr. 51": 8
+   },
+   "source_row": 37,
+   "flags": []
+  },
+  {
+   "sku": "FUR-037",
+   "name": "Embodiment – P2",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-037.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 2,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 38,
+   "flags": []
+  },
+  {
+   "sku": "FUR-038",
+   "name": "Embodiment – Franka V1 & V2",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-038.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 6,
+    "Hofmannstr. 51": 94
+   },
+   "source_row": 39,
+   "flags": []
+  },
+  {
+   "sku": "FUR-039",
+   "name": "TV (small)",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-039.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 5
+   },
+   "source_row": 40,
+   "flags": []
+  },
+  {
+   "sku": "FUR-040",
+   "name": "Station frame",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-040.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 6
+   },
+   "source_row": 41,
+   "flags": []
+  },
+  {
+   "sku": "FUR-041",
+   "name": "TV (big)",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-041.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 4
+   },
+   "source_row": 42,
+   "flags": []
+  },
+  {
+   "sku": "FUR-042",
+   "name": "Whiteboard (glass)",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-042.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 7,
+    "Hofmannstr. 51": 16
+   },
+   "source_row": 43,
+   "flags": []
+  },
+  {
+   "sku": "FUR-043",
+   "name": "Whiteboard (mobile)",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-043.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 6
+   },
+   "source_row": 44,
+   "flags": []
+  },
+  {
+   "sku": "FUR-044",
+   "name": "Whiteboard (wall big) #1",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-044.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 45,
+   "flags": [
+    "Same name and count (1) as another row — possible double listing"
+   ]
+  },
+  {
+   "sku": "FUR-045",
+   "name": "Whiteboard (metal)",
+   "category": "Whiteboards & Displays",
+   "note": "Marked 'dispose' in the sheet",
+   "images": [
+    "furniture/FUR-045.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 46,
+   "flags": []
+  },
+  {
+   "sku": "FUR-046",
+   "name": "Whiteboard (wall big) #2",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-046.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 47,
+   "flags": [
+    "Same name and count (1) as another row — possible double listing"
+   ]
+  },
+  {
+   "sku": "FUR-047",
+   "name": "Printer (big)",
+   "category": "IT",
+   "note": null,
+   "images": [
+    "furniture/FUR-047.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 3
+   },
+   "source_row": 48,
+   "flags": []
+  },
+  {
+   "sku": "FUR-048",
+   "name": "Microwave",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [
+    "furniture/FUR-048.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 3
+   },
+   "source_row": 49,
+   "flags": []
+  },
+  {
+   "sku": "FUR-049",
+   "name": "Kettle",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [
+    "furniture/FUR-049.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 50,
+   "flags": []
+  },
+  {
+   "sku": "FUR-050",
+   "name": "Water dispenser",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [
+    "furniture/FUR-050.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 3
+   },
+   "source_row": 51,
+   "flags": []
+  },
+  {
+   "sku": "FUR-051",
+   "name": "Fridge (big)",
+   "category": "Kitchen & Appliances",
+   "note": "Big",
+   "images": [
+    "furniture/FUR-051.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 1,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 52,
+   "flags": [
+    "Both fridge rows have the identical split (2 = 1 + 1) — possible double listing"
+   ]
+  },
+  {
+   "sku": "FUR-052",
+   "name": "Coffee machine (filter)",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [
+    "furniture/FUR-052.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 53,
+   "flags": []
+  },
+  {
+   "sku": "FUR-053",
+   "name": "Ice cube maker #1",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [
+    "furniture/FUR-053.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 54,
+   "flags": []
+  },
+  {
+   "sku": "FUR-054",
+   "name": "Wastepaper basket",
+   "category": "Office Essentials",
+   "note": null,
+   "images": [
+    "furniture/FUR-054.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 69
+   },
+   "source_row": 55,
+   "flags": []
+  },
+  {
+   "sku": "FUR-055",
+   "name": "Trash / recycling station",
+   "category": "Office Essentials",
+   "note": null,
+   "images": [
+    "furniture/FUR-055.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 3
+   },
+   "source_row": 56,
+   "flags": []
+  },
+  {
+   "sku": "FUR-056",
+   "name": "M1 charging stations",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-056.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 57,
+   "flags": []
+  },
+  {
+   "sku": "FUR-057",
+   "name": "P2 box?",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-057.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 2,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 58,
+   "flags": []
+  },
+  {
+   "sku": "FUR-058",
+   "name": "Embodiment parts (boxed)",
+   "category": "Robots & Stations",
+   "note": "Imagine ~10 rooms like this",
+   "images": [
+    "furniture/FUR-058.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 10
+   },
+   "source_row": 59,
+   "flags": []
+  },
+  {
+   "sku": "FUR-059",
+   "name": "Packaging material (Stations)",
+   "category": "Robots & Stations",
+   "note": null,
+   "images": [
+    "furniture/FUR-059.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 2
+   },
+   "source_row": 60,
+   "flags": []
+  },
+  {
+   "sku": "FUR-060",
+   "name": "Conference setup",
+   "category": "Whiteboards & Displays",
+   "note": null,
+   "images": [
+    "furniture/FUR-060.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 4,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 61,
+   "flags": []
+  },
+  {
+   "sku": "FUR-061",
+   "name": "Room signs",
+   "category": "Office Essentials",
+   "note": null,
+   "images": [
+    "furniture/FUR-061.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 62,
+   "flags": [
+    "Row is hidden in the sheet and has no count; photo recovered from the row below"
+   ]
+  },
+  {
+   "sku": "FUR-062",
+   "name": "Coat stand / wall hooks",
+   "category": "Storage & Shelving",
+   "note": null,
+   "images": [
+    "furniture/FUR-062.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 23
+   },
+   "source_row": 63,
+   "flags": []
+  },
+  {
+   "sku": "FUR-063",
+   "name": "Ventilators (all)",
+   "category": "Office Essentials",
+   "note": null,
+   "images": [
+    "furniture/FUR-063.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 22
+   },
+   "source_row": 64,
+   "flags": []
+  },
+  {
+   "sku": "FUR-064",
+   "name": "Room Divider (all)",
+   "category": "Office Essentials",
+   "note": null,
+   "images": [
+    "furniture/FUR-064.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 5,
+    "Hofmannstr. 51": 26
+   },
+   "source_row": 65,
+   "flags": []
+  },
+  {
+   "sku": "FUR-065",
+   "name": "First aid kits",
+   "category": "Office Essentials",
+   "note": null,
+   "images": [
+    "furniture/FUR-065.jpg"
+   ],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 6
+   },
+   "source_row": 66,
+   "flags": [
+    "Note says 8 but the stock column says 6"
+   ]
+  },
+  {
+   "sku": "FUR-066",
+   "name": "Ameise",
+   "category": "Transport & Logistics",
+   "note": "Felix Rohlfing",
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 67,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-067",
+   "name": "Screen",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 50
+   },
+   "source_row": 69,
+   "flags": [
+    "Koppstr. 12 cell was blank — treated as 0",
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-068",
+   "name": "Dual screen mount",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 37
+   },
+   "source_row": 70,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-069",
+   "name": "PC tower",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 50
+   },
+   "source_row": 71,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-070",
+   "name": "Docking station",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 72,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-071",
+   "name": "GPU machine",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 25
+   },
+   "source_row": 73,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-072",
+   "name": "Keyboard",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 74,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-073",
+   "name": "Mouse",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 75,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-074",
+   "name": "Printer (small)",
+   "category": "IT",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 76,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-075",
+   "name": "Workshop table",
+   "category": "Workshop / Maintenance",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 78,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-076",
+   "name": "Workshop equipment",
+   "category": "Workshop / Maintenance",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 79,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-077",
+   "name": "Workshop stool #2",
+   "category": "Workshop / Maintenance",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 80,
+   "flags": [
+    "Zero stock; same name also appears in the chairs block",
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-078",
+   "name": "Pegboard",
+   "category": "Workshop / Maintenance",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 81,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-079",
+   "name": "3D printer",
+   "category": "Workshop / Maintenance",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 1
+   },
+   "source_row": 82,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-080",
+   "name": "Ice cube maker #2",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 83,
+   "flags": [
+    "Duplicate of 'Ice cube maker' with no count and no photo",
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-081",
+   "name": "Cutlery & mugs",
+   "category": "Kitchen & Appliances",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 0
+   },
+   "source_row": 84,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-082",
+   "name": "Height adjustable table",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 0,
+    "Hofmannstr. 51": 49
+   },
+   "source_row": 85,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  },
+  {
+   "sku": "FUR-083",
+   "name": "Non height adjustable office table (grey)",
+   "category": "Tables & Desks",
+   "note": null,
+   "images": [],
+   "stock": {
+    "Koppstr. 12": 12,
+    "Hofmannstr. 51": 35
+   },
+   "source_row": 86,
+   "flags": [
+    "No photo in the sheet"
+   ]
+  }
+ ]
+}
