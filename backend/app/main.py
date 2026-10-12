@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.database import Base, SessionLocal, engine
-from app.routers import auth, inventory, reports
+from app.routers import auth, furniture, inventory, reports
 from app.seed import seed_if_empty
 from app.services.sheets_sync import sync_mirror
 
@@ -66,6 +66,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(inventory.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
+app.include_router(furniture.router, prefix="/api")
 
 
 @app.get("/health")
