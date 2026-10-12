@@ -4,6 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -162,4 +163,73 @@ class WarrantyReport(Base):
     serial_number: Mapped[str] = mapped_column(String(100), nullable=False)
     issue: Mapped[str] = mapped_column(Text, nullable=False)
     reported_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ---------------------------------------------------------------------------
+# Furniture room — deliberately separate from InventoryItem/Checkout/Movement.
+# Furniture is tracked per LOCATION and moved between locations, which doesn't
+# fit the single-total checkout model — and keeping it in its own tables means
+# nothing here can affect the Storage Room or SOP Room code paths.
+# Plain strings (not enums) for category, for the same reason as sop_status.
+# ---------------------------------------------------------------------------
+
+
+class Location(Base):
+    __tablename__ = "locations"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FurnitureItem(Base):
+    __tablename__ = "furniture_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sku: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)  # names are NOT unique here
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    category: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    note: Mapped[str | None] = mapped_column(Text)
+    image_paths: Mapped[list] = mapped_column(JSON, nullable=False, default=list)  # e.g. ["furniture/FUR-001.jpg"]
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class FurnitureStock(Base):
+    """How many units of an item sit at a location. One row per (item, location)."""
+
+    __tablename__ = "furniture_stock"
+    __table_args__ = (CheckConstraint("qty >= 0", name="ck_furniture_stock_qty_nonneg"),)
+
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("furniture_items.id", ondelete="CASCADE"), primary_key=True
+    )
+    location_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("locations.id", ondelete="CASCADE"), primary_key=True
+    )
+    qty: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class FurnitureMove(Base):
+    """Append-only log of moves. batch_id groups everything confirmed together."""
+
+    __tablename__ = "furniture_moves"
+    __table_args__ = (
+        CheckConstraint("qty > 0", name="ck_furniture_moves_qty_positive"),
+        CheckConstraint("from_location_id <> to_location_id", name="ck_furniture_moves_distinct_locations"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    batch_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    item_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("furniture_items.id"), nullable=False)
+    from_location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False)
+    to_location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False)
+    qty: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor: Mapped[str] = mapped_column(String(200), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
