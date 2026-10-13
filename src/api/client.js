@@ -88,7 +88,7 @@
       async loadInventory() {
         const data = await requestJson('/inventory', { method: 'GET', auth: false });
         if (data && data.ok === false) return data;
-        return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [], sop_layout: data.sop_layout || [] };
+        return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [], sop_layout: data.sop_layout || [], sop_locations: data.sop_locations || [] };
       },
       async furnitureCreateItem(p) {
         return requestJson('/furniture/items', { method: 'POST', auth: true, body: p, retry: false });
