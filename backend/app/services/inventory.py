@@ -24,9 +24,20 @@ from app.models import (
 # validation can never disagree. To match a rack's real shelf count, change it here.
 SOP_RACK_LAYOUT = {"A": 6, "B": 6, "C": 6, "D": 6, "E": 6, "F": 6}
 
+# Places that are not a numbered rack shelf. A SOP is either on a rack shelf ("A3") or in one
+# of these ("Basement"). Keep each name to 8 characters or fewer: that is the width of the database
+# column AND the limit of ReceiveRequest.shelf_location in schemas.py. A longer name needs both widened.
+SOP_EXTRA_LOCATIONS = ["Basement"]
+if any(len(place) > 8 for place in SOP_EXTRA_LOCATIONS):
+    raise ValueError("SOP_EXTRA_LOCATIONS: names must be 8 characters or fewer (inventory_items.shelf_location is VARCHAR(8) and ReceiveRequest.shelf_location allows 8)")
+
 
 def sop_layout() -> list[dict]:
     return [{"rack": rack, "shelves": n} for rack, n in SOP_RACK_LAYOUT.items()]
+
+
+def sop_locations() -> list[str]:
+    return list(SOP_EXTRA_LOCATIONS)
 
 
 def normalize_shelf(raw) -> str | None:
@@ -34,9 +45,13 @@ def normalize_shelf(raw) -> str | None:
     code = re.sub(r"[\s\-]+", "", str(raw or "")).upper()
     if not code:
         return None
+    for place in SOP_EXTRA_LOCATIONS:  # "basement" / " BASE MENT " -> "Basement"
+        if code == re.sub(r"[\s\-]+", "", place).upper():
+            return place
     m = re.fullmatch(r"([A-Z])(\d{1,2})", code)
     if not m or m.group(1) not in SOP_RACK_LAYOUT:
-        raise ValueError(f'"{raw}" is not a shelf. Use a rack letter ({", ".join(SOP_RACK_LAYOUT)}) and a shelf number, like A3.')
+        extras = "".join(f", or {place}" for place in SOP_EXTRA_LOCATIONS)
+        raise ValueError(f'"{raw}" is not a location. Use a rack letter ({", ".join(SOP_RACK_LAYOUT)}) and a shelf number, like A3{extras}.')
     rack, shelf = m.group(1), int(m.group(2))
     if not 1 <= shelf <= SOP_RACK_LAYOUT[rack]:
         raise ValueError(f"Rack {rack} has shelves 1 to {SOP_RACK_LAYOUT[rack]}.")
@@ -172,7 +187,7 @@ def snapshot(db: Session) -> dict:
         for w in warranty_reports
     ]
 
-    return {"ok": True, "inventory": inventory, "history": history, "warranty": warranty, "sop_layout": sop_layout()}
+    return {"ok": True, "inventory": inventory, "history": history, "warranty": warranty, "sop_layout": sop_layout(), "sop_locations": sop_locations()}
 
 
 def take_batch(db: Session, person: str, role: str, items: list[dict]) -> dict:
@@ -345,7 +360,7 @@ def receive_stock(
         if item_category == ItemCategory.sops and shelf is None:
             return {
                 "ok": False,
-                "error": "Choose a shelf for the new SOP (for example A3), so people can find it.",
+                "error": "Choose a location for the new SOP (for example A3, or Basement), so people can find it.",
                 "code": "SHELF_REQUIRED",
             }
         item = InventoryItem(
