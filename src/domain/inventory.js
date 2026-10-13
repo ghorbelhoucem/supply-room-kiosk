@@ -19,17 +19,21 @@
     return Math.max(0, total - missing);
   }
 
+  // Things that come BACK: Tools and SOPs. (Station Parts are one-time use.)
+  // Before this, only Tools counted, so a SOP that was taken could never be returned.
+  const RETURNABLE = ["Tools", "SOPs"];
+
   function openCheckoutsFor(personCode, inventoryMap, historyRows) {
     return historyRows.filter((h) => {
       const inv = inventoryMap[h.item];
-      return h.personRole === personCode && inv && inv.reference === "Tools" && h.returnedAt === "Not returned";
+      return h.personRole === personCode && inv && RETURNABLE.includes(inv.reference) && h.returnedAt === "Not returned";
     });
   }
 
   function allOpenToolCheckouts(inventoryMap, historyRows) {
     return historyRows.filter((h) => {
       const inv = inventoryMap[h.item];
-      return inv && inv.reference === "Tools" && h.returnedAt === "Not returned";
+      return inv && RETURNABLE.includes(inv.reference) && h.returnedAt === "Not returned";
     });
   }
 
