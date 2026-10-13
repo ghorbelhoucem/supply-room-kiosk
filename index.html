@@ -200,6 +200,17 @@
   .fz-stockrow.total{border-color:var(--accent-dim);}
   .fz-stockrow.zero .n{color:var(--text-dim);}
 
+
+  /* ===== SOP Room shelves ===== */
+  .shelf-chip{display:inline-flex;align-items:center;gap:4px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:0.03em;padding:2px 9px;border-radius:12px;background:rgba(255,122,26,0.14);border:1px solid var(--accent);color:var(--accent);white-space:nowrap;vertical-align:middle;}
+  .shelf-chip.none{background:transparent;border:1px dashed var(--border);color:var(--text-dim);font-weight:400;}
+  .shelf-picker{margin-bottom:14px;}
+  .shelf-row{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;}
+  .shelf-btn{min-width:46px;padding:10px 12px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;background:var(--panel);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;cursor:pointer;transition:all 0.15s ease;}
+  .shelf-btn:hover{border-color:var(--accent);color:var(--text);}
+  .shelf-btn.active{background:var(--accent);border-color:var(--accent);color:#1c1e22;}
+  .shelf-hint{font-size:13px;color:var(--text-dim);margin-bottom:4px;}
+
 </style>
 </head>
 <body>
@@ -570,6 +581,7 @@
       (result.inventory||[]).forEach(row=>{ inventoryMap[row.item] = row; });
       historyRows = result.history || [];
       warrantyReports = result.warranty || [];
+      sopLayout = (result.sop_layout && result.sop_layout.length) ? result.sop_layout : DEFAULT_SOP_LAYOUT;
       loadError = null;
       lastFetchTime = Date.now();
     } else {
@@ -1538,7 +1550,7 @@
         </div>
         <div class="menu-card ${anyTeamOpen?'':'disabled'}" id="returnCard">
           <div class="big">↩️</div>
-          <div class="label">Return a Tool</div>
+          <div class="label">${selectedRoom === 'sop' ? 'Return a SOP' : 'Return a Tool'}</div>
           <div class="sub">${anyTeamOpen ? teamOpens.length + ' item(s) out (any team member)' : 'Nothing checked out'}</div>
         </div>
         ${canRestock ? `
@@ -1684,7 +1696,7 @@
       return true;
     });
     const q = restockSearchQuery.trim().toLowerCase();
-    const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
+    const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q) || (restockCategory === 'SOPs' && shelfMatches(q, it.shelf))) : allItems;
     const selected = restockSelectedItem;
     const isNewItem = selected === NEW_ITEM_SENTINEL;
     const catNoun = restockCategory === 'Tools' ? 'tool' : (restockCategory === 'SOPs' ? 'SOP' : 'item');
@@ -1696,7 +1708,7 @@
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${esc(headerText)}</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;">
-        <input type="text" id="restockSearchInput" placeholder="Search ${catNoun}s…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
+        <input type="text" id="restockSearchInput" placeholder="${restockCategory==='SOPs' ? 'Search by name or shelf (e.g. B2)…' : 'Search ' + catNoun + 's…'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
       </div>
       <div class="item-list">
         <div class="item-row ${isNewItem?'selected':''}" data-name="${NEW_ITEM_SENTINEL}" style="border-style:dashed;">
@@ -1710,7 +1722,7 @@
           <div class="item-row ${selected===it.item?'selected':''}" data-name="${esc(it.item)}">
             <div>
               <div class="item-name" style="margin-top:5px;">${itemThumbHTML(it.item, 56, 36)} ${esc(it.item)}</div>
-              <div class="item-meta">Current stock: ${it.quantity}</div>
+              <div class="item-meta">Current stock: ${it.quantity}${restockCategory==='SOPs' ? ' ' + shelfChipHTML(it.shelf, true) : ''}</div>
             </div>
           </div>
         `).join('') : `<div class="empty-note">No items match.</div>`}
@@ -1722,6 +1734,7 @@
         ` : ''}
         <label>How many are you adding?</label>
         ${qtyStepperHTML('restockQtyInput', restockQty)}
+        ${restockCategory === 'SOPs' ? shelfPickerHTML(isNewItem) : ''}
         ${restockError ? `<div class="error-msg">${esc(restockError)}</div>` : ''}
         <button class="go-btn" id="restockConfirmBtn" style="width:100%;">${isNewItem ? 'Add New Item to List' : 'Add to List'}</button>
       </div>
@@ -1730,7 +1743,7 @@
           <h3>In your restock list (${restockBasket.length})</h3>
           ${restockBasket.map(b=>`
             <div class="open-row">
-              <span>${itemThumbHTML(b.itemName, 26)} ${esc(b.itemName)} × ${b.qty}${b.sopStatus?` <span class="tag">${esc(b.sopStatus)}</span>`:''}</span>
+              <span>${itemThumbHTML(b.itemName, 26)} ${esc(b.itemName)} × ${b.qty}${b.sopStatus?` <span class="tag">${esc(b.sopStatus)}</span>`:''}${b.shelf ? ' ' + shelfChipHTML(b.shelf) : ''}</span>
               <span class="due">${b.category}</span>
             </div>`).join('')}
         </div>
@@ -1754,6 +1767,7 @@
         restockSelectedItem = row.getAttribute('data-name');
         restockError = null;
         if(restockSelectedItem !== NEW_ITEM_SENTINEL) restockNewItemName = '';
+        if(restockCategory === 'SOPs') initRestockShelf(restockSelectedItem);
         renderStage();
         setTimeout(()=>{
           const el = document.getElementById(restockSelectedItem===NEW_ITEM_SENTINEL ? 'restockNewNameInput' : 'restockQtyInput');
@@ -1764,6 +1778,14 @@
     if(isNewItem){
       const nameInput = document.getElementById('restockNewNameInput');
       nameInput.oninput = ()=>{ restockNewItemName = nameInput.value; };
+    }
+    if(restockCategory === 'SOPs' && selected){
+      stage.querySelectorAll('[data-shelf-rack]').forEach(btn=>{
+        btn.onclick = ()=>{ restockSnapshotInputs(); restockShelf.rack = btn.getAttribute('data-shelf-rack'); restockShelf.num = null; restockShelf.dirty = true; restockError = null; renderStage(); };
+      });
+      stage.querySelectorAll('[data-shelf-num]').forEach(btn=>{
+        btn.onclick = ()=>{ restockSnapshotInputs(); restockShelf.num = parseInt(btn.getAttribute('data-shelf-num'), 10); restockShelf.dirty = true; restockError = null; renderStage(); };
+      });
     }
     if(restockBasket.length){
       document.getElementById('restockReviewBtn').onclick = ()=>{ screen='restockBasketReview'; renderStage(); };
@@ -1780,18 +1802,31 @@
         const qty = parseInt(document.getElementById('restockQtyInput').value,10);
         if(!qty || qty < 1){ restockError='Enter a quantity of at least 1.'; renderStage(); return; }
 
+        // SOP shelf: required for a NEW SOP; for an existing one it is only sent if the person changed it
+        let shelf = null;
+        if(restockCategory === 'SOPs'){
+          restockSnapshotInputs();
+          const chosen = (restockShelf.rack && restockShelf.num) ? restockShelf.rack + restockShelf.num : null;
+          if(isNewItem && !chosen){ restockError = 'Choose a shelf for the new SOP (rack letter, then shelf number).'; renderStage(); return; }
+          if(restockShelf.dirty && restockShelf.rack && !restockShelf.num){ restockError = 'Pick the shelf number too.'; renderStage(); return; }
+          if(isNewItem || restockShelf.dirty) shelf = chosen;
+        }
+
         const existingEntry = restockBasket.find(b=>b.itemName.toLowerCase() === itemName.toLowerCase());
         if(existingEntry){
           existingEntry.qty += qty;
+          if(shelf) existingEntry.shelf = shelf;
         }else{
           restockBasket.push({
             itemName, qty, category: restockCategory, isNewItem: isNewItem,
-            sopStatus: (restockCategory === 'SOPs') ? restockSopFilter : null
+            sopStatus: (restockCategory === 'SOPs') ? restockSopFilter : null,
+            shelf
           });
         }
         restockSelectedItem = null;
         restockNewItemName = '';
         restockQty = 1;
+        restockShelf = { rack:null, num:null, dirty:false };
         restockError = null;
         renderStage();
       };
@@ -1806,7 +1841,7 @@
         <tbody>
           ${restockBasket.length ? restockBasket.map((b,idx)=>`
             <tr>
-              <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}${b.isNewItem ? ' <span class="pill open">new</span>' : ''}</td>
+              <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}${b.isNewItem ? ' <span class="pill open">new</span>' : ''}${b.shelf ? ' ' + shelfChipHTML(b.shelf) : ''}</td>
               <td><div class="qty-stepper"><button type="button" class="qty-btn" data-qty-target="restockQtyRow_${idx}" data-qty-dir="-1">−</button><input type="number" min="1" value="${b.qty}" id="restockQtyRow_${idx}" data-restock-qty-for="${idx}" class="qty-stepper-input" style="width:56px;" /><button type="button" class="qty-btn" data-qty-target="restockQtyRow_${idx}" data-qty-dir="1">+</button></div></td>
               <td>${esc(b.category)}</td>
               <td><button class="btn-ghost" data-remove="${idx}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
@@ -1854,6 +1889,7 @@
             item: entry.itemName, qty: entry.qty,
             category: entry.isNewItem ? entry.category : undefined,
             sop_status: entry.sopStatus || undefined,
+            shelf_location: entry.shelf || undefined,
             reason: entry.isNewItem ? 'New item added via kiosk' : undefined
           });
           if(result.ok){
@@ -1871,7 +1907,7 @@
           renderStage();
           return;
         }
-        const detailLines = succeeded.map(b=>`${b.qty} × ${b.itemName}`).join(', ');
+        const detailLines = succeeded.map(b=>`${b.qty} × ${b.itemName}${b.shelf ? ' → ' + b.shelf : ''}`).join(', ');
         confirmInfo = { icon:'📥', msg: `${succeeded.length} item(s) restocked`, detail: detailLines };
         screen = 'confirm';
         renderStage();
@@ -2191,9 +2227,9 @@
         <tbody>
           ${basket.length ? basket.map(b=>`
             <tr>
-              <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}</td>
+              <td>${itemThumbHTML(b.itemName, 28)} ${esc(b.itemName)}${b.category==='SOPs' ? ' ' + shelfChipHTML(shelfOf(b.itemName), false) : ''}</td>
               <td><div class="qty-stepper"><button type="button" class="qty-btn" data-qty-target="qtyRow_${b.id}" data-qty-dir="-1">−</button><input type="number" min="1" value="${b.qty}" id="qtyRow_${b.id}" data-qty-for="${b.id}" class="qty-stepper-input" style="width:56px;" /><button type="button" class="qty-btn" data-qty-target="qtyRow_${b.id}" data-qty-dir="1">+</button></div></td>
-              <td>${b.category==='Tools' ? 'Return ' + hoursLabel(b.hours) : (b.category==='Station Parts' ? 'One-time use' : '')}</td>
+              <td>${(b.category==='Tools' || b.category==='SOPs') ? 'Return ' + hoursLabel(b.hours) : (b.category==='Station Parts' ? 'One-time use' : '')}</td>
               <td><button class="btn-ghost" data-remove="${b.id}" style="padding:4px 10px;font-size:10.5px;">Remove</button></td>
             </tr>
           `).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:20px;">No items added yet.</td></tr>`}
@@ -2275,7 +2311,7 @@
       return true;
     });
     const q = takeSearchQuery.trim().toLowerCase();
-    const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q)) : allItems;
+    const items = q ? allItems.filter(it=>it.item.toLowerCase().includes(q) || (takeCategory === 'SOPs' && shelfMatches(q, it.shelf))) : allItems;
     const isOther = selected === OTHER_SENTINEL;
     let scanBanner = '';
     if(scanNotice){
@@ -2287,7 +2323,7 @@
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Which ${categoryNoun}?</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;max-width:none;">
-        <input type="text" id="searchInput" placeholder="Search ${categoryNoun}s…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
+        <input type="text" id="searchInput" placeholder="${takeCategory==='SOPs' ? 'Search by name or shelf (e.g. B2)…' : 'Search ' + categoryNoun + 's…'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
       </div>
       <div class="item-list">
         ${items.length ? items.map(it=>{
@@ -2297,8 +2333,8 @@
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
               ${itemThumbHTML(it.item, 56, 36)}
               <div style="min-width:0;">
-                <div class="item-name">${esc(it.item)}</div>
-                <div class="item-meta">${it.reference==='Tools' ? 'Checkout &amp; return' : 'One-time use'}</div>
+                <div class="item-name">${esc(it.item)}${it.reference==='SOPs' ? ' ' + shelfChipHTML(it.shelf, true) : ''}</div>
+                <div class="item-meta">${it.reference==='Station Parts' ? 'One-time use' : 'Checkout &amp; return'}</div>
               </div>
             </div>
             <div class="stock ${low?'low':''}" style="flex-shrink:0;padding-left:8px;">${avail} avail</div>
@@ -2411,6 +2447,65 @@
     returnBasket.push(tx);
   }
 
+  // ===== SOP Room shelves ====================================================
+  // Racks and their shelf counts come from the server (SOP_RACK_LAYOUT in
+  // services/inventory.py) inside the inventory snapshot, so the pickers here and
+  // the validation there can never disagree. A shelf is written "A3" = rack A, shelf 3.
+  const DEFAULT_SOP_LAYOUT = ['A','B','C','D','E','F'].map(rack=>({ rack, shelves:6 }));
+  let sopLayout = DEFAULT_SOP_LAYOUT;
+  let restockShelf = { rack:null, num:null, dirty:false };   // the picker's working choice
+
+  function shelfOf(itemName){
+    const it = inventoryMap[itemName];
+    return (it && it.reference === 'SOPs' && it.shelf) ? it.shelf : null;
+  }
+  function shelfChipHTML(shelf, showUnset){
+    if(shelf) return `<span class="shelf-chip" title="Rack ${esc(shelf[0])}, shelf ${esc(shelf.slice(1))}">📍 ${esc(shelf)}</span>`;
+    return showUnset ? `<span class="shelf-chip none">📍 not set</span>` : '';
+  }
+  // search: "b2" finds shelf B2 exactly; "rack b" finds everything on rack B (q is already lower-cased)
+  function shelfMatches(q, shelf){
+    if(!shelf || !q) return false;
+    const compact = q.replace(/[\s-]+/g,'');
+    if(/^[a-z]\d{1,2}$/.test(compact)) return shelf.toLowerCase() === compact;
+    const rack = /^rack([a-z])$/.exec(compact);
+    return !!(rack && shelf[0].toLowerCase() === rack[1]);
+  }
+  function shelfCountFor(rack){ const r = sopLayout.find(x=>x.rack === rack); return r ? r.shelves : 0; }
+  function parseShelf(code){
+    const m = /^([A-Z])(\d{1,2})$/.exec(code || '');
+    return m ? { rack:m[1], num:parseInt(m[2],10) } : { rack:null, num:null };
+  }
+  function initRestockShelf(itemName){
+    if(itemName === NEW_ITEM_SENTINEL){ restockShelf = { rack:null, num:null, dirty:false }; return; }
+    const p = parseShelf((inventoryMap[itemName] || {}).shelf);
+    restockShelf = { rack:p.rack, num:p.num, dirty:false };   // existing SOP: start on its current shelf, untouched
+  }
+  // the picker re-renders the screen; keep what was already typed in the form
+  function restockSnapshotInputs(){
+    const q = document.getElementById('restockQtyInput');
+    if(q){ const v = parseInt(q.value, 10); if(v > 0) restockQty = v; }
+    const n = document.getElementById('restockNewNameInput');
+    if(n) restockNewItemName = n.value;
+  }
+  function shelfPickerHTML(required){
+    const racks = sopLayout.map(r=>`<button type="button" class="shelf-btn ${restockShelf.rack===r.rack?'active':''}" data-shelf-rack="${esc(r.rack)}">${esc(r.rack)}</button>`).join('');
+    const nums = restockShelf.rack
+      ? Array.from({ length: shelfCountFor(restockShelf.rack) }, (_, i)=>i + 1)
+          .map(n=>`<button type="button" class="shelf-btn ${restockShelf.num===n?'active':''}" data-shelf-num="${n}">${n}</button>`).join('')
+      : '';
+    const chosen = (restockShelf.rack && restockShelf.num) ? restockShelf.rack + restockShelf.num : null;
+    const hint = chosen
+      ? (restockShelf.dirty || required ? `It will be stored at ${shelfChipHTML(chosen)}` : `Currently on ${shelfChipHTML(chosen)} — tap to move it`)
+      : (required ? 'Choose where it goes (rack letter, then shelf number) so people can find it.' : 'Not on a shelf yet — choose one so people can find it.');
+    return `<label>Shelf${required ? ' (required)' : ''}</label>
+      <div class="shelf-picker" id="shelfPicker">
+        <div class="shelf-row">${racks}</div>
+        ${restockShelf.rack ? `<div class="shelf-row">${nums}</div>` : ''}
+        <div class="shelf-hint">${hint}</div>
+      </div>`;
+  }
+
   function stageReturn(stage, banner){
     let flash = '';
     if(lastReturnAdded){
@@ -2432,7 +2527,7 @@
     stage.innerHTML = banner + flash + `
       <span class="back-link" id="back">&larr; Back to menu</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">What are you returning?</div></div>
-      <div class="hint" style="margin-top:0;margin-bottom:14px;">Showing tools checked out by anyone on the team</div>
+      <div class="hint" style="margin-top:0;margin-bottom:14px;">Showing ${selectedRoom === 'sop' ? 'SOPs' : 'tools'} checked out by anyone on the team</div>
       <div class="item-list">
         ${itemNames.length ? itemNames.map((itemName, gi)=>{
           const rows = groups[itemName];
@@ -2444,7 +2539,7 @@
               <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                 ${itemThumbHTML(h.item, 56, 36)}
                 <div style="min-width:0;">
-                  <div class="item-name">${esc(h.item)}</div>
+                  <div class="item-name">${esc(h.item)} ${shelfChipHTML(shelfOf(h.item), false)}</div>
                   <div class="item-meta">taken by ${esc(h.personRole)} · ${fmtDate(h.timestamp)}</div>
                 </div>
               </div>
@@ -2455,7 +2550,7 @@
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
               ${itemThumbHTML(itemName, 56, 36)}
               <div style="min-width:0;">
-                <div class="item-name">${esc(itemName)} <span class="tag">× ${rows.length} out</span></div>
+                <div class="item-name">${esc(itemName)} <span class="tag">× ${rows.length} out</span> ${shelfChipHTML(shelfOf(itemName), false)}</div>
                 <div class="item-meta">${anyOverdue?'some overdue':'due '+fmtDate(earliest.expectedReturn)}</div>
               </div>
             </div>
@@ -2515,6 +2610,10 @@
       renderStage();
       return;
     }
+    if(inventoryMap[tx.item] && inventoryMap[tx.item].reference === 'SOPs'){
+      commitPendingReturn(tx);   // SOPs have no QR code: skip the scan step
+      return;
+    }
     const extraCount = pendingReturnExtraTxIds.length;
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Cancel, back to list</span>
@@ -2526,19 +2625,24 @@
       </div>
     `;
     document.getElementById('back').onclick = ()=>{ pendingReturnTx=null; pendingReturnExtraTxIds=[]; returnScanError=null; screen='return'; renderStage(); };
-    document.getElementById('noQrReturnBtn').onclick = ()=>{
-      addToReturnBasket(tx);
-      pendingReturnExtraTxIds.forEach(txId=>{
-        const extra = historyRows.find(h=>h.txId===txId);
-        if(extra) addToReturnBasket(extra);
-      });
-      lastReturnAdded = extraCount ? `${tx.item} × ${extraCount+1}` : tx.item;
-      pendingReturnTx = null;
-      pendingReturnExtraTxIds = [];
-      returnScanError = null;
-      screen = 'return';
-      renderStage();
-    };
+    document.getElementById('noQrReturnBtn').onclick = ()=>commitPendingReturn(tx);
+  }
+
+  // Puts the item(s) the person just tapped into the return list (shared by the
+  // "Return without QR code" button and by SOPs, which have no QR code to scan).
+  function commitPendingReturn(tx){
+    const extraCount = pendingReturnExtraTxIds.length;
+    addToReturnBasket(tx);
+    pendingReturnExtraTxIds.forEach(txId=>{
+      const extra = historyRows.find(h=>h.txId===txId);
+      if(extra) addToReturnBasket(extra);
+    });
+    lastReturnAdded = extraCount ? `${tx.item} × ${extraCount+1}` : tx.item;
+    pendingReturnTx = null;
+    pendingReturnExtraTxIds = [];
+    returnScanError = null;
+    screen = 'return';
+    renderStage();
   }
 
   function tryHandleReturnScan(text){
@@ -2741,12 +2845,12 @@
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:0 0 8px;">SOPs</div>
           ${(()=>{
             const q = reportStockSearchQuery.trim().toLowerCase();
-            const filteredSops = q ? sopItems.filter(it=>it.item.toLowerCase().includes(q)) : sopItems;
+            const filteredSops = q ? sopItems.filter(it=>it.item.toLowerCase().includes(q) || shelfMatches(q, it.shelf)) : sopItems;
             if(!filteredSops.length) return `<div class="empty-note">${sopItems.length ? 'No SOPs match your search.' : 'No SOPs yet.'}</div>`;
             return `<div class="stock-grid">${filteredSops.map(it=>{
               const statusBadge = it.sop_status ? ` <span class="tag">${esc(it.sop_status)}</span>` : '';
               return `<div class="stockbar">
-              <span>${iconForRef('SOPs')} ${esc(it.item)}${statusBadge}</span>
+              <span>${iconForRef('SOPs')} ${esc(it.item)}${statusBadge} ${shelfChipHTML(it.shelf, true)}</span>
               <span class="stock ${String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
             </div>`;
             }).join('')}</div>`;
@@ -2985,7 +3089,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · furniture stage 3b';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · sop shelves';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session
