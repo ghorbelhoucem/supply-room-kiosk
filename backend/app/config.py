@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     slack_purchase_webhook_url: str = ""
     sop_webapp_url: str = ""
     furniture_webapp_url: str = ""
+    furniture_photo_base_url: str = ""
 
 
 @lru_cache
