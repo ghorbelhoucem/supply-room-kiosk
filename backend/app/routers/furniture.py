@@ -42,73 +42,7 @@ class ItemCreateRequest(BaseModel):
     client_request_id: str = Field(..., min_length=8)
     name: str = Field(..., min_length=1, max_length=200)
     category: str = Field(..., min_length=1, max_length=80)
-    note: str | None = Field(default=None, max_length=2000)from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
-
-from app.auth import get_current_user
-from app.database import get_db
-from app.models import User, UserRole
-from app.services import furniture as furn
-from app.services import furniture_sync
-from app.services import inventory as inv
-
-router = APIRouter(tags=["furniture"])
-
-
-# The WHOLE Furniture Room — browsing and changing — is for these roles only.
-# Supervisors and Tele-operators (the operator logins) have no access at all.
-FURNITURE_ROLES = {UserRole.management, UserRole.maintenance, UserRole.devs}
-
-
-def require_furniture_access(user: User = Depends(get_current_user)) -> User:
-    if user.role not in FURNITURE_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Management, Maintenance or Devs can use the Furniture Room.",
-        )
-    return user
-
-
-class StockChange(BaseModel):
-    location_id: str
-    qty: int = Field(..., ge=0, le=furn.MAX_QTY)
-    expected: int | None = Field(default=None, ge=0)
-
-
-class StockRequest(BaseModel):
-    client_request_id: str = Field(..., min_length=8)
-    changes: list[StockChange] = Field(..., min_length=1)
-    reason: str | None = Field(default=None, max_length=200)
-
-
-class ItemCreateRequest(BaseModel):
-    client_request_id: str = Field(..., min_length=8)
-    name: str = Field(..., min_length=1, max_length=200)
-    category: str = Field(..., min_length=1, max_length=80)
     note: str | None = Field(default=None, max_length=2000)
-    stock: dict[str, int] = Field(default_factory=dict)
-
-
-class ItemUpdateRequest(BaseModel):
-    client_request_id: str = Field(..., min_length=8)
-    name: str | None = Field(default=None, min_length=1, max_length=200)
-    category: str | None = Field(default=None, min_length=1, max_length=80)
-    note: str | None = Field(default=None, max_length=2000)
-
-
-def _actor(user: User) -> str:
-    return f"{user.name}/{user.role.value}"
-
-
-def _finish(db: Session, request_id: str | None, action: str, result: dict, background: BackgroundTasks | None = None) -> dict:
-    if not result.get("ok"):
-        db.rollback()
-        return result
-    if request_id:
-        inv.save_idempotent(db, request_id, action, result)
-    db.commit()
-
     stock: dict[str, int] = Field(default_factory=dict)
 
 
