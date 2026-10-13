@@ -63,6 +63,7 @@ class ReceiveRequest(BaseModel):
     reason: str | None = None
     category: str | None = None  # required only when creating a brand-new item
     sop_status: str | None = None  # 'Active' or 'Non-Active', SOPs only
+    shelf_location: str | None = Field(default=None, max_length=8)  # SOPs only, e.g. 'A3'
 
 
 class AdjustRequest(BaseModel):
@@ -80,6 +81,7 @@ class InventoryRow(BaseModel):
     barcode: str | None = None
     reorder_min: int = 3
     sop_status: str | None = None
+    shelf: str | None = None
 
 
 class HistoryRow(BaseModel):
