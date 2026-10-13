@@ -19,7 +19,7 @@ scheduler = BackgroundScheduler()
 def _scheduled_sync() -> None:
     db = SessionLocal()
     try:
-        sync_mirror(db)
+        sync_mirror(db, furniture="if_needed")
     finally:
         db.close()
 
@@ -35,7 +35,7 @@ async def lifespan(_app: FastAPI):
         finally:
             db.close()
 
-    if (settings.legacy_webapp_url or "").strip():
+    if any((u or "").strip() for u in (settings.legacy_webapp_url, settings.sop_webapp_url, settings.furniture_webapp_url)):
         scheduler.add_job(
             _scheduled_sync,
             "interval",
@@ -78,6 +78,6 @@ def health():
 def trigger_sheet_sync():
     db = SessionLocal()
     try:
-        return sync_mirror(db)
+        return sync_mirror(db, furniture="force")
     finally:
         db.close()
