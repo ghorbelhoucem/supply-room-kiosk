@@ -84,6 +84,9 @@ class InventoryItem(Base):
     # Deliberately not an enum type to avoid the exact enum-value pitfall we
     # just hit with 'category' above.
     sop_status: Mapped[str | None] = mapped_column(String(20))
+    # SOP Room only: where the SOP sits, rack letter + shelf number ("A1" … "F6").
+    # Plain string, not an enum, for the same reason as sop_status.
+    shelf_location: Mapped[str | None] = mapped_column(String(8))
     barcode: Mapped[str | None] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
