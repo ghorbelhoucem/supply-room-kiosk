@@ -209,6 +209,7 @@
   .shelf-btn{min-width:46px;padding:10px 12px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;background:var(--panel);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;cursor:pointer;transition:all 0.15s ease;}
   .shelf-btn:hover{border-color:var(--accent);color:var(--text);}
   .shelf-btn.active{background:var(--accent);border-color:var(--accent);color:#1c1e22;}
+  .shelf-btn.area{padding:10px 16px;}
   .shelf-hint{font-size:13px;color:var(--text-dim);margin-bottom:4px;}
 
 </style>
@@ -582,6 +583,7 @@
       historyRows = result.history || [];
       warrantyReports = result.warranty || [];
       sopLayout = (result.sop_layout && result.sop_layout.length) ? result.sop_layout : DEFAULT_SOP_LAYOUT;
+      sopExtraLocations = result.sop_locations || [];
       loadError = null;
       lastFetchTime = Date.now();
     } else {
@@ -1708,7 +1710,7 @@
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">${esc(headerText)}</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;">
-        <input type="text" id="restockSearchInput" placeholder="${restockCategory==='SOPs' ? 'Search by name or shelf (e.g. B2)…' : 'Search ' + catNoun + 's…'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
+        <input type="text" id="restockSearchInput" placeholder="${restockCategory==='SOPs' ? sopSearchPlaceholder() : 'Search ' + catNoun + 's…'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(restockSearchQuery)}" />
       </div>
       <div class="item-list">
         <div class="item-row ${isNewItem?'selected':''}" data-name="${NEW_ITEM_SENTINEL}" style="border-style:dashed;">
@@ -1781,7 +1783,10 @@
     }
     if(restockCategory === 'SOPs' && selected){
       stage.querySelectorAll('[data-shelf-rack]').forEach(btn=>{
-        btn.onclick = ()=>{ restockSnapshotInputs(); restockShelf.rack = btn.getAttribute('data-shelf-rack'); restockShelf.num = null; restockShelf.dirty = true; restockError = null; renderStage(); };
+        btn.onclick = ()=>{ restockSnapshotInputs(); restockShelf.rack = btn.getAttribute('data-shelf-rack'); restockShelf.num = null; restockShelf.area = null; restockShelf.dirty = true; restockError = null; renderStage(); };
+      });
+      stage.querySelectorAll('[data-shelf-area]').forEach(btn=>{
+        btn.onclick = ()=>{ restockSnapshotInputs(); restockShelf.area = btn.getAttribute('data-shelf-area'); restockShelf.rack = null; restockShelf.num = null; restockShelf.dirty = true; restockError = null; renderStage(); };
       });
       stage.querySelectorAll('[data-shelf-num]').forEach(btn=>{
         btn.onclick = ()=>{ restockSnapshotInputs(); restockShelf.num = parseInt(btn.getAttribute('data-shelf-num'), 10); restockShelf.dirty = true; restockError = null; renderStage(); };
@@ -1806,8 +1811,8 @@
         let shelf = null;
         if(restockCategory === 'SOPs'){
           restockSnapshotInputs();
-          const chosen = (restockShelf.rack && restockShelf.num) ? restockShelf.rack + restockShelf.num : null;
-          if(isNewItem && !chosen){ restockError = 'Choose a shelf for the new SOP (rack letter, then shelf number).'; renderStage(); return; }
+          const chosen = shelfChoice();
+          if(isNewItem && !chosen){ restockError = `Choose a location for the new SOP (${locationRule()}).`; renderStage(); return; }
           if(restockShelf.dirty && restockShelf.rack && !restockShelf.num){ restockError = 'Pick the shelf number too.'; renderStage(); return; }
           if(isNewItem || restockShelf.dirty) shelf = chosen;
         }
@@ -1826,7 +1831,7 @@
         restockSelectedItem = null;
         restockNewItemName = '';
         restockQty = 1;
-        restockShelf = { rack:null, num:null, dirty:false };
+        restockShelf = { rack:null, num:null, area:null, dirty:false };
         restockError = null;
         renderStage();
       };
@@ -2323,7 +2328,7 @@
       <span class="back-link" id="back">&larr; Back</span>
       <div class="greet" style="margin-bottom:10px;"><div class="name" style="font-size:18px;">Which ${categoryNoun}?</div></div>
       <div class="form-row" style="margin-top:0;margin-bottom:14px;max-width:none;">
-        <input type="text" id="searchInput" placeholder="${takeCategory==='SOPs' ? 'Search by name or shelf (e.g. B2)…' : 'Search ' + categoryNoun + 's…'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
+        <input type="text" id="searchInput" placeholder="${takeCategory==='SOPs' ? sopSearchPlaceholder() : 'Search ' + categoryNoun + 's…'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(takeSearchQuery)}" />
       </div>
       <div class="item-list">
         ${items.length ? items.map(it=>{
@@ -2447,39 +2452,59 @@
     returnBasket.push(tx);
   }
 
-  // ===== SOP Room shelves ====================================================
-  // Racks and their shelf counts come from the server (SOP_RACK_LAYOUT in
-  // services/inventory.py) inside the inventory snapshot, so the pickers here and
-  // the validation there can never disagree. A shelf is written "A3" = rack A, shelf 3.
+  // ===== SOP Room locations ==================================================
+  // Where a SOP lives is ONE code: a rack shelf like "A3" (rack A, shelf 3), or a place
+  // without numbered shelves such as "Basement". The racks, their shelf counts and the
+  // extra places come from the server (services/inventory.py) inside the inventory
+  // snapshot, so the pickers here and the validation there can never disagree.
   const DEFAULT_SOP_LAYOUT = ['A','B','C','D','E','F'].map(rack=>({ rack, shelves:6 }));
   let sopLayout = DEFAULT_SOP_LAYOUT;
-  let restockShelf = { rack:null, num:null, dirty:false };   // the picker's working choice
+  let sopExtraLocations = [];                                          // e.g. ['Basement']; none until the server says so
+  let restockShelf = { rack:null, num:null, area:null, dirty:false };  // the picker's working choice
 
   function shelfOf(itemName){
     const it = inventoryMap[itemName];
     return (it && it.reference === 'SOPs' && it.shelf) ? it.shelf : null;
   }
+  const isRackShelf = (code)=>/^[A-Z]\d{1,2}$/.test(code || '');
   function shelfChipHTML(shelf, showUnset){
-    if(shelf) return `<span class="shelf-chip" title="Rack ${esc(shelf[0])}, shelf ${esc(shelf.slice(1))}">📍 ${esc(shelf)}</span>`;
+    if(shelf){
+      const title = isRackShelf(shelf) ? `Rack ${shelf[0]}, shelf ${shelf.slice(1)}` : shelf;
+      return `<span class="shelf-chip" title="${esc(title)}">📍 ${esc(shelf)}</span>`;
+    }
     return showUnset ? `<span class="shelf-chip none">📍 not set</span>` : '';
   }
-  // search: "b2" finds shelf B2 exactly; "rack b" finds everything on rack B (q is already lower-cased)
+  // search (q is already lower-cased): "b2" -> exactly shelf B2 · "rack b" -> the whole rack ·
+  // "bas" / "basement" -> everything in that place (3+ letters, so "ba" doesn't match by accident)
   function shelfMatches(q, shelf){
     if(!shelf || !q) return false;
     const compact = q.replace(/[\s-]+/g,'');
     if(/^[a-z]\d{1,2}$/.test(compact)) return shelf.toLowerCase() === compact;
     const rack = /^rack([a-z])$/.exec(compact);
-    return !!(rack && shelf[0].toLowerCase() === rack[1]);
+    if(rack) return isRackShelf(shelf) && shelf[0].toLowerCase() === rack[1];
+    return compact.length >= 3 && !isRackShelf(shelf) && shelf.toLowerCase().startsWith(compact);
+  }
+  function sopSearchPlaceholder(){
+    return 'Search by name or location (e.g. B2' + (sopExtraLocations.length ? ', ' + sopExtraLocations[0].toLowerCase() : '') + ')…';
+  }
+  // "a rack and shelf number, or the Basement" — built from what the server allows
+  function locationRule(){
+    return 'a rack and shelf number' + (sopExtraLocations.length ? ', or the ' + sopExtraLocations.join(' / ') : '');
   }
   function shelfCountFor(rack){ const r = sopLayout.find(x=>x.rack === rack); return r ? r.shelves : 0; }
   function parseShelf(code){
+    if(sopExtraLocations.includes(code)) return { rack:null, num:null, area:code };
     const m = /^([A-Z])(\d{1,2})$/.exec(code || '');
-    return m ? { rack:m[1], num:parseInt(m[2],10) } : { rack:null, num:null };
+    return m ? { rack:m[1], num:parseInt(m[2],10), area:null } : { rack:null, num:null, area:null };
+  }
+  // the code the picker currently stands for, or null while it is incomplete
+  function shelfChoice(){
+    return restockShelf.area || ((restockShelf.rack && restockShelf.num) ? restockShelf.rack + restockShelf.num : null);
   }
   function initRestockShelf(itemName){
-    if(itemName === NEW_ITEM_SENTINEL){ restockShelf = { rack:null, num:null, dirty:false }; return; }
+    if(itemName === NEW_ITEM_SENTINEL){ restockShelf = { rack:null, num:null, area:null, dirty:false }; return; }
     const p = parseShelf((inventoryMap[itemName] || {}).shelf);
-    restockShelf = { rack:p.rack, num:p.num, dirty:false };   // existing SOP: start on its current shelf, untouched
+    restockShelf = { rack:p.rack, num:p.num, area:p.area, dirty:false };   // existing SOP: start where it is now, untouched
   }
   // the picker re-renders the screen; keep what was already typed in the form
   function restockSnapshotInputs(){
@@ -2490,17 +2515,18 @@
   }
   function shelfPickerHTML(required){
     const racks = sopLayout.map(r=>`<button type="button" class="shelf-btn ${restockShelf.rack===r.rack?'active':''}" data-shelf-rack="${esc(r.rack)}">${esc(r.rack)}</button>`).join('');
+    const areas = sopExtraLocations.map(a=>`<button type="button" class="shelf-btn area ${restockShelf.area===a?'active':''}" data-shelf-area="${esc(a)}">⬇️ ${esc(a)}</button>`).join('');
     const nums = restockShelf.rack
       ? Array.from({ length: shelfCountFor(restockShelf.rack) }, (_, i)=>i + 1)
           .map(n=>`<button type="button" class="shelf-btn ${restockShelf.num===n?'active':''}" data-shelf-num="${n}">${n}</button>`).join('')
       : '';
-    const chosen = (restockShelf.rack && restockShelf.num) ? restockShelf.rack + restockShelf.num : null;
+    const chosen = shelfChoice();
     const hint = chosen
-      ? (restockShelf.dirty || required ? `It will be stored at ${shelfChipHTML(chosen)}` : `Currently on ${shelfChipHTML(chosen)} — tap to move it`)
-      : (required ? 'Choose where it goes (rack letter, then shelf number) so people can find it.' : 'Not on a shelf yet — choose one so people can find it.');
-    return `<label>Shelf${required ? ' (required)' : ''}</label>
+      ? (restockShelf.dirty || required ? `It will be stored at ${shelfChipHTML(chosen)}` : `Currently at ${shelfChipHTML(chosen)} — tap to move it`)
+      : (required ? `Choose where it goes (${locationRule()}) so people can find it.` : 'No location yet — choose one so people can find it.');
+    return `<label>Location${required ? ' (required)' : ''}</label>
       <div class="shelf-picker" id="shelfPicker">
-        <div class="shelf-row">${racks}</div>
+        <div class="shelf-row">${racks}${areas}</div>
         ${restockShelf.rack ? `<div class="shelf-row">${nums}</div>` : ''}
         <div class="shelf-hint">${hint}</div>
       </div>`;
@@ -3089,7 +3115,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · sop shelves';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · sop basement';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session
