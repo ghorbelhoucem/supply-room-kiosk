@@ -88,7 +88,7 @@
       async loadInventory() {
         const data = await requestJson('/inventory', { method: 'GET', auth: false });
         if (data && data.ok === false) return data;
-        return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [] };
+        return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [], sop_layout: data.sop_layout || [] };
       },
       async furnitureCreateItem(p) {
         return requestJson('/furniture/items', { method: 'POST', auth: true, body: p, retry: false });
@@ -157,6 +157,7 @@
             reason: payload.reason || 'restock',
             category: payload.category || null,
             sop_status: payload.sop_status || null,
+            shelf_location: payload.shelf_location || null,
           },
           retry: false,
         });
@@ -184,6 +185,7 @@
             reason: payload.reason || 'restock',
             category: payload.category,
             sop_status: payload.sop_status,
+            shelf_location: payload.shelf_location,
           });
         }
         return { ok: false, error: 'Unsupported action', code: 'UNSUPPORTED' };
