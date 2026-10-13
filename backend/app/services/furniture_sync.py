@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import threading
 from datetime import datetime, timezone
 
@@ -44,6 +45,36 @@ logger = logging.getLogger(__name__)
 # gets the lock, so overlapping pushes can never leave an older snapshot behind.
 _lock = threading.Lock()
 _needs_sync = True  # True at start-up so the first tick fills the Sheet
+
+# Photos in the Sheet: =IMAGE("<base><path>") makes Google fetch the picture from the
+# internet, so the photos must be reachable by anyone who has the address. Set
+# FURNITURE_PHOTO_BASE_URL to the web address of the folder that CONTAINS "furniture/"
+# (e.g. https://raw.githubusercontent.com/<user>/<repo>/main/images/). Empty = no Photo column.
+_PATH_OK = re.compile(r"^[A-Za-z0-9._/\-]+$")
+_warned_bad_base = False
+
+
+def photo_base_url() -> str:
+    """The validated photo address prefix (always ends with '/'), or '' when photos are off."""
+    global _warned_bad_base
+    base = (get_settings().furniture_photo_base_url or "").strip()
+    if not base:
+        return ""
+    if not base.lower().startswith("https://") or any(ch in base for ch in " \t\r\n\"'<>()"):
+        if not _warned_bad_base:
+            logger.warning("FURNITURE_PHOTO_BASE_URL ignored: it must start with https:// and contain no spaces or quotes")
+            _warned_bad_base = True
+        return ""
+    return base if base.endswith("/") else base + "/"
+
+
+def _photo_cell(item: dict, base: str) -> str:
+    """=IMAGE(...) for the item's first photo, or '' (never a formula built from odd text)."""
+    path = ((item.get("images") or [""])[0] or "").lstrip("/")
+    if not path or not _PATH_OK.match(path) or ".." in path:
+        return ""
+    return f'=IMAGE("{base}{path}")'
+
 
 HISTORY_HEADERS = ["Timestamp", "By", "Action", "SKU", "Item", "Building", "From", "To", "Details"]
 
@@ -119,9 +150,11 @@ def build_payload(db: Session) -> dict:
     order = {c["name"]: i for i, c in enumerate(snap["categories"])}
     indexed = sorted(enumerate(snap["items"]), key=lambda p: (order.get(p[1]["category"], 999), p[0]))
 
-    inventory_headers = ["SKU", "Category", "Item"] + [loc["name"] for loc in locations] + ["Total", "Note"]
+    base = photo_base_url()
+    inventory_headers = (["Photo"] if base else []) + ["SKU", "Category", "Item"] + [loc["name"] for loc in locations] + ["Total", "Note"]
     inventory = [
-        [_safe(it["sku"]), _safe(it["category"]), _safe(it["name"])]
+        ([_photo_cell(it, base)] if base else [])  # deliberately NOT passed through _safe(): this one is meant to be a formula
+        + [_safe(it["sku"]), _safe(it["category"]), _safe(it["name"])]
         + [int(it["stock"].get(loc["id"], 0)) for loc in locations]
         + [int(it["total"]), _safe(it["note"] or "")]
         for _, it in indexed
