@@ -179,7 +179,15 @@ def _push_to_webapp(webapp_url: str, payload: dict) -> None:
         raise RuntimeError(f"Apps Script rejected sync: {result.get('error')}")
 
 
-def sync_mirror(db: Session) -> dict:
+def sync_mirror(db: Session, furniture: str = "skip") -> dict:
+    """
+    Storage + SOP sheets are always pushed. The Furniture sheet is separate:
+      furniture="skip"       leave it out (the after-every-transaction hook: furniture
+                             changes are pushed by the furniture API itself, and a slow
+                             Google must never slow down a Storage/SOP transaction)
+      furniture="if_needed"  scheduler tick: push only if something changed / last push failed
+      furniture="force"      manual POST /api/sync/sheets: push now
+    """
     settings = get_settings()
     storage_url = (settings.legacy_webapp_url or "").strip()
     sop_url = (settings.sop_webapp_url or "").strip()
@@ -210,7 +218,13 @@ def sync_mirror(db: Session) -> dict:
         logger.info("SOP Room sheet sync skipped (no SOP_WEBAPP_URL set).")
         results["sop"] = {"ok": True, "skipped": True}
 
-    overall_ok = results["storage"]["ok"] and results["sop"]["ok"]
+    if furniture != "skip":
+        from app.services import furniture_sync  # local import: avoids a circular import at start-up
+        results["furniture"] = (
+            furniture_sync.sync_furniture(db) if furniture == "force" else furniture_sync.sync_if_needed(db)
+        )
+
+    overall_ok = all(r["ok"] for r in results.values())
     db.add(AuditEvent(
         event_type="sheet_sync_ok" if overall_ok else "sheet_sync_failed",
         detail=str(results),
