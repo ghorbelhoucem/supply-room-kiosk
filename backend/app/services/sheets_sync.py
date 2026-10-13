@@ -96,7 +96,10 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
             reference = f"{it.sop_status} SOP" if it.sop_status else "SOPs"
         else:
             reference = it.category.value
-        inventory_rows.append([reference, it.name, it.qty_on_hand, availability])
+        row = [reference, it.name, it.qty_on_hand, availability]
+        if it.category == ItemCategory.sops:
+            row.append(it.shelf_location or "")  # the SOP Sheet gets a 5th column: Location
+        inventory_rows.append(row)
 
     purchase_rows = sorted(
         (
