@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -15,6 +16,31 @@ from app.models import (
     MovementType,
     WarrantyReport,
 )
+
+
+# ---- SOP Room shelving -------------------------------------------------------
+# Racks A..F, each with up to 6 shelves; a shelf is written like "A3" (rack A, shelf 3).
+# ONE constant: it is served to the kiosk inside the snapshot, so the pickers and this
+# validation can never disagree. To match a rack's real shelf count, change it here.
+SOP_RACK_LAYOUT = {"A": 6, "B": 6, "C": 6, "D": 6, "E": 6, "F": 6}
+
+
+def sop_layout() -> list[dict]:
+    return [{"rack": rack, "shelves": n} for rack, n in SOP_RACK_LAYOUT.items()]
+
+
+def normalize_shelf(raw) -> str | None:
+    """'a 3' / 'A-3' / 'a03' -> 'A3'. None if nothing was given. ValueError (friendly text) if it is not a real shelf."""
+    code = re.sub(r"[\s\-]+", "", str(raw or "")).upper()
+    if not code:
+        return None
+    m = re.fullmatch(r"([A-Z])(\d{1,2})", code)
+    if not m or m.group(1) not in SOP_RACK_LAYOUT:
+        raise ValueError(f'"{raw}" is not a shelf. Use a rack letter ({", ".join(SOP_RACK_LAYOUT)}) and a shelf number, like A3.')
+    rack, shelf = m.group(1), int(m.group(2))
+    if not 1 <= shelf <= SOP_RACK_LAYOUT[rack]:
+        raise ValueError(f"Rack {rack} has shelves 1 to {SOP_RACK_LAYOUT[rack]}.")
+    return f"{rack}{shelf}"
 
 
 def available_qty(db: Session, item: InventoryItem) -> int:
@@ -77,6 +103,7 @@ def snapshot(db: Session) -> dict:
                 "barcode": it.barcode,
                 "reorder_min": it.reorder_min,
                 "sop_status": it.sop_status,
+                "shelf": it.shelf_location,
             }
         )
     history = []
@@ -145,7 +172,7 @@ def snapshot(db: Session) -> dict:
         for w in warranty_reports
     ]
 
-    return {"ok": True, "inventory": inventory, "history": history, "warranty": warranty}
+    return {"ok": True, "inventory": inventory, "history": history, "warranty": warranty, "sop_layout": sop_layout()}
 
 
 def take_batch(db: Session, person: str, role: str, items: list[dict]) -> dict:
@@ -294,7 +321,12 @@ def receive_stock(
     reason: str | None,
     category: str | None = None,
     sop_status: str | None = None,
+    shelf_location: str | None = None,
 ) -> dict:
+    try:
+        shelf = normalize_shelf(shelf_location)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc), "code": "BAD_SHELF"}
     item = db.execute(
         select(InventoryItem).where(InventoryItem.name == item_name).with_for_update()
     ).scalar_one_or_none()
@@ -310,6 +342,12 @@ def receive_stock(
                 "error": f'Invalid category "{category}"',
                 "code": "INVALID_CATEGORY",
             }
+        if item_category == ItemCategory.sops and shelf is None:
+            return {
+                "ok": False,
+                "error": "Choose a shelf for the new SOP (for example A3), so people can find it.",
+                "code": "SHELF_REQUIRED",
+            }
         item = InventoryItem(
             sku=f"NEW-{uuid.uuid4().hex[:8].upper()}",
             name=item_name,
@@ -318,12 +356,16 @@ def receive_stock(
             reorder_min=5,
             barcode=item_name,
             sop_status=sop_status if item_category == ItemCategory.sops else None,
+            shelf_location=shelf if item_category == ItemCategory.sops else None,
         )
         db.add(item)
         db.flush()  # get item.id before logging the movement below
         reason = reason or "New item added via kiosk"
-    elif sop_status and item.category == ItemCategory.sops:
-        item.sop_status = sop_status
+    elif item.category == ItemCategory.sops:
+        if sop_status:
+            item.sop_status = sop_status
+        if shelf:
+            item.shelf_location = shelf  # restocking can also move it to another shelf
 
     item.qty_on_hand += qty
     db.add(
