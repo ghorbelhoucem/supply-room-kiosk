@@ -135,6 +135,52 @@ class Movement(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class FurnitureRoom(Base):
+    """
+    A room — or a floor-level area such as "Front desk" — on floor 1-3. Rooms are numbered
+    "F.NN" (floor, room): "2.05" is room 5 on floor 2. Areas have a free-text label.
+    """
+
+    __tablename__ = "furniture_rooms"
+    __table_args__ = (UniqueConstraint("floor", "label", name="uq_furniture_rooms_floor_label"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    floor: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(40), nullable=False)
+    kind: Mapped[str] = mapped_column(String(10), nullable=False, default="room")  # 'room' | 'area'
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FurnitureRoomType(Base):
+    """What can stand in a room (chair, large cabinet, monitor …). Shared by all rooms; the name is unique."""
+
+    __tablename__ = "furniture_room_types"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
+    measure: Mapped[str | None] = mapped_column(String(200))  # e.g. "0.9 diameter x 0.75m:h"
+    note: Mapped[str | None] = mapped_column(Text)
+    photo: Mapped[str | None] = mapped_column(String(200))  # e.g. "furniture/FUR-014.jpg"
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FurnitureRoomStock(Base):
+    """How many of a type are in a room. A row exists only while at least one is there."""
+
+    __tablename__ = "furniture_room_stock"
+    __table_args__ = (CheckConstraint("qty > 0", name="ck_furniture_room_stock_qty_positive"),)
+
+    room_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("furniture_rooms.id", ondelete="CASCADE"), primary_key=True
+    )
+    type_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("furniture_room_types.id", ondelete="CASCADE"), primary_key=True
+    )
+    qty: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+
+
 class IdempotencyKey(Base):
     __tablename__ = "idempotency_keys"
     __table_args__ = (UniqueConstraint("client_request_id", name="uq_idempotency_client_request"),)

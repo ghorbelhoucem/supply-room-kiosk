@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.routers import auth, furniture, inventory, reports
 from app.schema_patches import apply_schema_patches
+from app.services.furniture_rooms import seed_rooms_if_empty
 from app.seed import seed_if_empty
 from app.services.sheets_sync import sync_mirror
 
@@ -35,6 +36,9 @@ async def lifespan(_app: FastAPI):
         db = SessionLocal()
         try:
             seed_if_empty(db)
+            loaded = seed_rooms_if_empty(db)  # Furniture > Browse by room: loads the spreadsheet's rooms once, only into an empty table
+            if not loaded.get("skipped"):
+                logger.info("Furniture rooms loaded: %s", loaded)
         finally:
             db.close()
 

@@ -6,6 +6,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models import User, UserRole
 from app.services import furniture as furn
+from app.services import furniture_rooms as rooms
 from app.services import furniture_sync
 from app.services import inventory as inv
 
@@ -114,3 +115,140 @@ def remove_item(item_id: str, background: BackgroundTasks, db: Session = Depends
     """Soft delete: hides the item everywhere, keeps its history. Safe to call twice."""
     result = furn.deactivate_item(db, item_id, actor=_actor(user))
     return _finish(db, None, "furniture_remove", result, background)
+
+
+# ======================================================================== rooms
+# Browse the furniture by floor -> room. Same access rule as everything above.
+class RoomCreateRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    floor: int = Field(..., ge=1, le=9)
+    label: str = Field(..., min_length=1, max_length=40)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class RoomUpdateRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    label: str | None = Field(default=None, min_length=1, max_length=40)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class RoomItemAddRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    type_id: str | None = None
+    new_type_name: str | None = Field(default=None, max_length=200)
+    new_type_measure: str | None = Field(default=None, max_length=200)
+    qty: int = Field(..., ge=1, le=rooms.MAX_QTY)
+    comment: str | None = Field(default=None, max_length=300)
+
+
+class RoomItemSetRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    qty: int = Field(..., ge=0, le=rooms.MAX_QTY)
+    expected_qty: int | None = Field(default=None, ge=0)
+    comment: str | None = Field(default=None, max_length=300)
+
+
+class RoomItemRemoveRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    qty: int | None = Field(default=None, ge=1, le=rooms.MAX_QTY)  # None = all of them
+
+
+class RoomMoveRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    from_room_id: str
+    to_room_id: str
+    type_id: str
+    qty: int = Field(..., ge=1, le=rooms.MAX_QTY)
+    expected_from_qty: int | None = Field(default=None, ge=0)
+
+
+class RoomTypeUpdateRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    name: str | None = Field(default=None, max_length=200)
+    measure: str | None = Field(default=None, max_length=200)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+def _sent(body: BaseModel, *fields: str) -> dict:
+    """Only the fields the client actually sent (so 'sent empty' can clear a value, 'not sent' leaves it)."""
+    return {f: getattr(body, f) for f in fields if f in body.model_fields_set}
+
+
+@router.get("/furniture/rooms")
+def get_rooms(db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    return rooms.snapshot_rooms(db)
+
+
+@router.post("/furniture/rooms")
+def create_room(body: RoomCreateRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.create_room(db, actor=_actor(user), floor=body.floor, label=body.label, note=body.note)
+    return _finish(db, body.client_request_id, "furniture_room_create", result, background)
+
+
+@router.post("/furniture/rooms/move")
+def move_between_rooms(body: RoomMoveRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.move_between_rooms(
+        db, body.from_room_id, body.to_room_id, body.type_id, actor=_actor(user), qty=body.qty, expected_from_qty=body.expected_from_qty
+    )
+    return _finish(db, body.client_request_id, "furniture_room_move", result, background)
+
+
+@router.patch("/furniture/rooms/{room_id}")
+def update_room(room_id: str, body: RoomUpdateRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.update_room(db, room_id, actor=_actor(user), **_sent(body, "label", "note"))
+    return _finish(db, body.client_request_id, "furniture_room_update", result, background)
+
+
+@router.delete("/furniture/rooms/{room_id}")
+def delete_room(room_id: str, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    """Only an EMPTY room can be deleted."""
+    result = rooms.delete_room(db, room_id, actor=_actor(user))
+    return _finish(db, None, "furniture_room_delete", result, background)
+
+
+@router.post("/furniture/rooms/{room_id}/items")
+def add_room_item(room_id: str, body: RoomItemAddRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.add_to_room(
+        db, room_id, actor=_actor(user), qty=body.qty, type_id=body.type_id, new_type_name=body.new_type_name,
+        new_type_measure=body.new_type_measure, comment=body.comment,
+    )
+    return _finish(db, body.client_request_id, "furniture_room_add", result, background)
+
+
+@router.patch("/furniture/rooms/{room_id}/items/{type_id}")
+def set_room_item(room_id: str, type_id: str, body: RoomItemSetRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.set_room_stock(db, room_id, type_id, actor=_actor(user), qty=body.qty, expected_qty=body.expected_qty, **_sent(body, "comment"))
+    return _finish(db, body.client_request_id, "furniture_room_set", result, background)
+
+
+@router.post("/furniture/rooms/{room_id}/items/{type_id}/remove")
+def remove_room_item(room_id: str, type_id: str, body: RoomItemRemoveRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.remove_from_room(db, room_id, type_id, actor=_actor(user), qty=body.qty)
+    return _finish(db, body.client_request_id, "furniture_room_remove", result, background)
+
+
+@router.patch("/furniture/room-types/{type_id}")
+def update_room_type(type_id: str, body: RoomTypeUpdateRequest, background: BackgroundTasks, db: Session = Depends(get_db), user: User = Depends(require_furniture_access)):
+    replay = inv.get_idempotent(db, body.client_request_id)
+    if replay:
+        return replay
+    result = rooms.update_type(db, type_id, actor=_actor(user), **_sent(body, "name", "measure", "note"))
+    return _finish(db, body.client_request_id, "furniture_roomtype_update", result, background)

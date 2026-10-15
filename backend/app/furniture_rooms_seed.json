@@ -1,0 +1,2644 @@
+{
+ "source": "2026-04-07_Inventory.xlsx",
+ "types": [
+  {
+   "name": "3d printer",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "black robots (P2.4)",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "chair",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "couch table",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "dual arm Franka robot (white ones)",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-033.jpg"
+  },
+  {
+   "name": "glas whiteboard large",
+   "measure": "1.88m x 1.06m",
+   "note": null,
+   "photo": "furniture/FUR-042.jpg"
+  },
+  {
+   "name": "glas whiteboard small",
+   "measure": "1.5m x 1m",
+   "note": null,
+   "photo": "furniture/FUR-042.jpg"
+  },
+  {
+   "name": "heavy duty shelf",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-027.jpg"
+  },
+  {
+   "name": "height adjustable office desk",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "kartons",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "kitchen",
+   "measure": null,
+   "note": "this is only for robot training",
+   "photo": null
+  },
+  {
+   "name": "large cabinet",
+   "measure": "0.8m x 2.2 x 0.4m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "large filling cabinet",
+   "measure": "0.43m x 0.8m x 0.8",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "meeting table",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "metal filling cabinet",
+   "measure": "w:0.42m x h:1.02m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "middle cabinet",
+   "measure": "0.8m x 1.8m x0.4m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "mini table",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "mobil whiteboard",
+   "measure": "1.6m x 1.9m",
+   "note": null,
+   "photo": "furniture/FUR-043.jpg"
+  },
+  {
+   "name": "monitor",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "multiple whiteboard",
+   "measure": "1.6m x 1.18m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "office chair",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-004.jpg"
+  },
+  {
+   "name": "office desk",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "package robot arms (Diana7)",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "package robot desk",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "partition wall",
+   "measure": "1.7m x 1.72m",
+   "note": null,
+   "photo": "furniture/FUR-064.jpg"
+  },
+  {
+   "name": "plants",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "platform",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "printer",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-047.jpg"
+  },
+  {
+   "name": "reception desk",
+   "measure": "w:3.4m x d:1.6m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "robot chair",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "robot desk",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "robot pedestal",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "rollable shelf",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "round table",
+   "measure": "0.9 diameter x 0.75m:h",
+   "note": null,
+   "photo": "furniture/FUR-014.jpg"
+  },
+  {
+   "name": "shelf",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "single arm Franka robot",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "small cabinet",
+   "measure": "1.2m x 1m x 0.4m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "small filling cabinet",
+   "measure": "0.43m x 0.7m x 0.8",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "sofa",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-018.jpg"
+  },
+  {
+   "name": "storage locker",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-028.jpg"
+  },
+  {
+   "name": "trash cans",
+   "measure": null,
+   "note": null,
+   "photo": "furniture/FUR-054.jpg"
+  },
+  {
+   "name": "TV",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "TV movable with stand",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "wardrobe (black, movable)",
+   "measure": null,
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "whiteboard large",
+   "measure": "1.5m x 1.02m",
+   "note": null,
+   "photo": null
+  },
+  {
+   "name": "whiteboard small",
+   "measure": "1.1m x 0.78m",
+   "note": null,
+   "photo": null
+  }
+ ],
+ "rooms": [
+  {
+   "floor": 1,
+   "label": "General",
+   "kind": "area",
+   "note": "Whole floor (listed as '1. OG' in the spreadsheet)",
+   "sort": 0,
+   "items": [
+    {
+     "type": "kitchen",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "meeting table",
+     "qty": 8,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 30,
+     "comment": null
+    },
+    {
+     "type": "plants",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.01",
+   "kind": "room",
+   "note": null,
+   "sort": 1,
+   "items": [
+    {
+     "type": "printer",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "TV movable with stand",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot desk",
+     "qty": 11,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.04",
+   "kind": "room",
+   "note": null,
+   "sort": 2,
+   "items": [
+    {
+     "type": "robot pedestal",
+     "qty": 16,
+     "comment": null
+    },
+    {
+     "type": "robot desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 7,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.05",
+   "kind": "room",
+   "note": null,
+   "sort": 3,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 33,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.06",
+   "kind": "room",
+   "note": null,
+   "sort": 4,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard large",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.07",
+   "kind": "room",
+   "note": null,
+   "sort": 5,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.08",
+   "kind": "room",
+   "note": null,
+   "sort": 6,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 7,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "plants",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.12",
+   "kind": "room",
+   "note": null,
+   "sort": 7,
+   "items": [
+    {
+     "type": "storage locker",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "small cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.14",
+   "kind": "room",
+   "note": null,
+   "sort": 8,
+   "items": [
+    {
+     "type": "storage locker",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.15",
+   "kind": "room",
+   "note": null,
+   "sort": 9,
+   "items": [
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "package robot arms (Diana7)",
+     "qty": 18,
+     "comment": null
+    },
+    {
+     "type": "package robot desk",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.16",
+   "kind": "room",
+   "note": null,
+   "sort": 10,
+   "items": [
+    {
+     "type": "robot desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.17",
+   "kind": "room",
+   "note": null,
+   "sort": 11,
+   "items": [
+    {
+     "type": "partition wall",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 9,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.18",
+   "kind": "room",
+   "note": null,
+   "sort": 12,
+   "items": [
+    {
+     "type": "small cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.19",
+   "kind": "room",
+   "note": null,
+   "sort": 13,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.20",
+   "kind": "room",
+   "note": null,
+   "sort": 14,
+   "items": [
+    {
+     "type": "height adjustable office desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.21",
+   "kind": "room",
+   "note": null,
+   "sort": 15,
+   "items": [
+    {
+     "type": "height adjustable office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "heavy duty shelf",
+     "qty": 3,
+     "comment": "w:0.90m x h:1.17m"
+    },
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.22",
+   "kind": "room",
+   "note": null,
+   "sort": 16,
+   "items": [
+    {
+     "type": "office chair",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "printer",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.25",
+   "kind": "room",
+   "note": null,
+   "sort": 17,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.26",
+   "kind": "room",
+   "note": null,
+   "sort": 18,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.27",
+   "kind": "room",
+   "note": null,
+   "sort": 19,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 12,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "partition wall",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "robot pedestal",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "heavy duty shelf",
+     "qty": 5,
+     "comment": "w:0.90m x h:1.68m"
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.28",
+   "kind": "room",
+   "note": null,
+   "sort": 20,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "plants",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "partition wall",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.30",
+   "kind": "room",
+   "note": null,
+   "sort": 21,
+   "items": [
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 4,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.31",
+   "kind": "room",
+   "note": null,
+   "sort": 22,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.32",
+   "kind": "room",
+   "note": null,
+   "sort": 23,
+   "items": [
+    {
+     "type": "meeting table",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 15,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.33",
+   "kind": "room",
+   "note": null,
+   "sort": 24,
+   "items": [
+    {
+     "type": "robot desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.34",
+   "kind": "room",
+   "note": null,
+   "sort": 25,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "rollable shelf",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.35",
+   "kind": "room",
+   "note": null,
+   "sort": 26,
+   "items": [
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.36",
+   "kind": "room",
+   "note": null,
+   "sort": 27,
+   "items": [
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "partition wall",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 1,
+   "label": "1.37",
+   "kind": "room",
+   "note": null,
+   "sort": 28,
+   "items": [
+    {
+     "type": "robot pedestal",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "rollable shelf",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "Front desk",
+   "kind": "area",
+   "note": "Listed as '2.OG front desk' in the spreadsheet",
+   "sort": 29,
+   "items": [
+    {
+     "type": "kitchen",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "General",
+   "kind": "area",
+   "note": "Whole floor (listed as '2. OG' in the spreadsheet)",
+   "sort": 30,
+   "items": [
+    {
+     "type": "kitchen",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.01",
+   "kind": "room",
+   "note": null,
+   "sort": 31,
+   "items": [
+    {
+     "type": "round table",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "small cabinet",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "reception desk",
+     "qty": 1,
+     "comment": "w:3.4m x d:1.6m"
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "metal filling cabinet",
+     "qty": 2,
+     "comment": "w:0.42m x h:1.02m"
+    },
+    {
+     "type": "plants",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "printer",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "TV",
+     "qty": 2,
+     "comment": "71 inches / 52 inches"
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.02",
+   "kind": "room",
+   "note": null,
+   "sort": 32,
+   "items": [
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard large",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.03",
+   "kind": "room",
+   "note": null,
+   "sort": 33,
+   "items": [
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.04",
+   "kind": "room",
+   "note": null,
+   "sort": 34,
+   "items": [
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.05",
+   "kind": "room",
+   "note": null,
+   "sort": 35,
+   "items": [
+    {
+     "type": "large cabinet",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.06",
+   "kind": "room",
+   "note": null,
+   "sort": 36,
+   "items": [
+    {
+     "type": "meeting table",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "TV",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.10",
+   "kind": "room",
+   "note": null,
+   "sort": 37,
+   "items": [
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "meeting table",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.11",
+   "kind": "room",
+   "note": null,
+   "sort": 38,
+   "items": [
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 10,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "TV",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "shelf",
+     "qty": 1,
+     "comment": "w:0.8m x h:2.3m x d:0.35m"
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "rollable shelf",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "small cabinet",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.16",
+   "kind": "room",
+   "note": null,
+   "sort": 39,
+   "items": [
+    {
+     "type": "office chair",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "robot desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "mobil whiteboard",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard small",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.18",
+   "kind": "room",
+   "note": null,
+   "sort": 40,
+   "items": [
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.20",
+   "kind": "room",
+   "note": null,
+   "sort": 41,
+   "items": [
+    {
+     "type": "height adjustable office desk",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.21",
+   "kind": "room",
+   "note": null,
+   "sort": 42,
+   "items": [
+    {
+     "type": "monitor",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "heavy duty shelf",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.22",
+   "kind": "room",
+   "note": null,
+   "sort": 43,
+   "items": [
+    {
+     "type": "height adjustable office desk",
+     "qty": 36,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 38,
+     "comment": null
+    },
+    {
+     "type": "TV movable with stand",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 14,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 16,
+     "comment": null
+    },
+    {
+     "type": "single arm Franka robot",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "mobil whiteboard",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 62,
+     "comment": null
+    },
+    {
+     "type": "sofa",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "couch table",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 12,
+     "comment": null
+    },
+    {
+     "type": "plants",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.23",
+   "kind": "room",
+   "note": null,
+   "sort": 44,
+   "items": [
+    {
+     "type": "kartons",
+     "qty": 1,
+     "comment": "amount not counted in the spreadsheet: 'multiple'"
+    },
+    {
+     "type": "glas whiteboard small",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.25",
+   "kind": "room",
+   "note": null,
+   "sort": 45,
+   "items": [
+    {
+     "type": "office desk",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "mobil whiteboard",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.26",
+   "kind": "room",
+   "note": null,
+   "sort": 46,
+   "items": [
+    {
+     "type": "black robots (P2.4)",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "3d printer",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "heavy duty shelf",
+     "qty": 1,
+     "comment": "w:0.9m x h:1.8m"
+    },
+    {
+     "type": "single arm Franka robot",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.27",
+   "kind": "room",
+   "note": null,
+   "sort": 47,
+   "items": [
+    {
+     "type": "meeting table",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 8,
+     "comment": null
+    },
+    {
+     "type": "TV",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "small cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.28",
+   "kind": "room",
+   "note": null,
+   "sort": 48,
+   "items": [
+    {
+     "type": "office chair",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "mini table",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "TV",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "mobil whiteboard",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.30",
+   "kind": "room",
+   "note": null,
+   "sort": 49,
+   "items": [
+    {
+     "type": "height adjustable office desk",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 10,
+     "comment": "5 dual monitors"
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.31",
+   "kind": "room",
+   "note": null,
+   "sort": 50,
+   "items": [
+    {
+     "type": "small filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard large",
+     "qty": 1,
+     "comment": "w:2.4m x h:1.2m"
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.32",
+   "kind": "room",
+   "note": null,
+   "sort": 51,
+   "items": [
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 2,
+   "label": "2.33",
+   "kind": "room",
+   "note": null,
+   "sort": 52,
+   "items": [
+    {
+     "type": "multiple whiteboard",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "round table",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 5,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "General",
+   "kind": "area",
+   "note": "Whole floor (listed as '3. OG' in the spreadsheet)",
+   "sort": 53,
+   "items": [
+    {
+     "type": "kitchen",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot desk",
+     "qty": 8,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 27,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 3,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.03",
+   "kind": "room",
+   "note": null,
+   "sort": 54,
+   "items": [
+    {
+     "type": "small filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 7,
+     "comment": null
+    },
+    {
+     "type": "mobil whiteboard",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 5,
+     "comment": null
+    },
+    {
+     "type": "single arm Franka robot",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "multiple whiteboard",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.04",
+   "kind": "room",
+   "note": null,
+   "sort": 55,
+   "items": [
+    {
+     "type": "office desk",
+     "qty": 16,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 21,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 6,
+     "comment": null
+    },
+    {
+     "type": "rollable shelf",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 6,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.08",
+   "kind": "room",
+   "note": null,
+   "sort": 56,
+   "items": [
+    {
+     "type": "single arm Franka robot",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "office desk",
+     "qty": 4,
+     "comment": null
+    },
+    {
+     "type": "large filling cabinet",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 49,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.09",
+   "kind": "room",
+   "note": null,
+   "sort": 57,
+   "items": [
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": "w:2.4m x h:1.2m"
+    },
+    {
+     "type": "robot chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "partition wall",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "single arm Franka robot",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.10",
+   "kind": "room",
+   "note": null,
+   "sort": 58,
+   "items": [
+    {
+     "type": "meeting table",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "glas whiteboard large",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.13",
+   "kind": "room",
+   "note": null,
+   "sort": 59,
+   "items": [
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "TV movable with stand",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "meeting table",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.14",
+   "kind": "room",
+   "note": null,
+   "sort": 60,
+   "items": [
+    {
+     "type": "office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard small",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "package robot arms (Diana7)",
+     "qty": 40,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.15",
+   "kind": "room",
+   "note": null,
+   "sort": 61,
+   "items": [
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.16",
+   "kind": "room",
+   "note": null,
+   "sort": 62,
+   "items": [
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.17",
+   "kind": "room",
+   "note": null,
+   "sort": 63,
+   "items": [
+    {
+     "type": "package robot desk",
+     "qty": 40,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "middle cabinet",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.18",
+   "kind": "room",
+   "note": null,
+   "sort": 64,
+   "items": [
+    {
+     "type": "chair",
+     "qty": 9,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "height adjustable office desk",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "monitor",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "rollable shelf",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "small cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "small filling cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot desk",
+     "qty": 16,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.22",
+   "kind": "room",
+   "note": null,
+   "sort": 65,
+   "items": [
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "whiteboard large",
+     "qty": 1,
+     "comment": "w:3m x 1.2m"
+    },
+    {
+     "type": "printer",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "meeting table",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.23",
+   "kind": "room",
+   "note": null,
+   "sort": 66,
+   "items": [
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "single arm Franka robot",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "chair",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.24",
+   "kind": "room",
+   "note": null,
+   "sort": 67,
+   "items": [
+    {
+     "type": "multiple whiteboard",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 1,
+     "comment": null
+    }
+   ]
+  },
+  {
+   "floor": 3,
+   "label": "3.25",
+   "kind": "room",
+   "note": null,
+   "sort": 68,
+   "items": [
+    {
+     "type": "robot desk",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "robot chair",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "platform",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "dual arm Franka robot (white ones)",
+     "qty": 3,
+     "comment": null
+    },
+    {
+     "type": "partition wall",
+     "qty": 2,
+     "comment": null
+    },
+    {
+     "type": "office chair",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "wardrobe (black, movable)",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "trash cans",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "large cabinet",
+     "qty": 1,
+     "comment": null
+    },
+    {
+     "type": "single arm Franka robot",
+     "qty": 2,
+     "comment": null
+    }
+   ]
+  }
+ ]
+}

@@ -24,6 +24,7 @@ A push never raises: a failed sync must never break the person's real action.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -38,6 +39,7 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.models import AuditEvent
 from app.services import furniture as furn
+from app.services import furniture_rooms as rooms_svc
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,12 @@ logger = logging.getLogger(__name__)
 # gets the lock, so overlapping pushes can never leave an older snapshot behind.
 _lock = threading.Lock()
 _needs_sync = True  # True at start-up so the first tick fills the Sheet
+
+# The Rooms tab goes in its OWN request (a lighter Apps Script run, and a failure there can't hold back the
+# main tabs). It is re-sent only when the rooms data changed, and skipped for good if the script is too old
+# to know the "roomsSync" action (the other tabs keep working either way).
+_last_rooms_hash: str | None = None
+_rooms_tab_supported = True
 
 # Photos in the Sheet: =IMAGE("<base><path>") makes Google fetch the picture from the
 # internet, so the photos must be reachable by anyone who has the address. Set
@@ -103,6 +111,44 @@ def _safe(value):
     return value
 
 
+def _text_cell(value):
+    """A room number like '3.10' must stay TEXT in a Sheet (it would become the number 3.1), so it gets an apostrophe."""
+    if isinstance(value, str) and re.fullmatch(r"\d+(\.\d+)?", value):
+        return "'" + value
+    return _safe(value)
+
+
+def _room_history(kind: str, d: dict) -> tuple | None:
+    """(action, item, room/place, from, to, details) for the room events, or None if kind is not a room event."""
+    room, typ = d.get("room", ""), d.get("type", "")
+    if kind == "room_move":
+        det = f"moved {d.get('qty')} × {typ} — {d.get('from_room')} now has {d.get('from_left')}, {d.get('to_room')} now has {d.get('to_now')}"
+        return "Moved between rooms", typ, f"{d.get('from_room')} → {d.get('to_room')}", "", "", det
+    if kind == "room_set":
+        det = "; ".join(x for x in (f"comment: {d.get('comment') or '—'}" if d.get("comment_changed") else "",) if x)
+        return "Room quantity changed", typ, room, d.get("from", ""), d.get("to", ""), det
+    if kind == "room_add":
+        det = ("new item type; " if d.get("new_type") else "") + f"added {d.get('qty')}"
+        return "Added to room", typ, room, d.get("before", ""), d.get("to", ""), det
+    if kind == "room_remove":
+        return "Removed from room", typ, room, (d.get("left") or 0) + (d.get("qty") or 0), d.get("left", ""), f"removed {d.get('qty')}"
+    if kind == "room_create":
+        return "Room added", "", d.get("label", ""), "", "", f"floor {d.get('floor')}"
+    if kind == "room_edit":
+        b, a = d.get("before") or {}, d.get("after") or {}
+        det = "; ".join(f"{k}: {b.get(k) or '—'} → {a.get(k) or '—'}" for k in ("label", "note") if b.get(k) != a.get(k))
+        return "Room edited", "", a.get("label", ""), "", "", det
+    if kind == "room_delete":
+        return "Room deleted", "", d.get("label", ""), "", "", f"floor {d.get('floor')}"
+    if kind == "roomtype_edit":
+        b, a = d.get("before") or {}, d.get("after") or {}
+        det = "; ".join(f"{k}: {b.get(k) or '—'} → {a.get(k) or '—'}" for k in ("name", "measure", "note") if b.get(k) != a.get(k))
+        return "Item type edited", a.get("name", ""), "", "", "", det
+    if kind == "room_import":
+        return "Rooms imported", "", "", "", d.get("units", ""), f"{d.get('rooms')} rooms, {d.get('types')} item types, {d.get('units')} units from {d.get('source')}"
+    return None
+
+
 def _history_row(ev: AuditEvent) -> list:
     try:
         d = json.loads(ev.detail or "{}")
@@ -137,6 +183,9 @@ def _history_row(ev: AuditEvent) -> list:
         stock = d.get("stock") or {}
         frm, to = sum(v for v in stock.values() if isinstance(v, int)), 0
         details = "; ".join([f"Category: {d.get('category', '')}"] + [f"{b}: {q}" for b, q in stock.items()])
+    elif _room_history(kind, d) is not None:
+        action, name, building, frm, to, details = _room_history(kind, d)
+        return [_safe(c) if i != 5 else _text_cell(c) for i, c in enumerate((when, ev.actor or "", action, "", name, building, frm, to, details))]
     else:
         action = kind.replace("_", " ").capitalize() or "Other"
         details = json.dumps(d, ensure_ascii=False)
@@ -173,7 +222,40 @@ def build_payload(db: Session) -> dict:
         "inventory": inventory,
         "history_headers": HISTORY_HEADERS,
         "history": [_history_row(ev) for ev in events],
+        "rooms_headers": ROOMS_HEADERS,
+        "rooms": _rooms_rows(db),
     }
+
+
+ROOMS_HEADERS = ["Floor", "Room", "Item", "Amount", "Size", "Comment"]
+
+
+def _rooms_rows(db: Session) -> list:
+    rs = rooms_svc.snapshot_rooms(db)
+    by_id = {t["id"]: t for t in rs["types"]}
+    return [
+        [r["floor"], _text_cell(r["label"]), _safe(by_id[i["type_id"]]["name"]), int(i["qty"]), _safe(by_id[i["type_id"]]["measure"] or ""), _safe(i["comment"] or "")]
+        for r in rs["rooms"]
+        for i in r["items"]
+    ]
+
+
+def _push_rooms(url: str, payload: dict) -> None:
+    """Send the Rooms tab. Returns quietly if the Sheet's script predates it (it answers 'unknown action')."""
+    global _last_rooms_hash, _rooms_tab_supported
+    digest = hashlib.sha1(json.dumps(payload["rooms"], ensure_ascii=False).encode("utf-8")).hexdigest()
+    if not _rooms_tab_supported or digest == _last_rooms_hash:
+        return
+    resp = httpx.post(url, json={"action": "roomsSync", "rooms_headers": payload["rooms_headers"], "rooms": payload["rooms"]}, timeout=20.0, follow_redirects=True)
+    resp.raise_for_status()
+    result = resp.json()
+    if not result.get("ok"):
+        if result.get("error") == "unknown action":
+            _rooms_tab_supported = False
+            logger.warning("The Furniture Sheet's Apps Script does not know 'roomsSync' yet — update it to get the Rooms tab (the other tabs are fine).")
+            return
+        raise RuntimeError(f"Apps Script rejected the rooms sync: {result.get('error')}")
+    _last_rooms_hash = digest
 
 
 def _push(url: str, payload: dict) -> None:
@@ -204,6 +286,7 @@ def sync_furniture(db: Session | None = None) -> dict:
             _needs_sync = False  # cleared BEFORE reading: a change made during the push sets it again
             payload = build_payload(session)
             _push(url, payload)
+            _push_rooms(url, payload)
             return {
                 "ok": True,
                 "updated_at": payload["updated_at"],

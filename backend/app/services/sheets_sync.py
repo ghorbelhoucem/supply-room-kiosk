@@ -14,7 +14,9 @@ Either can be left blank to skip syncing that room.
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -34,6 +36,50 @@ def _fmt(dt) -> str:
     if not dt:
         return ""
     return dt.isoformat()
+
+
+_DELETED_TAIL = re.compile(r" \(deleted \d{4}-\d{2}-\d{2} \d{4}\)(?: #\d+)?$")
+
+
+def _display_name(it: InventoryItem) -> str:
+    """A deleted item carries a '(deleted …)' tail internally; the Sheet's history shows the ORIGINAL name."""
+    return it.name if it.is_active else _DELETED_TAIL.sub("", it.name)
+
+
+def _sheet_text(value):
+    """Text starting with = + - @ would run as a formula in a Sheet; a leading apostrophe keeps it plain."""
+    return "'" + value if isinstance(value, str) and value[:1] in ("=", "+", "-", "@") else value
+
+
+def _audit_history_row(ev: AuditEvent, wanted_categories: set):
+    """
+    Inventory-editor actions as History rows (same 8 columns as every other row; the label sits in the
+    'Expected Return' column, like 'Restock' and 'Adjustment'). A quantity-only edit gets NO row here:
+    it is already in the history as an 'Adjustment'.
+    """
+    try:
+        d = json.loads(ev.detail or "{}")
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(d, dict) or d.get("category") not in wanted_categories:
+        return None
+    when = _fmt(ev.created_at)
+    if ev.event_type == "inventory_delete":
+        return [when, ev.actor, _sheet_text(d.get("item", "")), "Deleted", "N/A", "", d.get("qty_on_hand") or 0, ""]
+    ch = d.get("changes") or {}
+    parts = []
+    if "name" in ch:
+        parts.append(f"renamed from {ch['name'][0]}")
+    if "reorder_min" in ch:
+        parts.append(f"reorder at {ch['reorder_min'][0]} → {ch['reorder_min'][1]}")
+    if "sop_status" in ch:
+        parts.append(f"status {ch['sop_status'][0] or 'none'} → {ch['sop_status'][1]}")
+    if "shelf" in ch:
+        parts.append(f"location {ch['shelf'][0] or 'none'} → {ch['shelf'][1]}")
+    if not parts:
+        return None
+    name = ch["name"][1] if "name" in ch else d.get("item", "")
+    return [when, ev.actor, _sheet_text(name), "Edited: " + "; ".join(parts), "N/A", "", 0, ""]
 
 
 def _consolidate_history_rows(rows: list) -> list:
@@ -64,13 +110,15 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
     """Builds an Inventory/History/Purchase-List payload limited to just the
     given set of ItemCategory values — used to keep Storage Room and SOP
     Room data fully separate from each other."""
-    items = [
+    all_items = [
         it
         for it in db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
-        if it.category in categories and it.is_active
+        if it.category in categories
     ]
+    items = [it for it in all_items if it.is_active]          # the Inventory and Purchase List tabs: live items only
     item_ids = {it.id for it in items}
-    names_by_id = {it.id: it.name for it in items}
+    history_ids = {it.id for it in all_items}                  # the History tab keeps a deleted item's past too
+    names_by_id = {it.id: _display_name(it) for it in all_items}
 
     open_qty_by_item: dict = {}
     open_checkouts = db.execute(
@@ -97,14 +145,14 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
             reference = f"{it.sop_status} SOP" if it.sop_status else "SOPs"
         else:
             reference = it.category.value
-        row = [reference, it.name, it.qty_on_hand, availability]
+        row = [reference, _sheet_text(it.name), it.qty_on_hand, availability]
         if it.category == ItemCategory.sops:
             row.append(it.shelf_location or "")  # the SOP Sheet gets a 5th column: Location
         inventory_rows.append(row)
 
     purchase_rows = sorted(
         (
-            [it.category.value, it.name, it.qty_on_hand, it.reorder_min]
+            [it.category.value, _sheet_text(it.name), it.qty_on_hand, it.reorder_min]
             for it in items
             if it.category != ItemCategory.sops and it.qty_on_hand <= it.reorder_min
         ),
@@ -114,7 +162,7 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
     history_rows = []
     all_checkouts = db.execute(select(Checkout).order_by(Checkout.taken_at)).scalars().all()
     for c in all_checkouts:
-        if c.item_id not in item_ids:
+        if c.item_id not in history_ids:
             continue
         item = db.get(InventoryItem, c.item_id)
         is_tool_like = item and item.category in (ItemCategory.tools, ItemCategory.sops)
@@ -127,7 +175,7 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
             [
                 _fmt(c.taken_at),
                 c.person_role,
-                item.name if item else "",
+                _sheet_text(names_by_id.get(c.item_id, item.name if item else "")),
                 expected,
                 returned_at,
                 c.tx_id,
@@ -142,14 +190,14 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
         .order_by(Movement.created_at)
     ).scalars().all()
     for m in other_moves:
-        if m.item_id not in item_ids:
+        if m.item_id not in history_ids:
             continue
         label = "Restock" if m.movement_type.value == "receive" else "Adjustment"
         history_rows.append(
             [
                 _fmt(m.created_at),
                 m.actor,
-                names_by_id.get(m.item_id, m.item_name),   # the item's CURRENT name, so history follows a rename
+                _sheet_text(names_by_id.get(m.item_id, m.item_name)),   # the item's CURRENT name, so history follows a rename
                 label,
                 "N/A",
                 m.related_tx_id or "",
@@ -157,6 +205,14 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
                 "",
             ]
         )
+
+    wanted = {c.value for c in categories}
+    for ev in db.execute(
+        select(AuditEvent).where(AuditEvent.event_type.in_(["inventory_delete", "inventory_edit"])).order_by(AuditEvent.created_at)
+    ).scalars().all():
+        row = _audit_history_row(ev, wanted)
+        if row:
+            history_rows.append(row)
 
     history_rows.sort(key=lambda r: r[0])
     history_rows = _consolidate_history_rows(history_rows)

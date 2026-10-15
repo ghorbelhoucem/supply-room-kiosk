@@ -90,6 +90,35 @@
         if (data && data.ok === false) return data;
         return { ok: true, inventory: data.inventory || [], history: data.history || [], warranty: data.warranty || [], sop_layout: data.sop_layout || [], sop_locations: data.sop_locations || [] };
       },
+      async loadFurnitureRooms() {
+        const data = await requestJson('/furniture/rooms', { method: 'GET', auth: true });
+        if (data && data.ok === false) return data;
+        return { ok: true, floors: data.floors || [], rooms: data.rooms || [], types: data.types || [] };
+      },
+      async furnitureRoomCreate(p) {
+        return requestJson('/furniture/rooms', { method: 'POST', auth: true, body: p, retry: false });
+      },
+      async furnitureRoomUpdate(id, p) {
+        return requestJson(`/furniture/rooms/${encodeURIComponent(id)}`, { method: 'PATCH', auth: true, body: p, retry: false });
+      },
+      async furnitureRoomDelete(id) {
+        return requestJson(`/furniture/rooms/${encodeURIComponent(id)}`, { method: 'DELETE', auth: true, retry: false });
+      },
+      async furnitureRoomAdd(id, p) {
+        return requestJson(`/furniture/rooms/${encodeURIComponent(id)}/items`, { method: 'POST', auth: true, body: p, retry: false });
+      },
+      async furnitureRoomSet(id, typeId, p) {
+        return requestJson(`/furniture/rooms/${encodeURIComponent(id)}/items/${encodeURIComponent(typeId)}`, { method: 'PATCH', auth: true, body: p, retry: false });
+      },
+      async furnitureRoomRemove(id, typeId, p) {
+        return requestJson(`/furniture/rooms/${encodeURIComponent(id)}/items/${encodeURIComponent(typeId)}/remove`, { method: 'POST', auth: true, body: p, retry: false });
+      },
+      async furnitureRoomMove(p) {
+        return requestJson('/furniture/rooms/move', { method: 'POST', auth: true, body: p, retry: false });
+      },
+      async furnitureRoomTypeUpdate(typeId, p) {
+        return requestJson(`/furniture/room-types/${encodeURIComponent(typeId)}`, { method: 'PATCH', auth: true, body: p, retry: false });
+      },
       async furnitureCreateItem(p) {
         return requestJson('/furniture/items', { method: 'POST', auth: true, body: p, retry: false });
       },
