@@ -93,7 +93,7 @@
       async loadFurnitureRooms() {
         const data = await requestJson('/furniture/rooms', { method: 'GET', auth: true });
         if (data && data.ok === false) return data;
-        return { ok: true, floors: data.floors || [], rooms: data.rooms || [], types: data.types || [] };
+        return { ok: true, floors: data.floors || [], rooms: data.rooms || [], items: data.items || [], categories: data.categories || [] };
       },
       async furnitureRoomCreate(p) {
         return requestJson('/furniture/rooms', { method: 'POST', auth: true, body: p, retry: false });
@@ -116,8 +116,8 @@
       async furnitureRoomMove(p) {
         return requestJson('/furniture/rooms/move', { method: 'POST', auth: true, body: p, retry: false });
       },
-      async furnitureRoomTypeUpdate(typeId, p) {
-        return requestJson(`/furniture/room-types/${encodeURIComponent(typeId)}`, { method: 'PATCH', auth: true, body: p, retry: false });
+      async furnitureItemMerge(id, p) {
+        return requestJson(`/furniture/items/${encodeURIComponent(id)}/merge`, { method: 'POST', auth: true, body: p, retry: false });
       },
       async furnitureCreateItem(p) {
         return requestJson('/furniture/items', { method: 'POST', auth: true, body: p, retry: false });
@@ -134,7 +134,7 @@
       async loadFurniture() {
         const data = await requestJson('/furniture', { method: 'GET', auth: true });
         if (data && data.ok === false) return data;
-        return { ok: true, locations: data.locations || [], categories: data.categories || [], items: data.items || [] };
+        return { ok: true, locations: data.locations || [], categories: data.categories || [], items: data.items || [], rooms_index: data.rooms_index || {} };
       },
       async loginPin({ roleKey, pin, name }) {
         return requestJson('/auth/login/pin', {

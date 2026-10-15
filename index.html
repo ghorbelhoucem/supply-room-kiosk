@@ -751,7 +751,7 @@
       case 'furnitureItem': return `${base}|${furnState.itemId || ''}`;
       case 'furnitureRooms': return `${base}|${roomState.floor}`;
       case 'furnitureRoom': return `${base}|${roomState.roomId || ''}`;
-      case 'furnitureRoomItem': return `${base}|${roomState.roomId || ''}|${roomState.typeId || ''}`;
+      case 'furnitureRoomItem': return `${base}|${roomState.roomId || ''}|${roomState.itemId || ''}`;
       default: return base;
     }
   }
@@ -865,7 +865,8 @@
     else if(screen==='furnitureRoomAdd') stageFurnitureRoomAdd(stage, banner);
     else if(screen==='furnitureRoomRemove') stageFurnitureRoomRemove(stage, banner);
     else if(screen==='furnitureRoomEdit') stageFurnitureRoomEdit(stage, banner);
-    else if(screen==='furnitureRoomType') stageFurnitureRoomType(stage, banner);
+    else if(screen==='furnitureRoomItemEdit') stageFurnitureRoomItemEdit(stage, banner);
+    else if(screen==='furnitureRoomMerge') stageFurnitureRoomMerge(stage, banner);
     updateReportBtn();
     updateSignOutBtn();
     saveSession();
@@ -1089,6 +1090,7 @@
     if(!it){ furnState.itemId = null; screen='furnitureItems'; renderStage(); return; }
     const cat = furnCategory(it.category);
     const idx = Math.min(Math.max(furnState.imgIdx || 0, 0), Math.max(it.images.length - 1, 0));
+    const inRooms = (furnitureData.rooms_index || {})[it.id] || [], inRoomsTotal = inRooms.reduce((n, x)=>n + x.qty, 0);
     const rows = furnitureData.locations.map(l=>{
       const n = it.stock[l.id] || 0;
       return `<div class="fz-stockrow ${n===0?'zero':''}"><span>📍 ${esc(l.name)}</span><span class="n">${n}</span></div>`;
@@ -1107,6 +1109,8 @@
           ${it.note ? `<div class="fz-sub" style="margin-bottom:14px;">${esc(it.note)}</div>` : '<div style="height:12px;"></div>'}
           ${rows}
           <div class="fz-stockrow total"><span>Total</span><span class="n">${it.total}</span></div>
+          ${inRooms.length ? `<div class="fz-stockrow" style="margin-top:8px;"><span>🚪 In rooms (${plural(inRooms.length, 'room', 'rooms')})</span><span class="n">${inRoomsTotal}</span></div>
+            <div class="fz-sub" style="margin:2px 0 6px;">${inRooms.map(x=>`<span class="rm-link" data-openroom="${esc(x.room_id)}" data-floor="${x.floor}">${esc(x.kind === 'area' ? `${x.label} (floor ${x.floor})` : x.label)} (${x.qty})</span>`).join(' · ')}</div>` : ''}
           <div class="fz-sub" style="margin-top:10px;font-family:'IBM Plex Mono',monospace;">${esc(it.sku)}</div>
           ${furnCanEdit() ? `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
             <button class="btn-ghost" id="fzEditStock">✏️ Edit quantities</button>
@@ -1121,6 +1125,7 @@
       document.getElementById('fzEditItem').onclick = ()=>{ furnDraft = null; furnFormError = null; screen='furnitureEditItem'; renderStage(); };
       document.getElementById('fzRemove').onclick = ()=>{ furnFormError = null; screen='furnitureRemove'; renderStage(); };
     }
+    stage.querySelectorAll('[data-openroom]').forEach(el=>{ el.onclick = ()=>{ roomState = { floor:parseInt(el.getAttribute('data-floor'), 10), roomId:el.getAttribute('data-openroom'), itemId:null, query:'' }; roomDraft = null; roomFormError = null; screen = 'furnitureRoom'; renderStage(); }; });
     stage.querySelectorAll('.fz-thumbs img[data-i]').forEach(t=>{
       t.onclick = ()=>{ furnState.imgIdx = parseInt(t.getAttribute('data-i'),10) || 0; renderStage(); };
     });
@@ -1335,9 +1340,9 @@
   // Floor -> room -> what is in it (photo + amount). From a room you can modify an amount,
   // move something to another room, add something, or remove something. Same access as the
   // rest of Furniture (Management, Maintenance, Devs); the server enforces it.
-  const ROOM_DEFAULT_STATE = { floor:null, roomId:null, typeId:null, query:'' };
+  const ROOM_DEFAULT_STATE = { floor:null, roomId:null, itemId:null, query:'' };
   let roomState = Object.assign({}, ROOM_DEFAULT_STATE);   // where you are (kept across a page refresh)
-  let furnRooms = null;                                    // { floors, rooms, types } from GET /api/furniture/rooms
+  let furnRooms = null;                                    // { floors, rooms, items, categories } from GET /api/furniture/rooms
   let furnRoomsError = null;
   let furnRoomsLoading = false;
   let roomDraft = null;                                    // the open form (lost on refresh, by design)
@@ -1369,10 +1374,10 @@
 
   // ---- small helpers -----------------------------------------------------
   const roomById = (id)=>furnRooms.rooms.find(r=>r.id === id) || null;
-  const roomTypeById = (id)=>furnRooms.types.find(t=>t.id === id) || null;
+  const roomItemById = (id)=>furnRooms.items.find(t=>t.id === id) || null;
   const roomUnits = (r)=>r.items.reduce((s,i)=>s + i.qty, 0);
   const roomTitle = (r)=>r.kind === 'area' ? r.label : `Room ${r.label}`;
-  const roomQtyOf = (r, typeId)=>{ const i = r.items.find(x=>x.type_id === typeId); return i ? i.qty : 0; };
+  const roomQtyOf = (r, itemId)=>{ const i = r.items.find(x=>x.item_id === itemId); return i ? i.qty : 0; };
   const ROOM_ICONS = [[/robot|franka|pedestal/, '🤖'], [/printer/, '🖨️'], [/monitor|\btv\b/, '🖥️'], [/whiteboard|partition/, '📋'], [/chair|stool/, '🪑'], [/sofa|couch/, '🛋️'],
                       [/shelf/, '📚'], [/cabinet|wardrobe|locker/, '🗄️'], [/desk|table/, '📐'], [/plant/, '🪴'], [/trash|bin\b/, '🗑️'], [/kitchen/, '🍳'], [/kartons|box|package/, '📦']];
   function roomTypeIcon(name){ const n = String(name || '').toLowerCase(); const m = ROOM_ICONS.find(([re])=>re.test(n)); return m ? m[1] : '📦'; }
@@ -1395,9 +1400,9 @@
   function roomPhoto(t, badge){ return furnPhotoHTML(t.photo, t.name, roomTypeIcon(t.name), badge); }
   const roomErr = (r)=>(typeof r.error === 'string' && r.error) || 'Something went wrong. Check the connection and try again.';
 
-  function goFloor(f){ roomState = { floor:f, roomId:null, typeId:null, query:'' }; roomDraft = null; roomFormError = null; screen = 'furnitureRooms'; renderStage(); }
-  function goRoom(id){ const r = roomById(id); if(!r) return; roomState = { floor:r.floor, roomId:id, typeId:null, query:'' }; roomDraft = null; roomFormError = null; screen = 'furnitureRoom'; renderStage(); }
-  function goRoomItem(typeId, error){ roomState = Object.assign({}, roomState, { typeId }); roomDraft = null; roomFormError = error || null; screen = 'furnitureRoomItem'; renderStage(); }
+  function goFloor(f){ roomState = { floor:f, roomId:null, itemId:null, query:'' }; roomDraft = null; roomFormError = null; screen = 'furnitureRooms'; renderStage(); }
+  function goRoom(id){ const r = roomById(id); if(!r) return; roomState = { floor:r.floor, roomId:id, itemId:null, query:'' }; roomDraft = null; roomFormError = null; screen = 'furnitureRoom'; renderStage(); }
+  function goRoomItem(itemId, error){ roomState = Object.assign({}, roomState, { itemId }); roomDraft = null; roomFormError = error || null; screen = 'furnitureRoomItem'; renderStage(); }
 
   // runs a change, then reloads the rooms and calls onOk; on a problem it shows the message (a conflict reloads the latest numbers)
   async function roomOp(btnId, busy, call, onOk, onConflict){
@@ -1473,8 +1478,8 @@
     const r = roomState.roomId ? roomById(roomState.roomId) : null;
     if(!r){ screen = roomState.floor ? 'furnitureRooms' : 'furnitureFloors'; renderStage(); return; }
     const cards = r.items.map(i=>{
-      const t = roomTypeById(i.type_id);
-      return `<div class="fz-card" data-type="${esc(t.id)}">
+      const t = roomItemById(i.item_id);
+      return `<div class="fz-card" data-item="${esc(t.id)}">
         ${roomPhoto(t, `<span class="fz-badge">×${i.qty}</span>`)}
         <div class="fz-body"><div class="fz-name">${esc(t.name)}</div>${i.comment ? `<div class="fz-meta">${esc(i.comment)}</div>` : ''}</div></div>`;
     }).join('');
@@ -1486,33 +1491,39 @@
       ${r.note ? `<div class="fz-sub" style="margin:-6px 0 12px;">${esc(r.note)}</div>` : ''}
       ${r.items.length ? `<div class="fz-grid">${cards}</div>` : `<div class="empty-note">Nothing in this room yet. Tap “Add item” to put something here.</div>`}`;
     document.getElementById('back').onclick = ()=>{ goFloor(r.floor); };
-    document.getElementById('roomAddItemBtn').onclick = ()=>{ roomDraft = { mode:'additem', roomId:r.id, typeId:null, isNew:false, newName:'', newMeasure:'', qty:1, comment:'', query:'' }; roomFormError = null; screen = 'furnitureRoomAdd'; renderStage(); };
+    document.getElementById('roomAddItemBtn').onclick = ()=>{ roomDraft = { mode:'additem', roomId:r.id, itemId:null, isNew:false, newName:'', newCategory:'', newNote:'', qty:1, comment:'', query:'' }; roomFormError = null; screen = 'furnitureRoomAdd'; renderStage(); };
     document.getElementById('roomEditBtn').onclick = ()=>{ roomDraft = { mode:'edit', roomId:r.id, floor:r.floor, label:r.label, note:r.note || '', armDelete:false }; roomFormError = null; screen = 'furnitureRoomEdit'; renderStage(); };
-    stage.querySelectorAll('.fz-card[data-type]').forEach(c=>{ c.onclick = ()=>goRoomItem(c.getAttribute('data-type')); });
+    stage.querySelectorAll('.fz-card[data-item]').forEach(c=>{ c.onclick = ()=>goRoomItem(c.getAttribute('data-item')); });
   }
 
-  // ---- 4. one item in a room: modify, move, remove ----------------------------------
+  // ---- 4. one item in a room: modify, move, remove, edit, merge ----------------------
   function stageFurnitureRoomItem(stage, banner){
     if(!roomsGuard(stage, banner)) return;
-    const r = roomState.roomId ? roomById(roomState.roomId) : null, t = roomState.typeId ? roomTypeById(roomState.typeId) : null;
-    const row = r && t ? r.items.find(i=>i.type_id === t.id) : null;
+    const r = roomState.roomId ? roomById(roomState.roomId) : null, t = roomState.itemId ? roomItemById(roomState.itemId) : null;
+    const row = r && t ? r.items.find(i=>i.item_id === t.id) : null;
     if(!r || !t || !row){ screen = r ? 'furnitureRoom' : 'furnitureRooms'; renderStage(); return; }
-    if(!roomDraft || roomDraft.mode !== 'item' || roomDraft.roomId !== r.id || roomDraft.typeId !== t.id){
-      roomDraft = { mode:'item', roomId:r.id, typeId:t.id, qty:row.qty, expected:row.qty, comment:row.comment || '' };
+    if(!roomDraft || roomDraft.mode !== 'item' || roomDraft.roomId !== r.id || roomDraft.itemId !== t.id){
+      roomDraft = { mode:'item', roomId:r.id, itemId:t.id, qty:row.qty, expected:row.qty, comment:row.comment || '' };
     }
     const d = roomDraft;
     const everywhere = furnRooms.rooms.filter(x=>roomQtyOf(x, t.id) > 0), total = everywhere.reduce((s,x)=>s + roomQtyOf(x, t.id), 0);
     const others = everywhere.filter(x=>x.id !== r.id).slice(0, 12);
+    const bld = Object.entries(t.buildings || {});
+    const maybeTwin = /Possibly the same as:/.test(t.note || '');
     stage.innerHTML = banner + furnTakeNotice() + `
       <span class="back-link" id="back">&larr; ${esc(roomTitle(r))}</span>
       <div class="fz-detail">
         <div><div class="fz-hero ${t.photo ? '' : 'noimg'}" data-icon="${esc(roomTypeIcon(t.name))}">${t.photo ? `<img src="${furnImg(t.photo)}" alt="${esc(t.name)}" onerror="this.remove();this.parentNode.classList.add('noimg')">` : ''}</div></div>
         <div>
-          <div class="fz-title" style="font-size:26px;margin:0 0 4px;">${esc(t.name)}</div>
-          ${t.measure ? `<div class="fz-sub">📏 ${esc(t.measure)}</div>` : ''}${t.note ? `<div class="fz-sub">${esc(t.note)}</div>` : ''}
+          <span class="tag">${esc(t.category)}</span>
+          <div class="fz-title" style="font-size:26px;margin:10px 0 4px;">${esc(t.name)}</div>
+          ${t.note ? `<div class="fz-sub">${esc(t.note)}</div>` : ''}
+          <div class="fz-sub" style="font-family:'IBM Plex Mono',monospace;margin:4px 0 0;">${esc(t.sku)}</div>
           <div class="fz-stockrow" style="margin-top:12px;"><span>🚪 ${esc(roomTitle(r))}</span><span class="n">${row.qty}</span></div>
           <div class="fz-stockrow total"><span>In all rooms (${plural(everywhere.length, 'room', 'rooms')})</span><span class="n">${total}</span></div>
-          ${others.length ? `<div class="fz-sub" style="margin:6px 0 12px;">Also in: ${others.map(x=>`<span class="rm-link" data-goroom="${esc(x.id)}">${esc(x.label)} (${roomQtyOf(x, t.id)})</span>`).join(' · ')}</div>` : ''}
+          ${others.length ? `<div class="fz-sub" style="margin:6px 0 4px;">Also in: ${others.map(x=>`<span class="rm-link" data-goroom="${esc(x.id)}">${esc(x.label)} (${roomQtyOf(x, t.id)})</span>`).join(' · ')}</div>` : ''}
+          <div class="fz-sub" style="margin:2px 0 12px;">${bld.length ? `🏢 In buildings: ${bld.map(([n, q])=>`${esc(n)} ×${q}`).join(' · ')}` : '🏢 Not counted in any building'}</div>
+          ${maybeTwin ? `<div class="banner-error" style="background:#3a321a;border-color:#8a6d1c;color:#f0dca0;">⚠️ This came from the room survey and might be an item you already have (see the note). If it is, tap <b>Merge</b> below.</div>` : ''}
           <div class="form-row" style="margin:14px 0 0;">
             <label>How many are in this room?</label>
             ${furnStepperHTML('rmQty', d.qty)}
@@ -1524,7 +1535,8 @@
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
             <button class="btn-ghost" id="rmMove">➡️ Move to another room</button>
             <button class="btn-ghost" id="rmRemove" style="border-color:var(--danger);color:#f2b9b9;">🗑️ Remove from this room</button>
-            <button class="btn-ghost" id="rmEditType">✏️ Edit name &amp; size</button>
+            <button class="btn-ghost" id="rmEditItem">📝 Edit name &amp; details</button>
+            <button class="btn-ghost" id="rmMerge">🔗 Same as another item? Merge</button>
           </div>
         </div>
       </div>`;
@@ -1532,9 +1544,10 @@
     stage.querySelectorAll('[data-goroom]').forEach(el=>{ el.onclick = ()=>goRoom(el.getAttribute('data-goroom')); });
     document.getElementById('rmQty').oninput = (e)=>{ d.qty = intOrZero(e.target.value); };
     document.getElementById('rmComment').oninput = (e)=>{ d.comment = e.target.value; };
-    document.getElementById('rmMove').onclick = ()=>{ roomDraft = { mode:'move', roomId:r.id, typeId:t.id, qty:1, toFloor:r.floor, toRoomId:null }; roomFormError = null; screen = 'furnitureRoomMove'; renderStage(); };
-    document.getElementById('rmRemove').onclick = ()=>{ roomDraft = { mode:'remove', roomId:r.id, typeId:t.id, qty:row.qty }; roomFormError = null; screen = 'furnitureRoomRemove'; renderStage(); };
-    document.getElementById('rmEditType').onclick = ()=>{ roomDraft = { mode:'type', typeId:t.id, name:t.name, measure:t.measure || '', note:t.note || '' }; roomFormError = null; screen = 'furnitureRoomType'; renderStage(); };
+    document.getElementById('rmMove').onclick = ()=>{ roomDraft = { mode:'move', roomId:r.id, itemId:t.id, qty:1, toFloor:r.floor, toRoomId:null }; roomFormError = null; screen = 'furnitureRoomMove'; renderStage(); };
+    document.getElementById('rmRemove').onclick = ()=>{ roomDraft = { mode:'remove', roomId:r.id, itemId:t.id, qty:row.qty }; roomFormError = null; screen = 'furnitureRoomRemove'; renderStage(); };
+    document.getElementById('rmEditItem').onclick = ()=>{ roomDraft = { mode:'itemedit', itemId:t.id, name:t.name, category:t.category, note:t.note || '' }; roomFormError = null; screen = 'furnitureRoomItemEdit'; renderStage(); };
+    document.getElementById('rmMerge').onclick = ()=>{ roomDraft = { mode:'merge', itemId:t.id, targetId:null, query:'' }; roomFormError = null; screen = 'furnitureRoomMerge'; renderStage(); };
     document.getElementById('rmSave').onclick = ()=>{
       const comment = d.comment.trim().replace(/\s+/g, ' ');
       if(d.qty === row.qty && comment === (row.comment || '')){ roomFormError = 'Nothing changed yet.'; renderStage(); return; }
@@ -1550,7 +1563,7 @@
   // ---- 5. move to another room ------------------------------------------------
   function stageFurnitureRoomMove(stage, banner){
     if(!roomsGuard(stage, banner)) return;
-    const d = roomDraft, r = d && d.mode === 'move' ? roomById(d.roomId) : null, t = r ? roomTypeById(d.typeId) : null, have = r && t ? roomQtyOf(r, t.id) : 0;
+    const d = roomDraft, r = d && d.mode === 'move' ? roomById(d.roomId) : null, t = r ? roomItemById(d.itemId) : null, have = r && t ? roomQtyOf(r, t.id) : 0;
     if(!r || !t || !have){ screen = 'furnitureRoom'; renderStage(); return; }
     d.qty = Math.min(Math.max(d.qty || 1, 1), have);
     const rooms = furnRooms.rooms.filter(x=>x.floor === d.toFloor && x.id !== r.id), dest = d.toRoomId ? roomById(d.toRoomId) : null;
@@ -1573,11 +1586,16 @@
     stage.querySelectorAll('[data-mfloor]').forEach(c=>{ c.onclick = ()=>{ d.toFloor = parseInt(c.getAttribute('data-mfloor'), 10); d.toRoomId = null; roomFormError = null; renderStage(); }; });
     stage.querySelectorAll('[data-mroom]').forEach(c=>{ c.onclick = ()=>{ d.toRoomId = c.getAttribute('data-mroom'); roomFormError = null; renderStage(); }; });
     if(dest) document.getElementById('rmDoMove').onclick = ()=>{
-      roomOp('rmDoMove', 'Moving...', ()=>apiClient.furnitureRoomMove({ client_request_id:apiClient.newRequestId(), from_room_id:r.id, to_room_id:dest.id, type_id:t.id, qty:d.qty, expected_from_qty:have }), ()=>{
+      roomOp('rmDoMove', 'Moving...', ()=>apiClient.furnitureRoomMove({ client_request_id:apiClient.newRequestId(), from_room_id:r.id, to_room_id:dest.id, item_id:t.id, qty:d.qty, expected_from_qty:have }), ()=>{
         furnNotice = `Moved ${d.qty} × ${t.name} from ${roomTitle(r)} to ${roomTitle(dest)}.`; roomDraft = null;
         if(roomQtyOf(roomById(r.id), t.id) > 0) goRoomItem(t.id); else goRoom(r.id);
       }, (msg)=>{ roomDraft = null; goRoomItem(t.id, msg); });
     };
+  }
+
+  // a row of category chips (the categories already used by the catalog)
+  function roomCategoryChipsHTML(selected){
+    return `<div class="fz-chips">${furnRooms.categories.map(c=>`<span class="fz-chip ${selected === c ? 'active' : ''}" data-rmcat="${esc(c)}">${esc(c)}</span>`).join('')}</div>`;
   }
 
   // ---- 6. add something to a room ---------------------------------------------------
@@ -1585,16 +1603,19 @@
     if(!roomsGuard(stage, banner)) return;
     const d = roomDraft, r = d && d.mode === 'additem' ? roomById(d.roomId) : null;
     if(!r){ screen = 'furnitureRoom'; renderStage(); return; }
+    const same = d.isNew ? furnRooms.items.find(x=>x.name.toLowerCase() === d.newName.trim().replace(/\s+/g, ' ').toLowerCase()) : null;
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Cancel</span>
-      <div class="fz-head"><div class="fz-title">Add to ${esc(roomTitle(r))}</div><div class="fz-sub">${esc(r.kind === 'area' ? 'area' : 'Floor ' + r.floor)}</div></div>
-      <div class="form-row" style="margin:0 0 10px;max-width:none;"><input type="text" id="roomTypeSearch" placeholder="Search items (chair, cabinet, monitor…)" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(d.query)}" /></div>
+      <div class="fz-head"><div class="fz-title">Add to ${esc(roomTitle(r))}</div><div class="fz-sub">${esc(r.kind === 'area' ? 'area' : 'Floor ' + r.floor)} · pick an item you already have</div></div>
+      <div class="form-row" style="margin:0 0 10px;max-width:none;"><input type="text" id="roomTypeSearch" placeholder="Search items (chair, cabinet, FUR-014…)" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(d.query)}" /></div>
       <div class="item-list" id="rmTypeList" style="max-height:260px;overflow:auto;"></div>
       <div class="form-row" style="margin-top:12px;">
         ${d.isNew ? `<label>Name of the new kind of item</label>
           <input type="text" id="rmNewName" maxlength="200" placeholder="e.g. standing desk" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.newName)}" />
-          <label>Size (optional)</label>
-          <input type="text" id="rmNewMeasure" maxlength="200" placeholder="e.g. 1.2m x 0.7m" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.newMeasure)}" />` : ''}
+          ${same ? `<div class="fz-sub" style="color:#f0dca0;">“${esc(same.name)}” is already in your catalog — it will be used, not copied.</div>` : `
+          <label>Category</label>${roomCategoryChipsHTML(d.newCategory)}
+          <label>Size or note (optional)</label>
+          <input type="text" id="rmNewNote" maxlength="2000" placeholder="e.g. 1.2m x 0.7m" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.newNote)}" />`}` : ''}
         <label>How many are you adding?</label>
         ${furnStepperHTML('rmAddQty', d.qty)}
         <label style="margin-top:6px;">Comment (optional)</label>
@@ -1604,29 +1625,33 @@
       </div>`;
     document.getElementById('back').onclick = ()=>{ roomDraft = null; roomFormError = null; screen = 'furnitureRoom'; renderStage(); };
     const paint = ()=>{
-      const q = d.query.trim().toLowerCase(), list = furnRooms.types.filter(t=>!q || t.name.toLowerCase().includes(q)), box = document.getElementById('rmTypeList');
-      box.innerHTML = `<div class="item-row ${d.isNew ? 'selected' : ''}" data-newtype="1" style="border-style:dashed;"><div><span class="tag">➕</span><div class="item-name" style="margin-top:5px;">A new kind of item</div><div class="item-meta">Not in the list? Add it here</div></div></div>`
-        + (list.length ? list.map(t=>{ const there = roomQtyOf(r, t.id); return `<div class="item-row ${!d.isNew && d.typeId === t.id ? 'selected' : ''}" data-type="${esc(t.id)}"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">${roomTypeIcon(t.name)}</span><div><div class="item-name">${esc(t.name)}</div>${there ? `<div class="item-meta">${there} already in this room</div>` : ''}</div></div></div>`; }).join('') : `<div class="empty-note">No item matches.</div>`);
-      box.querySelectorAll('[data-type]').forEach(x=>{ x.onclick = ()=>{ d.typeId = x.getAttribute('data-type'); d.isNew = false; roomFormError = null; renderStage(); }; });
-      box.querySelector('[data-newtype]').onclick = ()=>{ d.isNew = true; d.typeId = null; d.newName = d.newName || d.query.trim(); roomFormError = null; renderStage(); };
+      const q = d.query.trim().toLowerCase(), list = furnRooms.items.filter(t=>!q || t.name.toLowerCase().includes(q) || t.sku.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)), box = document.getElementById('rmTypeList');
+      box.innerHTML = `<div class="item-row ${d.isNew ? 'selected' : ''}" data-newitem="1" style="border-style:dashed;"><div><span class="tag">➕</span><div class="item-name" style="margin-top:5px;">A new kind of item</div><div class="item-meta">Only if it is not in the list</div></div></div>`
+        + (list.length ? list.map(t=>{ const there = roomQtyOf(r, t.id); return `<div class="item-row ${!d.isNew && d.itemId === t.id ? 'selected' : ''}" data-item="${esc(t.id)}"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">${roomTypeIcon(t.name)}</span><div><div class="item-name">${esc(t.name)}</div><div class="item-meta">${esc(t.category)}${there ? ` · ${there} already in this room` : ''}</div></div></div></div>`; }).join('') : `<div class="empty-note">No item matches.</div>`);
+      box.querySelectorAll('[data-item]').forEach(x=>{ x.onclick = ()=>{ d.itemId = x.getAttribute('data-item'); d.isNew = false; roomFormError = null; renderStage(); }; });
+      box.querySelector('[data-newitem]').onclick = ()=>{ d.isNew = true; d.itemId = null; d.newName = d.newName || d.query.trim(); roomFormError = null; renderStage(); };
     };
     paint();
     document.getElementById('roomTypeSearch').oninput = (e)=>{ d.query = e.target.value; paint(); };
     document.getElementById('rmAddQty').oninput = (e)=>{ d.qty = intOrZero(e.target.value); };
     document.getElementById('rmAddComment').oninput = (e)=>{ d.comment = e.target.value; };
     if(d.isNew){
-      document.getElementById('rmNewName').oninput = (e)=>{ d.newName = e.target.value; };
-      document.getElementById('rmNewMeasure').oninput = (e)=>{ d.newMeasure = e.target.value; };
+      const nameInput = document.getElementById('rmNewName');
+      nameInput.oninput = (e)=>{ const before = !!furnRooms.items.find(x=>x.name.toLowerCase() === d.newName.trim().replace(/\s+/g, ' ').toLowerCase()); d.newName = e.target.value; const after = !!furnRooms.items.find(x=>x.name.toLowerCase() === d.newName.trim().replace(/\s+/g, ' ').toLowerCase()); if(before !== after){ const pos = e.target.selectionStart; renderStage(); const el = document.getElementById('rmNewName'); if(el){ el.focus(); try{ el.setSelectionRange(pos, pos); }catch(err){} } } };
+      stage.querySelectorAll('[data-rmcat]').forEach(c=>{ c.onclick = ()=>{ d.newCategory = c.getAttribute('data-rmcat'); roomFormError = null; renderStage(); }; });
+      const note = document.getElementById('rmNewNote'); if(note) note.oninput = (e)=>{ d.newNote = e.target.value; };
     }
     document.getElementById('rmDoAdd').onclick = ()=>{
-      if(!d.isNew && !d.typeId){ roomFormError = 'Pick an item from the list, or add a new kind of item.'; renderStage(); return; }
+      if(!d.isNew && !d.itemId){ roomFormError = 'Pick an item from the list, or add a new kind of item.'; renderStage(); return; }
       if(d.isNew && !d.newName.trim()){ roomFormError = 'Give the new item a name.'; renderStage(); return; }
+      if(d.isNew && !same && !d.newCategory){ roomFormError = 'Pick a category for the new item.'; renderStage(); return; }
       if(d.qty < 1){ roomFormError = 'Enter a quantity of at least 1.'; renderStage(); return; }
       const body = { client_request_id:apiClient.newRequestId(), qty:d.qty };
-      if(d.isNew){ body.new_type_name = d.newName.trim().replace(/\s+/g, ' '); if(d.newMeasure.trim()) body.new_type_measure = d.newMeasure.trim(); } else body.type_id = d.typeId;
+      if(d.isNew){ body.new_name = d.newName.trim().replace(/\s+/g, ' '); if(!same){ body.new_category = d.newCategory; if(d.newNote.trim()) body.new_note = d.newNote.trim(); } } else body.item_id = d.itemId;
       if(d.comment.trim()) body.comment = d.comment.trim().replace(/\s+/g, ' ');
       roomOp('rmDoAdd', 'Adding...', ()=>apiClient.furnitureRoomAdd(r.id, body), (res)=>{
-        const name = (roomTypeById(res.type_id) || {}).name || body.new_type_name || 'item';
+        const name = (roomItemById(res.item_id) || {}).name || body.new_name || 'item';
+        if(res.created_item){ furnitureData = null; furnitureLoadError = null; }    // the catalog has a new item: reload it next time
         furnNotice = `Added ${d.qty} × ${name} to ${roomTitle(r)}.`; roomDraft = null; goRoom(r.id);
       });
     };
@@ -1635,7 +1660,7 @@
   // ---- 7. remove from a room ----------------------------------------------------------
   function stageFurnitureRoomRemove(stage, banner){
     if(!roomsGuard(stage, banner)) return;
-    const d = roomDraft, r = d && d.mode === 'remove' ? roomById(d.roomId) : null, t = r ? roomTypeById(d.typeId) : null, have = r && t ? roomQtyOf(r, t.id) : 0;
+    const d = roomDraft, r = d && d.mode === 'remove' ? roomById(d.roomId) : null, t = r ? roomItemById(d.itemId) : null, have = r && t ? roomQtyOf(r, t.id) : 0;
     if(!r || !t || !have){ screen = 'furnitureRoom'; renderStage(); return; }
     d.qty = Math.min(Math.max(d.qty || 1, 1), have);
     stage.innerHTML = banner + `
@@ -1698,33 +1723,69 @@
     };
   }
 
-  // ---- 9. edit an item type (name / size / note — shared by every room) ----------------
-  function stageFurnitureRoomType(stage, banner){
+  // ---- 9. edit an item (the CATALOG record: name / category / note — the same everywhere) ----
+  function stageFurnitureRoomItemEdit(stage, banner){
     if(!roomsGuard(stage, banner)) return;
-    const d = roomDraft, t = d && d.mode === 'type' ? roomTypeById(d.typeId) : null;
+    const d = roomDraft, t = d && d.mode === 'itemedit' ? roomItemById(d.itemId) : null;
     if(!t){ screen = 'furnitureRoom'; renderStage(); return; }
     stage.innerHTML = banner + `
       <span class="back-link" id="back">&larr; Cancel</span>
-      <div class="fz-head"><div class="fz-title">Edit item</div><div class="fz-sub">applies to every room</div></div>
+      <div class="fz-head"><div class="fz-title">Edit item</div><div class="fz-sub">${esc(t.sku)} · changes apply everywhere (buildings and rooms)</div></div>
       <div class="form-row" style="margin-top:0;">
         <label>Name</label>
         <input type="text" id="rmTName" maxlength="200" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.name)}" />
-        <label>Size (optional)</label>
-        <input type="text" id="rmTMeasure" maxlength="200" placeholder="e.g. 0.9 diameter x 0.75m:h" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.measure)}" />
-        <label>Note (optional)</label>
-        <textarea id="rmTNote" maxlength="1000" style="${FURN_TEXTAREA_STYLE}">${esc(d.note)}</textarea>
+        <label>Category</label>${roomCategoryChipsHTML(d.category)}
+        <label>Size or note (optional)</label>
+        <textarea id="rmTNote" maxlength="2000" style="${FURN_TEXTAREA_STYLE}">${esc(d.note)}</textarea>
         ${roomFormError ? `<div class="error-msg">${esc(roomFormError)}</div>` : ''}
-        <button class="go-btn" id="rmSaveType" style="width:100%;">Save changes</button>
+        <button class="go-btn" id="rmSaveItem" style="width:100%;">Save changes</button>
       </div>`;
     document.getElementById('back').onclick = ()=>{ roomFormError = null; roomDraft = null; goRoomItem(t.id); };
     document.getElementById('rmTName').oninput = (e)=>{ d.name = e.target.value; };
-    document.getElementById('rmTMeasure').oninput = (e)=>{ d.measure = e.target.value; };
     document.getElementById('rmTNote').oninput = (e)=>{ d.note = e.target.value; };
-    document.getElementById('rmSaveType').onclick = ()=>{
-      const name = d.name.trim().replace(/\s+/g, ' '), measure = d.measure.trim().replace(/\s+/g, ' '), note = d.note.trim();
+    stage.querySelectorAll('[data-rmcat]').forEach(c=>{ c.onclick = ()=>{ d.category = c.getAttribute('data-rmcat'); roomFormError = null; renderStage(); }; });
+    document.getElementById('rmSaveItem').onclick = ()=>{
+      const name = d.name.trim().replace(/\s+/g, ' '), note = d.note.trim();
       if(!name){ roomFormError = 'Give the item a name.'; renderStage(); return; }
-      if(name === t.name && measure === (t.measure || '') && note === (t.note || '')){ roomFormError = 'Nothing changed yet.'; renderStage(); return; }
-      roomOp('rmSaveType', 'Saving...', ()=>apiClient.furnitureRoomTypeUpdate(t.id, { client_request_id:apiClient.newRequestId(), name, measure, note }), ()=>{ furnNotice = `Saved ${name}.`; roomDraft = null; goRoomItem(t.id); });
+      if(name === t.name && d.category === t.category && note === (t.note || '')){ roomFormError = 'Nothing changed yet.'; renderStage(); return; }
+      roomOp('rmSaveItem', 'Saving...', ()=>apiClient.furnitureUpdateItem(t.id, { client_request_id:apiClient.newRequestId(), name, category:d.category, note }), ()=>{
+        furnitureData = null; furnitureLoadError = null; furnNotice = `Saved ${name}.`; roomDraft = null; goRoomItem(t.id);
+      });
+    };
+  }
+
+  // ---- 10. merge: "this is the same thing as another item" ----------------------------------
+  function stageFurnitureRoomMerge(stage, banner){
+    if(!roomsGuard(stage, banner)) return;
+    const d = roomDraft, src = d && d.mode === 'merge' ? roomItemById(d.itemId) : null;
+    if(!src){ screen = 'furnitureRoom'; renderStage(); return; }
+    const dst = d.targetId ? roomItemById(d.targetId) : null;
+    const inRooms = furnRooms.rooms.filter(x=>roomQtyOf(x, src.id) > 0), units = inRooms.reduce((s,x)=>s + roomQtyOf(x, src.id), 0);
+    const bld = Object.entries(src.buildings || {});
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="fz-head"><div class="fz-title">Merge “${esc(src.name)}”</div><div class="fz-sub">Which existing item is it the same as?</div></div>
+      <div class="form-row" style="margin:0 0 10px;max-width:none;"><input type="text" id="rmMergeSearch" placeholder="Search items…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(d.query)}" /></div>
+      <div class="item-list" id="rmMergeList" style="max-height:260px;overflow:auto;"></div>
+      <div class="form-row" style="margin-top:12px;">
+        <div class="fz-sub" id="mergeSummary" style="margin:6px 0 10px;">${dst ? `<b>${esc(src.name)}</b> will disappear. Its ${plural(inRooms.length, 'room', 'rooms')} (${plural(units, 'unit', 'units')})${bld.length ? ' and its building counts' : ''} will be added to <b>${esc(dst.name)}</b> (${esc(dst.sku)}). This cannot be undone.` : 'Pick the item it is the same as.'}</div>
+        ${roomFormError ? `<div class="error-msg">${esc(roomFormError)}</div>` : ''}
+        <button class="go-btn" id="rmDoMerge" style="width:100%;" ${dst ? '' : 'disabled'}>Merge into ${dst ? esc(dst.name) : '…'}</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>{ roomFormError = null; roomDraft = null; goRoomItem(src.id); };
+    const paint = ()=>{
+      const q = d.query.trim().toLowerCase(), list = furnRooms.items.filter(t=>t.id !== src.id && (!q || t.name.toLowerCase().includes(q) || t.sku.toLowerCase().includes(q))), box = document.getElementById('rmMergeList');
+      box.innerHTML = list.length ? list.map(t=>`<div class="item-row ${d.targetId === t.id ? 'selected' : ''}" data-target="${esc(t.id)}"><div style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">${roomTypeIcon(t.name)}</span><div><div class="item-name">${esc(t.name)}</div><div class="item-meta">${esc(t.sku)} · ${esc(t.category)}</div></div></div></div>`).join('') : `<div class="empty-note">No item matches.</div>`;
+      box.querySelectorAll('[data-target]').forEach(x=>{ x.onclick = ()=>{ d.targetId = x.getAttribute('data-target'); roomFormError = null; renderStage(); }; });
+    };
+    paint();
+    document.getElementById('rmMergeSearch').oninput = (e)=>{ d.query = e.target.value; paint(); };
+    if(dst) document.getElementById('rmDoMerge').onclick = ()=>{
+      roomOp('rmDoMerge', 'Merging...', ()=>apiClient.furnitureItemMerge(src.id, { client_request_id:apiClient.newRequestId(), into_id:dst.id }), ()=>{
+        furnitureData = null; furnitureLoadError = null; furnNotice = `Merged ${src.name} into ${dst.name}.`; roomDraft = null;
+        const here = roomState.roomId && roomById(roomState.roomId);
+        if(here && roomQtyOf(here, dst.id) > 0) goRoomItem(dst.id); else if(here) goRoom(here.id); else goFloor(roomState.floor || furnRooms.floors[0]);
+      });
     };
   }
 
@@ -3818,7 +3879,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · scroll memory';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · rooms linked';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session

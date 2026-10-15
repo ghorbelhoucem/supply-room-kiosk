@@ -1,313 +1,459 @@
 {
+ "version": 2,
  "source": "2026-04-07_Inventory.xlsx",
- "types": [
-  {
-   "name": "3d printer",
-   "measure": null,
-   "note": null,
-   "photo": null
+ "catalog": {
+  "FUR-003": {
+   "name": "Station chair / standing aid",
+   "category": "Chairs & Seating"
   },
-  {
-   "name": "black robots (P2.4)",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-012": {
+   "name": "Meeting room table (black)",
+   "category": "Tables & Desks"
   },
-  {
-   "name": "chair",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-014": {
+   "name": "Round table",
+   "category": "Tables & Desks"
   },
-  {
-   "name": "couch table",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-018": {
+   "name": "Couch",
+   "category": "Chairs & Seating"
   },
-  {
-   "name": "dual arm Franka robot (white ones)",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-033.jpg"
+  "FUR-021": {
+   "name": "Filing cabinet (slim)",
+   "category": "Storage & Shelving"
   },
-  {
-   "name": "glas whiteboard large",
-   "measure": "1.88m x 1.06m",
-   "note": null,
-   "photo": "furniture/FUR-042.jpg"
+  "FUR-025": {
+   "name": "Office cabinet 2m",
+   "category": "Storage & Shelving"
   },
-  {
-   "name": "glas whiteboard small",
-   "measure": "1.5m x 1m",
-   "note": null,
-   "photo": "furniture/FUR-042.jpg"
+  "FUR-026": {
+   "name": "Office shelf (slim)",
+   "category": "Storage & Shelving"
   },
-  {
-   "name": "heavy duty shelf",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-027.jpg"
+  "FUR-027": {
+   "name": "Workshop shelf",
+   "category": "Storage & Shelving"
   },
-  {
-   "name": "height adjustable office desk",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-028": {
+   "name": "Locker spaces",
+   "category": "Storage & Shelving"
   },
-  {
-   "name": "kartons",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-033": {
+   "name": "Embodiment – Franka Duo",
+   "category": "Robots & Stations"
   },
-  {
-   "name": "kitchen",
-   "measure": null,
-   "note": "this is only for robot training",
-   "photo": null
+  "FUR-037": {
+   "name": "Embodiment – P2",
+   "category": "Robots & Stations"
   },
-  {
-   "name": "large cabinet",
-   "measure": "0.8m x 2.2 x 0.4m",
-   "note": null,
-   "photo": null
+  "FUR-042": {
+   "name": "Whiteboard (glass)",
+   "category": "Whiteboards & Displays"
   },
-  {
-   "name": "large filling cabinet",
-   "measure": "0.43m x 0.8m x 0.8",
-   "note": null,
-   "photo": null
+  "FUR-043": {
+   "name": "Whiteboard (mobile)",
+   "category": "Whiteboards & Displays"
   },
-  {
-   "name": "meeting table",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-047": {
+   "name": "Printer (big)",
+   "category": "IT"
   },
-  {
-   "name": "metal filling cabinet",
-   "measure": "w:0.42m x h:1.02m",
-   "note": null,
-   "photo": null
+  "FUR-054": {
+   "name": "Wastepaper basket",
+   "category": "Office Essentials"
   },
-  {
-   "name": "middle cabinet",
-   "measure": "0.8m x 1.8m x0.4m",
-   "note": null,
-   "photo": null
+  "FUR-064": {
+   "name": "Room Divider (all)",
+   "category": "Office Essentials"
   },
-  {
-   "name": "mini table",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-067": {
+   "name": "Screen",
+   "category": "IT"
   },
-  {
-   "name": "mobil whiteboard",
-   "measure": "1.6m x 1.9m",
-   "note": null,
-   "photo": "furniture/FUR-043.jpg"
+  "FUR-074": {
+   "name": "Printer (small)",
+   "category": "IT"
   },
-  {
-   "name": "monitor",
-   "measure": null,
-   "note": null,
-   "photo": null
+  "FUR-079": {
+   "name": "3D printer",
+   "category": "Workshop / Maintenance"
   },
-  {
-   "name": "multiple whiteboard",
-   "measure": "1.6m x 1.18m",
-   "note": null,
-   "photo": null
+  "FUR-082": {
+   "name": "Height adjustable table",
+   "category": "Tables & Desks"
   },
-  {
-   "name": "office chair",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-004.jpg"
-  },
-  {
-   "name": "office desk",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "package robot arms (Diana7)",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "package robot desk",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "partition wall",
-   "measure": "1.7m x 1.72m",
-   "note": null,
-   "photo": "furniture/FUR-064.jpg"
-  },
-  {
-   "name": "plants",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "platform",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "printer",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-047.jpg"
-  },
-  {
-   "name": "reception desk",
-   "measure": "w:3.4m x d:1.6m",
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "robot chair",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "robot desk",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "robot pedestal",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "rollable shelf",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "round table",
-   "measure": "0.9 diameter x 0.75m:h",
-   "note": null,
-   "photo": "furniture/FUR-014.jpg"
-  },
-  {
-   "name": "shelf",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "single arm Franka robot",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "small cabinet",
-   "measure": "1.2m x 1m x 0.4m",
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "small filling cabinet",
-   "measure": "0.43m x 0.7m x 0.8",
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "sofa",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-018.jpg"
-  },
-  {
-   "name": "storage locker",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-028.jpg"
-  },
-  {
-   "name": "trash cans",
-   "measure": null,
-   "note": null,
-   "photo": "furniture/FUR-054.jpg"
-  },
-  {
-   "name": "TV",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "TV movable with stand",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "wardrobe (black, movable)",
-   "measure": null,
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "whiteboard large",
-   "measure": "1.5m x 1.02m",
-   "note": null,
-   "photo": null
-  },
-  {
-   "name": "whiteboard small",
-   "measure": "1.1m x 0.78m",
-   "note": null,
-   "photo": null
+  "FUR-083": {
+   "name": "Non height adjustable office table (grey)",
+   "category": "Tables & Desks"
   }
- ],
+ },
+ "links": {
+  "round table": {
+   "sku": "FUR-014",
+   "how": "same name",
+   "confidence": "same",
+   "fallback_name": "Round table"
+  },
+  "3d printer": {
+   "sku": "FUR-079",
+   "how": "same name; 1 = 1",
+   "confidence": "same",
+   "fallback_name": "3d printer"
+  },
+  "sofa": {
+   "sku": "FUR-018",
+   "how": "sofa = couch; 2 = 2",
+   "confidence": "same",
+   "fallback_name": "Sofa"
+  },
+  "monitor": {
+   "sku": "FUR-067",
+   "how": "monitor = screen",
+   "confidence": "same",
+   "fallback_name": "Monitor"
+  },
+  "height adjustable office desk": {
+   "sku": "FUR-082",
+   "how": "same item, 'desk' vs 'table'",
+   "confidence": "same",
+   "fallback_name": "Height adjustable office desk"
+  },
+  "office desk": {
+   "sku": "FUR-083",
+   "how": "non-height-adjustable office table; 47 = 47",
+   "confidence": "same",
+   "fallback_name": "Office desk"
+  },
+  "mobil whiteboard": {
+   "sku": "FUR-043",
+   "how": "mobile whiteboard",
+   "confidence": "same",
+   "fallback_name": "Mobil whiteboard"
+  },
+  "glas whiteboard small": {
+   "sku": "FUR-042",
+   "how": "glass whiteboard (size kept in the comment)",
+   "confidence": "same",
+   "variant": "small (1.5m x 1m)",
+   "fallback_name": "Glas whiteboard small"
+  },
+  "glas whiteboard large": {
+   "sku": "FUR-042",
+   "how": "glass whiteboard (size kept in the comment)",
+   "confidence": "same",
+   "variant": "large (1.88m x 1.06m)",
+   "fallback_name": "Glas whiteboard large"
+  },
+  "partition wall": {
+   "sku": "FUR-064",
+   "how": "partition wall = room divider",
+   "confidence": "same",
+   "fallback_name": "Partition wall"
+  },
+  "storage locker": {
+   "sku": "FUR-028",
+   "how": "lockers",
+   "confidence": "same",
+   "fallback_name": "Storage locker"
+  },
+  "meeting table": {
+   "sku": "FUR-012",
+   "how": "the catalog's only meeting-room table",
+   "confidence": "same",
+   "fallback_name": "Meeting table"
+  },
+  "trash cans": {
+   "sku": "FUR-054",
+   "how": "trash can = wastepaper basket",
+   "confidence": "same",
+   "fallback_name": "Trash cans"
+  },
+  "metal filling cabinet": {
+   "sku": "FUR-021",
+   "how": "metal filing cabinet, 2 = 2",
+   "confidence": "probable",
+   "fallback_name": "Metal filling cabinet"
+  },
+  "large cabinet": {
+   "sku": "FUR-025",
+   "how": "2.2 m tall cabinet = 'Office cabinet 2m'",
+   "confidence": "probable",
+   "fallback_name": "Large cabinet"
+  },
+  "robot chair": {
+   "sku": "FUR-003",
+   "how": "the high chair at a robot station = station chair",
+   "confidence": "probable",
+   "fallback_name": "Robot chair"
+  },
+  "black robots (P2.4)": {
+   "sku": "FUR-037",
+   "how": "P2 robots",
+   "confidence": "probable",
+   "fallback_name": "Black robots (P2.4)"
+  },
+  "dual arm Franka robot (white ones)": {
+   "sku": "FUR-033",
+   "how": "dual arm = 'Franka Duo'",
+   "confidence": "probable",
+   "fallback_name": "Dual arm Franka robot (white ones)"
+  },
+  "heavy duty shelf": {
+   "sku": "FUR-027",
+   "how": "heavy-duty shelf = workshop shelf",
+   "confidence": "probable",
+   "fallback_name": "Heavy duty shelf"
+  },
+  "shelf": {
+   "sku": "FUR-026",
+   "how": "tall slim office shelf (0.8 x 2.3 x 0.35 m)",
+   "confidence": "probable",
+   "fallback_name": "Shelf"
+  },
+  "printer": {
+   "sku": null,
+   "how": "split by the sheet's own wording: 'printer large' -> Printer (big), 'printer small' -> Printer (small)",
+   "confidence": "same"
+  }
+ },
+ "printers": {
+  "large": "FUR-047",
+  "small": "FUR-074"
+ },
+ "new_items": {
+  "office chair": {
+   "name": "Office chair",
+   "category": "Chairs & Seating",
+   "note": "Added from the room survey. Possibly the same as: Office chair #1, Office chair #2. If so, use Merge.",
+   "possible": [
+    "FUR-004",
+    "FUR-006"
+   ]
+  },
+  "chair": {
+   "name": "Chair",
+   "category": "Chairs & Seating",
+   "note": "Added from the room survey. Possibly the same as: Meeting room chair #1, Meeting room chair #2, Kitchen chair, Guest chair. If so, use Merge.",
+   "possible": [
+    "FUR-002",
+    "FUR-008",
+    "FUR-007",
+    "FUR-009"
+   ]
+  },
+  "TV": {
+   "name": "TV",
+   "category": "Whiteboards & Displays",
+   "note": "Added from the room survey. Possibly the same as: TV (small), TV (big). If so, use Merge.",
+   "possible": [
+    "FUR-039",
+    "FUR-041"
+   ]
+  },
+  "TV movable with stand": {
+   "name": "TV movable with stand",
+   "category": "Whiteboards & Displays",
+   "note": "Added from the room survey. Possibly the same as: TV (small), TV (big). If so, use Merge.",
+   "possible": [
+    "FUR-039",
+    "FUR-041"
+   ]
+  },
+  "whiteboard large": {
+   "name": "Whiteboard large",
+   "category": "Whiteboards & Displays",
+   "note": "1.5m x 1.02m · Added from the room survey. Possibly the same as: Whiteboard (wall big) #1, Whiteboard (wall big) #2. If so, use Merge.",
+   "possible": [
+    "FUR-044",
+    "FUR-046"
+   ]
+  },
+  "whiteboard small": {
+   "name": "Whiteboard small",
+   "category": "Whiteboards & Displays",
+   "note": "1.1m x 0.78m · Added from the room survey. Possibly the same as: Whiteboard (metal). If so, use Merge.",
+   "possible": [
+    "FUR-045"
+   ]
+  },
+  "multiple whiteboard": {
+   "name": "Multiple whiteboard",
+   "category": "Whiteboards & Displays",
+   "note": "1.6m x 1.18m · Added from the room survey. Possibly the same as: Whiteboard (wall big) #1, Whiteboard (wall big) #2. If so, use Merge.",
+   "possible": [
+    "FUR-044",
+    "FUR-046"
+   ]
+  },
+  "small cabinet": {
+   "name": "Small cabinet",
+   "category": "Storage & Shelving",
+   "note": "1.2m x 1m x 0.4m · Added from the room survey. Possibly the same as: Sideboard (all). If so, use Merge.",
+   "possible": [
+    "FUR-022"
+   ]
+  },
+  "middle cabinet": {
+   "name": "Middle cabinet",
+   "category": "Storage & Shelving",
+   "note": "0.8m x 1.8m x0.4m · Added from the room survey. Possibly the same as: Sideboard (all). If so, use Merge.",
+   "possible": [
+    "FUR-022"
+   ]
+  },
+  "small filling cabinet": {
+   "name": "Small filling cabinet",
+   "category": "Storage & Shelving",
+   "note": "0.43m x 0.7m x 0.8 · Added from the room survey. Possibly the same as: Rolling container, Filing cabinet (slim). If so, use Merge.",
+   "possible": [
+    "FUR-023",
+    "FUR-021"
+   ]
+  },
+  "large filling cabinet": {
+   "name": "Large filling cabinet",
+   "category": "Storage & Shelving",
+   "note": "0.43m x 0.8m x 0.8 · Added from the room survey. Possibly the same as: Rolling container, Filing cabinet (slim). If so, use Merge.",
+   "possible": [
+    "FUR-023",
+    "FUR-021"
+   ]
+  },
+  "rollable shelf": {
+   "name": "Rollable shelf",
+   "category": "Storage & Shelving",
+   "note": "Added from the room survey. Possibly the same as: Rolling container. If so, use Merge.",
+   "possible": [
+    "FUR-023"
+   ]
+  },
+  "wardrobe (black, movable)": {
+   "name": "Wardrobe (black, movable)",
+   "category": "Storage & Shelving",
+   "note": "Added from the room survey.",
+   "possible": []
+  },
+  "single arm Franka robot": {
+   "name": "Single arm Franka robot",
+   "category": "Robots & Stations",
+   "note": "Added from the room survey. Possibly the same as: Embodiment – Franka V1 & V2. If so, use Merge.",
+   "possible": [
+    "FUR-038"
+   ]
+  },
+  "robot desk": {
+   "name": "Robot desk",
+   "category": "Robots & Stations",
+   "note": "Added from the room survey. Possibly the same as: Station table. If so, use Merge.",
+   "possible": [
+    "FUR-010"
+   ]
+  },
+  "package robot desk": {
+   "name": "Package robot desk",
+   "category": "Robots & Stations",
+   "note": "Added from the room survey.",
+   "possible": []
+  },
+  "package robot arms (Diana7)": {
+   "name": "Package robot arms (Diana7)",
+   "category": "Robots & Stations",
+   "note": "Added from the room survey. Possibly the same as: Embodiment parts (boxed). If so, use Merge.",
+   "possible": [
+    "FUR-058"
+   ]
+  },
+  "robot pedestal": {
+   "name": "Robot pedestal",
+   "category": "Robots & Stations",
+   "note": "Added from the room survey. Possibly the same as: Station frame. If so, use Merge.",
+   "possible": [
+    "FUR-040"
+   ]
+  },
+  "plants": {
+   "name": "Plants",
+   "category": "Office Essentials",
+   "note": "Added from the room survey.",
+   "possible": []
+  },
+  "kitchen": {
+   "name": "Kitchen",
+   "category": "Kitchen & Appliances",
+   "note": "this is only for robot training · Added from the room survey.",
+   "possible": []
+  },
+  "kartons": {
+   "name": "Kartons",
+   "category": "Office Essentials",
+   "note": "Added from the room survey.",
+   "possible": []
+  },
+  "platform": {
+   "name": "Platform",
+   "category": "Transport & Logistics",
+   "note": "Added from the room survey.",
+   "possible": []
+  },
+  "reception desk": {
+   "name": "Reception desk",
+   "category": "Tables & Desks",
+   "note": "w:3.4m x d:1.6m · Added from the room survey.",
+   "possible": []
+  },
+  "couch table": {
+   "name": "Couch table",
+   "category": "Tables & Desks",
+   "note": "Added from the room survey.",
+   "possible": []
+  },
+  "mini table": {
+   "name": "Mini table",
+   "category": "Tables & Desks",
+   "note": "Added from the room survey.",
+   "possible": []
+  }
+ },
+ "row_overrides": {
+  "1.01|printer": "FUR-047",
+  "1.22|printer": "FUR-074",
+  "2.01|printer": "FUR-047",
+  "3.22|printer": "FUR-047"
+ },
  "rooms": [
   {
    "floor": 1,
    "label": "General",
    "kind": "area",
    "note": "Whole floor (listed as '1. OG' in the spreadsheet)",
-   "sort": 0,
    "items": [
     {
-     "type": "kitchen",
+     "sku": null,
+     "new": "kitchen",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 8,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 30,
      "comment": null
     },
     {
-     "type": "plants",
+     "sku": null,
+     "new": "plants",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 3,
      "comment": null
     }
@@ -318,32 +464,36 @@
    "label": "1.01",
    "kind": "room",
    "note": null,
-   "sort": 1,
    "items": [
     {
-     "type": "printer",
+     "sku": "FUR-047",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "TV movable with stand",
+     "sku": null,
+     "new": "TV movable with stand",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 11,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 2,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -352,30 +502,34 @@
    "label": "1.04",
    "kind": "room",
    "note": null,
-   "sort": 2,
    "items": [
     {
-     "type": "robot pedestal",
+     "sku": null,
+     "new": "robot pedestal",
      "qty": 16,
      "comment": null
     },
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 7,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -386,15 +540,16 @@
    "label": "1.05",
    "kind": "room",
    "note": null,
-   "sort": 3,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 33,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -405,27 +560,24 @@
    "label": "1.06",
    "kind": "room",
    "note": null,
-   "sort": 4,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
-     "qty": 1,
-     "comment": null
-    },
-    {
-     "type": "glas whiteboard large",
-     "qty": 1,
-     "comment": null
+     "sku": "FUR-042",
+     "new": null,
+     "qty": 2,
+     "comment": "small (1.5m x 1m) ×1 · large (1.88m x 1.06m) ×1"
     }
    ]
   },
@@ -434,15 +586,16 @@
    "label": "1.07",
    "kind": "room",
    "note": null,
-   "sort": 5,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -453,35 +606,40 @@
    "label": "1.08",
    "kind": "room",
    "note": null,
-   "sort": 6,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 7,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "plants",
+     "sku": null,
+     "new": "plants",
      "qty": 1,
      "comment": null
     }
@@ -492,25 +650,28 @@
    "label": "1.12",
    "kind": "room",
    "note": null,
-   "sort": 7,
    "items": [
     {
-     "type": "storage locker",
+     "sku": "FUR-028",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 6,
      "comment": null
     },
     {
-     "type": "small cabinet",
+     "sku": null,
+     "new": "small cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -521,30 +682,34 @@
    "label": "1.14",
    "kind": "room",
    "note": null,
-   "sort": 8,
    "items": [
     {
-     "type": "storage locker",
+     "sku": "FUR-028",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -555,32 +720,36 @@
    "label": "1.15",
    "kind": "room",
    "note": null,
-   "sort": 9,
    "items": [
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "package robot arms (Diana7)",
+     "sku": null,
+     "new": "package robot arms (Diana7)",
      "qty": 18,
      "comment": null
     },
     {
-     "type": "package robot desk",
+     "sku": null,
+     "new": "package robot desk",
      "qty": 6,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -589,22 +758,24 @@
    "label": "1.16",
    "kind": "room",
    "note": null,
-   "sort": 10,
    "items": [
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -613,20 +784,22 @@
    "label": "1.17",
    "kind": "room",
    "note": null,
-   "sort": 11,
    "items": [
     {
-     "type": "partition wall",
+     "sku": "FUR-064",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 9,
      "comment": null
     }
@@ -637,32 +810,36 @@
    "label": "1.18",
    "kind": "room",
    "note": null,
-   "sort": 12,
    "items": [
     {
-     "type": "small cabinet",
+     "sku": null,
+     "new": "small cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -671,22 +848,24 @@
    "label": "1.19",
    "kind": "room",
    "note": null,
-   "sort": 13,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -695,45 +874,52 @@
    "label": "1.20",
    "kind": "room",
    "note": null,
-   "sort": 14,
    "items": [
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": null
     }
@@ -744,50 +930,58 @@
    "label": "1.21",
    "kind": "room",
    "note": null,
-   "sort": 15,
    "items": [
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     },
     {
-     "type": "heavy duty shelf",
+     "sku": "FUR-027",
+     "new": null,
      "qty": 3,
      "comment": "w:0.90m x h:1.17m"
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 1,
      "comment": null
     }
@@ -798,40 +992,46 @@
    "label": "1.22",
    "kind": "room",
    "note": null,
-   "sort": 16,
    "items": [
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 4,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 5,
      "comment": null
     },
     {
-     "type": "printer",
+     "sku": "FUR-074",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -842,20 +1042,22 @@
    "label": "1.25",
    "kind": "room",
    "note": null,
-   "sort": 17,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -866,15 +1068,16 @@
    "label": "1.26",
    "kind": "room",
    "note": null,
-   "sort": 18,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -885,55 +1088,64 @@
    "label": "1.27",
    "kind": "room",
    "note": null,
-   "sort": 19,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 12,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 6,
      "comment": null
     },
     {
-     "type": "partition wall",
+     "sku": "FUR-064",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 5,
      "comment": null
     },
     {
-     "type": "robot pedestal",
+     "sku": null,
+     "new": "robot pedestal",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "heavy duty shelf",
+     "sku": "FUR-027",
+     "new": null,
      "qty": 5,
      "comment": "w:0.90m x h:1.68m"
     }
@@ -944,35 +1156,40 @@
    "label": "1.28",
    "kind": "room",
    "note": null,
-   "sort": 20,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "plants",
+     "sku": null,
+     "new": "plants",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "partition wall",
+     "sku": "FUR-064",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -983,20 +1200,22 @@
    "label": "1.30",
    "kind": "room",
    "note": null,
-   "sort": 21,
    "items": [
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
+     "qty": 1,
+     "comment": "small (1.5m x 1m)"
+    },
+    {
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
-     "qty": 1,
-     "comment": null
-    },
-    {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 4,
      "comment": null
     }
@@ -1007,10 +1226,10 @@
    "label": "1.31",
    "kind": "room",
    "note": null,
-   "sort": 22,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 2,
      "comment": null
     }
@@ -1021,27 +1240,30 @@
    "label": "1.32",
    "kind": "room",
    "note": null,
-   "sort": 23,
    "items": [
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 15,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -1050,15 +1272,16 @@
    "label": "1.33",
    "kind": "room",
    "note": null,
-   "sort": 24,
    "items": [
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -1069,20 +1292,22 @@
    "label": "1.34",
    "kind": "room",
    "note": null,
-   "sort": 25,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "rollable shelf",
+     "sku": null,
+     "new": "rollable shelf",
      "qty": 1,
      "comment": null
     }
@@ -1093,15 +1318,16 @@
    "label": "1.35",
    "kind": "room",
    "note": null,
-   "sort": 26,
    "items": [
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -1112,20 +1338,22 @@
    "label": "1.36",
    "kind": "room",
    "note": null,
-   "sort": 27,
    "items": [
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "partition wall",
+     "sku": "FUR-064",
+     "new": null,
      "qty": 2,
      "comment": null
     }
@@ -1136,20 +1364,22 @@
    "label": "1.37",
    "kind": "room",
    "note": null,
-   "sort": 28,
    "items": [
     {
-     "type": "robot pedestal",
+     "sku": null,
+     "new": "robot pedestal",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "rollable shelf",
+     "sku": null,
+     "new": "rollable shelf",
      "qty": 1,
      "comment": null
     }
@@ -1160,10 +1390,10 @@
    "label": "Front desk",
    "kind": "area",
    "note": "Listed as '2.OG front desk' in the spreadsheet",
-   "sort": 29,
    "items": [
     {
-     "type": "kitchen",
+     "sku": null,
+     "new": "kitchen",
      "qty": 1,
      "comment": null
     }
@@ -1174,10 +1404,10 @@
    "label": "General",
    "kind": "area",
    "note": "Whole floor (listed as '2. OG' in the spreadsheet)",
-   "sort": 30,
    "items": [
     {
-     "type": "kitchen",
+     "sku": null,
+     "new": "kitchen",
      "qty": 1,
      "comment": null
     }
@@ -1188,70 +1418,82 @@
    "label": "2.01",
    "kind": "room",
    "note": null,
-   "sort": 31,
    "items": [
     {
-     "type": "round table",
+     "sku": "FUR-014",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 5,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "small cabinet",
+     "sku": null,
+     "new": "small cabinet",
      "qty": 6,
      "comment": null
     },
     {
-     "type": "reception desk",
+     "sku": null,
+     "new": "reception desk",
      "qty": 1,
      "comment": "w:3.4m x d:1.6m"
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "metal filling cabinet",
+     "sku": "FUR-021",
+     "new": null,
      "qty": 2,
      "comment": "w:0.42m x h:1.02m"
     },
     {
-     "type": "plants",
+     "sku": null,
+     "new": "plants",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "printer",
+     "sku": "FUR-047",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "TV",
+     "sku": null,
+     "new": "TV",
      "qty": 2,
      "comment": "71 inches / 52 inches"
     }
@@ -1262,32 +1504,36 @@
    "label": "2.02",
    "kind": "room",
    "note": null,
-   "sort": 32,
    "items": [
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard large",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "large (1.88m x 1.06m)"
     }
    ]
   },
@@ -1296,32 +1542,36 @@
    "label": "2.03",
    "kind": "room",
    "note": null,
-   "sort": 33,
    "items": [
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     }
    ]
   },
@@ -1330,25 +1580,28 @@
    "label": "2.04",
    "kind": "room",
    "note": null,
-   "sort": 34,
    "items": [
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     }
@@ -1359,25 +1612,28 @@
    "label": "2.05",
    "kind": "room",
    "note": null,
-   "sort": 35,
    "items": [
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 2,
      "comment": null
     }
@@ -1388,30 +1644,34 @@
    "label": "2.06",
    "kind": "room",
    "note": null,
-   "sort": 36,
    "items": [
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 5,
      "comment": null
     },
     {
-     "type": "TV",
+     "sku": null,
+     "new": "TV",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     }
@@ -1422,25 +1682,28 @@
    "label": "2.10",
    "kind": "room",
    "note": null,
-   "sort": 37,
    "items": [
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -1451,50 +1714,58 @@
    "label": "2.11",
    "kind": "room",
    "note": null,
-   "sort": 38,
    "items": [
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 10,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "TV",
+     "sku": null,
+     "new": "TV",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "shelf",
+     "sku": "FUR-026",
+     "new": null,
      "qty": 1,
      "comment": "w:0.8m x h:2.3m x d:0.35m"
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "rollable shelf",
+     "sku": null,
+     "new": "rollable shelf",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "small cabinet",
+     "sku": null,
+     "new": "small cabinet",
      "qty": 1,
      "comment": null
     }
@@ -1505,50 +1776,58 @@
    "label": "2.16",
    "kind": "room",
    "note": null,
-   "sort": 39,
    "items": [
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 6,
      "comment": null
     },
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "mobil whiteboard",
+     "sku": "FUR-043",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "whiteboard small",
+     "sku": null,
+     "new": "whiteboard small",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 2,
      "comment": null
     }
@@ -1559,30 +1838,34 @@
    "label": "2.18",
    "kind": "room",
    "note": null,
-   "sort": 40,
    "items": [
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     }
@@ -1593,45 +1876,52 @@
    "label": "2.20",
    "kind": "room",
    "note": null,
-   "sort": 41,
    "items": [
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 4,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 3,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     }
@@ -1642,15 +1932,16 @@
    "label": "2.21",
    "kind": "room",
    "note": null,
-   "sort": 42,
    "items": [
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 6,
      "comment": null
     },
     {
-     "type": "heavy duty shelf",
+     "sku": "FUR-027",
+     "new": null,
      "qty": 2,
      "comment": null
     }
@@ -1661,85 +1952,100 @@
    "label": "2.22",
    "kind": "room",
    "note": null,
-   "sort": 43,
    "items": [
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 36,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 38,
      "comment": null
     },
     {
-     "type": "TV movable with stand",
+     "sku": null,
+     "new": "TV movable with stand",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 14,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 16,
      "comment": null
     },
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "mobil whiteboard",
+     "sku": "FUR-043",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 62,
      "comment": null
     },
     {
-     "type": "sofa",
+     "sku": "FUR-018",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "couch table",
+     "sku": null,
+     "new": "couch table",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 12,
      "comment": null
     },
     {
-     "type": "plants",
+     "sku": null,
+     "new": "plants",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 3,
      "comment": null
     }
@@ -1750,20 +2056,22 @@
    "label": "2.23",
    "kind": "room",
    "note": null,
-   "sort": 44,
    "items": [
     {
-     "type": "kartons",
+     "sku": null,
+     "new": "kartons",
      "qty": 1,
      "comment": "amount not counted in the spreadsheet: 'multiple'"
     },
     {
-     "type": "glas whiteboard small",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 2,
-     "comment": null
+     "comment": "small (1.5m x 1m)"
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 3,
      "comment": null
     }
@@ -1774,30 +2082,34 @@
    "label": "2.25",
    "kind": "room",
    "note": null,
-   "sort": 45,
    "items": [
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "mobil whiteboard",
+     "sku": "FUR-043",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 2,
      "comment": null
     }
@@ -1808,45 +2120,52 @@
    "label": "2.26",
    "kind": "room",
    "note": null,
-   "sort": 46,
    "items": [
     {
-     "type": "black robots (P2.4)",
+     "sku": "FUR-037",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "3d printer",
+     "sku": "FUR-079",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "heavy duty shelf",
+     "sku": "FUR-027",
+     "new": null,
      "qty": 1,
      "comment": "w:0.9m x h:1.8m"
     },
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 3,
      "comment": null
     }
@@ -1857,35 +2176,40 @@
    "label": "2.27",
    "kind": "room",
    "note": null,
-   "sort": 47,
    "items": [
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 8,
      "comment": null
     },
     {
-     "type": "TV",
+     "sku": null,
+     "new": "TV",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "small cabinet",
+     "sku": null,
+     "new": "small cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 3,
      "comment": null
     }
@@ -1896,25 +2220,28 @@
    "label": "2.28",
    "kind": "room",
    "note": null,
-   "sort": 48,
    "items": [
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "mini table",
+     "sku": null,
+     "new": "mini table",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "TV",
+     "sku": null,
+     "new": "TV",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "mobil whiteboard",
+     "sku": "FUR-043",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -1925,35 +2252,40 @@
    "label": "2.30",
    "kind": "room",
    "note": null,
-   "sort": 49,
    "items": [
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 6,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 5,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 10,
      "comment": "5 dual monitors"
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 3,
      "comment": null
     }
@@ -1964,32 +2296,36 @@
    "label": "2.31",
    "kind": "room",
    "note": null,
-   "sort": 50,
    "items": [
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard large",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": "w:2.4m x h:1.2m"
+     "comment": "large (1.88m x 1.06m) · w:2.4m x h:1.2m"
     }
    ]
   },
@@ -1998,25 +2334,28 @@
    "label": "2.32",
    "kind": "room",
    "note": null,
-   "sort": 51,
    "items": [
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 4,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 5,
      "comment": null
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 1,
      "comment": null
     }
@@ -2027,40 +2366,46 @@
    "label": "2.33",
    "kind": "room",
    "note": null,
-   "sort": 52,
    "items": [
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 6,
      "comment": null
     },
     {
-     "type": "round table",
+     "sku": "FUR-014",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 5,
      "comment": null
     }
@@ -2071,25 +2416,28 @@
    "label": "General",
    "kind": "area",
    "note": "Whole floor (listed as '3. OG' in the spreadsheet)",
-   "sort": 53,
    "items": [
     {
-     "type": "kitchen",
+     "sku": null,
+     "new": "kitchen",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 8,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 27,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 3,
      "comment": null
     }
@@ -2100,55 +2448,64 @@
    "label": "3.03",
    "kind": "room",
    "note": null,
-   "sort": 54,
    "items": [
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 7,
      "comment": null
     },
     {
-     "type": "mobil whiteboard",
+     "sku": "FUR-043",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 5,
      "comment": null
     },
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     }
@@ -2159,35 +2516,40 @@
    "label": "3.04",
    "kind": "room",
    "note": null,
-   "sort": 55,
    "items": [
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 16,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 21,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 6,
      "comment": null
     },
     {
-     "type": "rollable shelf",
+     "sku": null,
+     "new": "rollable shelf",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 6,
      "comment": null
     }
@@ -2198,25 +2560,28 @@
    "label": "3.08",
    "kind": "room",
    "note": null,
-   "sort": 56,
    "items": [
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 4,
      "comment": null
     },
     {
-     "type": "large filling cabinet",
+     "sku": null,
+     "new": "large filling cabinet",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 49,
      "comment": null
     }
@@ -2227,30 +2592,34 @@
    "label": "3.09",
    "kind": "room",
    "note": null,
-   "sort": 57,
    "items": [
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": "w:2.4m x h:1.2m"
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "partition wall",
+     "sku": "FUR-064",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 1,
      "comment": null
     }
@@ -2261,20 +2630,22 @@
    "label": "3.10",
    "kind": "room",
    "note": null,
-   "sort": 58,
    "items": [
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "glas whiteboard large",
+     "sku": "FUR-042",
+     "new": null,
      "qty": 1,
-     "comment": null
+     "comment": "large (1.88m x 1.06m)"
     },
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": null
     }
@@ -2285,20 +2656,22 @@
    "label": "3.13",
    "kind": "room",
    "note": null,
-   "sort": 59,
    "items": [
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "TV movable with stand",
+     "sku": null,
+     "new": "TV movable with stand",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -2309,40 +2682,46 @@
    "label": "3.14",
    "kind": "room",
    "note": null,
-   "sort": 60,
    "items": [
     {
-     "type": "office desk",
+     "sku": "FUR-083",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "whiteboard small",
+     "sku": null,
+     "new": "whiteboard small",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "package robot arms (Diana7)",
+     "sku": null,
+     "new": "package robot arms (Diana7)",
      "qty": 40,
      "comment": null
     }
@@ -2353,15 +2732,16 @@
    "label": "3.15",
    "kind": "room",
    "note": null,
-   "sort": 61,
    "items": [
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 1,
      "comment": null
     }
@@ -2372,15 +2752,16 @@
    "label": "3.16",
    "kind": "room",
    "note": null,
-   "sort": 62,
    "items": [
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -2391,25 +2772,28 @@
    "label": "3.17",
    "kind": "room",
    "note": null,
-   "sort": 63,
    "items": [
     {
-     "type": "package robot desk",
+     "sku": null,
+     "new": "package robot desk",
      "qty": 40,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "middle cabinet",
+     "sku": null,
+     "new": "middle cabinet",
      "qty": 1,
      "comment": null
     }
@@ -2420,60 +2804,70 @@
    "label": "3.18",
    "kind": "room",
    "note": null,
-   "sort": 64,
    "items": [
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 9,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "height adjustable office desk",
+     "sku": "FUR-082",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "monitor",
+     "sku": "FUR-067",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "rollable shelf",
+     "sku": null,
+     "new": "rollable shelf",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "small cabinet",
+     "sku": null,
+     "new": "small cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "small filling cabinet",
+     "sku": null,
+     "new": "small filling cabinet",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 16,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -2484,35 +2878,40 @@
    "label": "3.22",
    "kind": "room",
    "note": null,
-   "sort": 65,
    "items": [
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "whiteboard large",
+     "sku": null,
+     "new": "whiteboard large",
      "qty": 1,
      "comment": "w:3m x 1.2m"
     },
     {
-     "type": "printer",
+     "sku": "FUR-047",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "meeting table",
+     "sku": "FUR-012",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -2523,30 +2922,34 @@
    "label": "3.23",
    "kind": "room",
    "note": null,
-   "sort": 66,
    "items": [
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "chair",
+     "sku": null,
+     "new": "chair",
      "qty": 2,
      "comment": null
     }
@@ -2557,25 +2960,28 @@
    "label": "3.24",
    "kind": "room",
    "note": null,
-   "sort": 67,
    "items": [
     {
-     "type": "multiple whiteboard",
+     "sku": null,
+     "new": "multiple whiteboard",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 1,
      "comment": null
     }
@@ -2586,55 +2992,64 @@
    "label": "3.25",
    "kind": "room",
    "note": null,
-   "sort": 68,
    "items": [
     {
-     "type": "robot desk",
+     "sku": null,
+     "new": "robot desk",
      "qty": 3,
      "comment": null
     },
     {
-     "type": "robot chair",
+     "sku": "FUR-003",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "platform",
+     "sku": null,
+     "new": "platform",
      "qty": 2,
      "comment": null
     },
     {
-     "type": "dual arm Franka robot (white ones)",
+     "sku": "FUR-033",
+     "new": null,
      "qty": 3,
      "comment": null
     },
     {
-     "type": "partition wall",
+     "sku": "FUR-064",
+     "new": null,
      "qty": 2,
      "comment": null
     },
     {
-     "type": "office chair",
+     "sku": null,
+     "new": "office chair",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "wardrobe (black, movable)",
+     "sku": null,
+     "new": "wardrobe (black, movable)",
      "qty": 1,
      "comment": null
     },
     {
-     "type": "trash cans",
+     "sku": "FUR-054",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "large cabinet",
+     "sku": "FUR-025",
+     "new": null,
      "qty": 1,
      "comment": null
     },
     {
-     "type": "single arm Franka robot",
+     "sku": null,
+     "new": "single arm Franka robot",
      "qty": 2,
      "comment": null
     }

@@ -1,18 +1,25 @@
 """
 Furniture — rooms.
 
-Browse the furniture by ROOM: floor -> room -> what is in it, with amounts. Every change
-(modify, add, remove, move between rooms) is written to the audit trail, and shows up in the
-Furniture Google Sheet's History (see furniture_sync.py).
+Browse the furniture by ROOM: floor -> room -> what is in it, with amounts. A room does not have its own
+list of things: every line is a CATALOG item (furniture_items — the same record the buildings use) plus a
+room and an amount. So "Round table" is ONE item, counted in the buildings and located in rooms.
 
-Data: furniture_rooms (floor + label), furniture_room_types (chair, large cabinet …, shared by
-all rooms) and furniture_room_stock (how many of a type are in a room). A stock row exists only
-while at least one is there: removing the last one deletes the row.
+Every change (modify, add, remove, move between rooms, merge two items) goes to the audit trail and shows
+up in the Furniture Google Sheet's History. A row exists only while at least one of the item is in the
+room: removing the last one deletes the row.
+
+Start-up (seed_rooms_if_empty):
+  * empty database       -> import the room survey (furniture_rooms_seed.json): each survey line is linked
+                            to the catalog item it is, or becomes a new catalog item when it can't be placed
+  * first version found  -> migrate its rooms/amounts/edits onto catalog items (the old tables stay as a backup)
 """
 
 from __future__ import annotations
 
+import collections
 import json
+import logging
 import re
 import uuid
 from pathlib import Path
@@ -20,7 +27,19 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import AuditEvent, FurnitureRoom, FurnitureRoomStock, FurnitureRoomType
+from app.models import (
+    AuditEvent,
+    FurnitureItem,
+    FurnitureRoom,
+    FurnitureRoomItem,
+    FurnitureRoomStock,
+    FurnitureRoomType,
+    FurnitureStock,
+    Location,
+)
+from app.services import furniture as furn
+
+logger = logging.getLogger(__name__)
 
 MAX_QTY = 100000
 SEED_FILE = Path(__file__).resolve().parent.parent / "furniture_rooms_seed.json"
@@ -57,11 +76,21 @@ def room_sort_key(room) -> tuple:
 # ---------------------------------------------------------------- read side
 def snapshot_rooms(db: Session) -> dict:
     rooms = sorted(db.execute(select(FurnitureRoom)).scalars().all(), key=room_sort_key)
-    types = sorted(db.execute(select(FurnitureRoomType)).scalars().all(), key=lambda t: t.name.lower())
-    type_name = {t.id: t.name.lower() for t in types}
+    items = sorted(
+        db.execute(select(FurnitureItem).where(FurnitureItem.is_active.is_(True))).scalars().all(), key=lambda i: i.name.lower()
+    )
+    name_of = {i.id: i.name.lower() for i in items}
+    loc_name = {loc.id: loc.name for loc in db.execute(select(Location)).scalars().all()}
+    buildings: dict = {}
+    for s in db.execute(select(FurnitureStock)).scalars().all():
+        if s.qty > 0 and s.location_id in loc_name:
+            buildings.setdefault(s.item_id, {})[loc_name[s.location_id]] = int(s.qty)
     stock: dict = {}
-    for row in db.execute(select(FurnitureRoomStock)).scalars().all():
-        stock.setdefault(row.room_id, []).append(row)
+    for row in db.execute(select(FurnitureRoomItem)).scalars().all():
+        if row.item_id in name_of:  # an item that was removed from the catalog never shows up
+            stock.setdefault(row.room_id, []).append(row)
+    known = [name for name, _, _ in furn.CATEGORY_META]
+    extra = sorted({i.category for i in items} - set(known))
     return {
         "ok": True,
         "floors": sorted({r.floor for r in rooms}),
@@ -69,14 +98,46 @@ def snapshot_rooms(db: Session) -> dict:
             {
                 "id": str(r.id), "floor": r.floor, "label": r.label, "kind": r.kind, "note": r.note,
                 "items": [
-                    {"type_id": str(s.type_id), "qty": int(s.qty), "comment": s.comment}
-                    for s in sorted(stock.get(r.id, []), key=lambda s: type_name.get(s.type_id, ""))
+                    {"item_id": str(s.item_id), "qty": int(s.qty), "comment": s.comment}
+                    for s in sorted(stock.get(r.id, []), key=lambda s: name_of[s.item_id])
                 ],
             }
             for r in rooms
         ],
-        "types": [{"id": str(t.id), "name": t.name, "measure": t.measure, "note": t.note, "photo": t.photo} for t in types],
+        "items": [
+            {
+                "id": str(i.id), "sku": i.sku, "name": i.name, "category": i.category, "note": i.note,
+                "photo": (i.image_paths or [None])[0], "buildings": buildings.get(i.id, {}),
+            }
+            for i in items
+        ],
+        "categories": known + extra,
     }
+
+
+def room_index(db: Session) -> dict:
+    """item id -> the rooms it is in (for the catalog's item screen: 'In rooms')."""
+    rooms = {r.id: r for r in db.execute(select(FurnitureRoom)).scalars().all()}
+    out: dict = {}
+    for row in db.execute(select(FurnitureRoomItem)).scalars().all():
+        r = rooms.get(row.room_id)
+        if r is not None:
+            out.setdefault(str(row.item_id), []).append((r, int(row.qty)))
+    return {
+        k: [{"room_id": str(r.id), "label": r.label, "floor": r.floor, "kind": r.kind, "qty": q} for r, q in sorted(v, key=lambda p: room_sort_key(p[0]))]
+        for k, v in out.items()
+    }
+
+
+def room_usage(db: Session, item_id) -> tuple[int, int]:
+    """(how many rooms, how many units) of a catalog item sit in rooms."""
+    uid = _uid(item_id)
+    if uid is None:
+        return 0, 0
+    n, units = db.execute(
+        select(func.count(), func.coalesce(func.sum(FurnitureRoomItem.qty), 0)).where(FurnitureRoomItem.item_id == uid)
+    ).one()
+    return int(n), int(units)
 
 
 # ------------------------------------------------------------------ helpers
@@ -85,13 +146,14 @@ def _room(db: Session, room_id) -> FurnitureRoom | None:
     return db.get(FurnitureRoom, uid) if uid else None
 
 
-def _type(db: Session, type_id) -> FurnitureRoomType | None:
-    uid = _uid(type_id)
-    return db.get(FurnitureRoomType, uid) if uid else None
+def _item(db: Session, item_id) -> FurnitureItem | None:
+    uid = _uid(item_id)
+    it = db.get(FurnitureItem, uid) if uid else None
+    return it if it is not None and it.is_active else None
 
 
-def _row(db: Session, room_id, type_id, lock: bool = True) -> FurnitureRoomStock | None:
-    q = select(FurnitureRoomStock).where(FurnitureRoomStock.room_id == room_id, FurnitureRoomStock.type_id == type_id)
+def _row(db: Session, room_id, item_id, lock: bool = True) -> FurnitureRoomItem | None:
+    q = select(FurnitureRoomItem).where(FurnitureRoomItem.room_id == room_id, FurnitureRoomItem.item_id == item_id)
     return db.execute(q.with_for_update() if lock else q).scalar_one_or_none()
 
 
@@ -119,11 +181,10 @@ def _label_taken(db: Session, floor: int, label: str, exclude_id=None) -> bool:
     return db.execute(q).first() is not None
 
 
-def _type_by_name(db: Session, name: str, exclude_id=None) -> FurnitureRoomType | None:
-    q = select(FurnitureRoomType).where(func.lower(FurnitureRoomType.name) == name.lower())
-    if exclude_id is not None:
-        q = q.where(FurnitureRoomType.id != exclude_id)
-    return db.execute(q).scalars().first()
+def _active_by_name(db: Session, name: str) -> FurnitureItem | None:
+    return db.execute(
+        select(FurnitureItem).where(func.lower(FurnitureItem.name) == name.lower(), FurnitureItem.is_active.is_(True))
+    ).scalars().first()
 
 
 def _comment(value) -> str | None:
@@ -174,71 +235,47 @@ def delete_room(db: Session, room_id, *, actor: str) -> dict:
     room = _room(db, room_id)
     if room is None:
         return _fail("NOT_FOUND", "That room no longer exists.")
-    if db.execute(select(func.count()).select_from(FurnitureRoomStock).where(FurnitureRoomStock.room_id == room.id)).scalar():
+    if db.execute(select(func.count()).select_from(FurnitureRoomItem).where(FurnitureRoomItem.room_id == room.id)).scalar():
         return _fail("NOT_EMPTY", "That room still has furniture in it. Move or remove it first.")
     _audit(db, "room_delete", actor, {"floor": room.floor, "label": room.label})
     db.delete(room)
     return {"ok": True}
 
 
-# ------------------------------------------------------------- item types
-def update_type(db: Session, type_id, *, actor: str, name=_UNSET, measure=_UNSET, note=_UNSET) -> dict:
-    t = _type(db, type_id)
-    if t is None:
-        return _fail("NOT_FOUND", "That item no longer exists.")
-    before = {"name": t.name, "measure": t.measure, "note": t.note}
-    new_name = t.name if name is _UNSET or name is None else _clean(name)
-    if not new_name:
-        return _fail("BAD_REQUEST", "Give the item a name.")
-    if len(new_name) > 200:
-        return _fail("BAD_REQUEST", "That name is too long (200 characters max).")
-    if new_name.lower() != t.name.lower() and _type_by_name(db, new_name, exclude_id=t.id):
-        return _fail("DUPLICATE_TYPE", f'There is already an item called "{new_name}".')
-    after = {
-        "name": new_name,
-        "measure": t.measure if measure is _UNSET else (_clean(measure)[:200] or None),
-        "note": t.note if note is _UNSET else (_clean(note) or None),
-    }
-    if before == after:
-        return {"ok": True, "unchanged": True, "type_id": str(t.id)}
-    t.name, t.measure, t.note = after["name"], after["measure"], after["note"]
-    db.flush()
-    _audit(db, "roomtype_edit", actor, {"before": before, "after": after})
-    return {"ok": True, "type_id": str(t.id)}
-
-
 # ------------------------------------------------------- stock in a room
 def add_to_room(
-    db: Session, room_id, *, actor: str, qty: int, type_id=None, new_type_name=None, new_type_measure=None, comment=None
+    db: Session, room_id, *, actor: str, qty: int, item_id=None, new_name=None, new_category=None, new_note=None, comment=None
 ) -> dict:
-    """Put `qty` of a type into a room (added to what is already there). A brand-new type can be created on the way."""
+    """Put `qty` of a catalog item into a room (added to what is already there).
+    A name that already exists in the catalog reuses that item — it never makes a second copy."""
     room = _room(db, room_id)
     if room is None:
         return _fail("NOT_FOUND", "That room no longer exists.")
     bad = _valid_qty(qty)
     if bad:
         return bad
-    created_type = False
-    if type_id:
-        t = _type(db, type_id)
-        if t is None:
+    created = False
+    if item_id:
+        item = _item(db, item_id)
+        if item is None:
             return _fail("NOT_FOUND", "That item no longer exists.")
     else:
-        name = _clean(new_type_name)
+        name = _clean(new_name)
         if not name:
             return _fail("BAD_REQUEST", "Pick an item, or give the new item a name.")
-        if len(name) > 200:
-            return _fail("BAD_REQUEST", "That name is too long (200 characters max).")
-        t = _type_by_name(db, name)
-        if t is None:
-            t = FurnitureRoomType(name=name, measure=_clean(new_type_measure)[:200] or None)
-            db.add(t)
-            db.flush()
-            created_type = True
-    row = _row(db, room.id, t.id)
+        item = _active_by_name(db, name)
+        if item is None:
+            if not _clean(new_category):
+                return _fail("BAD_REQUEST", "Pick a category for the new item.")
+            res = furn.create_item(db, name=name, category=_clean(new_category), note=(new_note or "").strip() or None, stock={}, actor=actor)
+            if not res.get("ok"):
+                return res
+            item = db.get(FurnitureItem, _uid(res["item"]["id"]))
+            created = True
+    row = _row(db, room.id, item.id)
     c = _comment(comment)
     if row is None:
-        row = FurnitureRoomStock(room_id=room.id, type_id=t.id, qty=qty, comment=c)
+        row = FurnitureRoomItem(room_id=room.id, item_id=item.id, qty=qty, comment=c)
         db.add(row)
         before = 0
     else:
@@ -249,25 +286,25 @@ def add_to_room(
         if c and c not in (row.comment or ""):
             row.comment = f"{row.comment} · {c}" if row.comment else c
     db.flush()
-    _audit(db, "room_add", actor, {"room": room.label, "floor": room.floor, "type": t.name, "qty": qty, "before": before, "to": row.qty, "new_type": created_type})
-    return {"ok": True, "room_id": str(room.id), "type_id": str(t.id), "qty": row.qty, "created_type": created_type}
+    _audit(db, "room_add", actor, {"room": room.label, "floor": room.floor, "type": item.name, "sku": item.sku, "qty": qty, "before": before, "to": row.qty, "new_type": created})
+    return {"ok": True, "room_id": str(room.id), "item_id": str(item.id), "qty": row.qty, "created_item": created}
 
 
-def set_room_stock(db: Session, room_id, type_id, *, actor: str, qty: int, expected_qty=None, comment=_UNSET) -> dict:
-    """MODIFY: set the amount (and optionally the comment) of a type in a room. 0 removes it. expected_qty guards against a concurrent edit."""
-    room, t = _room(db, room_id), _type(db, type_id)
-    if room is None or t is None:
+def set_room_stock(db: Session, room_id, item_id, *, actor: str, qty: int, expected_qty=None, comment=_UNSET) -> dict:
+    """MODIFY: set the amount (and optionally the comment) of an item in a room. 0 removes it. expected_qty guards against a concurrent edit."""
+    room, item = _room(db, room_id), _item(db, item_id)
+    if room is None or item is None:
         return _fail("NOT_FOUND", "That room or item no longer exists.")
     bad = _valid_qty(qty, 0)
     if bad:
         return bad
-    row = _row(db, room.id, t.id)
+    row = _row(db, room.id, item.id)
     if row is None:
-        return _fail("NOT_FOUND", f"{t.name} is no longer in room {room.label}.")
+        return _fail("NOT_FOUND", f"{item.name} is no longer in room {room.label}.")
     if expected_qty is not None and expected_qty != row.qty:
         return {
             "ok": False, "code": "CONFLICT", "quantity": row.qty,
-            "error": f"Someone else changed {t.name} in {room.label} to {row.qty} while you were editing. The latest number is shown — check it and save again.",
+            "error": f"Someone else changed {item.name} in {room.label} to {row.qty} while you were editing. The latest number is shown — check it and save again.",
         }
     new_comment = row.comment if comment is _UNSET else _comment(comment)
     if qty == row.qty and new_comment == row.comment:
@@ -275,44 +312,44 @@ def set_room_stock(db: Session, room_id, type_id, *, actor: str, qty: int, expec
     before, old_comment = row.qty, row.comment
     if qty == 0:
         db.delete(row)
-        _audit(db, "room_remove", actor, {"room": room.label, "floor": room.floor, "type": t.name, "qty": before, "left": 0})
+        _audit(db, "room_remove", actor, {"room": room.label, "floor": room.floor, "type": item.name, "sku": item.sku, "qty": before, "left": 0})
         db.flush()
         return {"ok": True, "qty": 0}
     row.qty, row.comment = qty, new_comment
     db.flush()
-    _audit(db, "room_set", actor, {"room": room.label, "floor": room.floor, "type": t.name, "from": before, "to": qty,
+    _audit(db, "room_set", actor, {"room": room.label, "floor": room.floor, "type": item.name, "sku": item.sku, "from": before, "to": qty,
                                    "comment_changed": new_comment != old_comment, "comment": new_comment})
     return {"ok": True, "qty": qty}
 
 
-def remove_from_room(db: Session, room_id, type_id, *, actor: str, qty=None) -> dict:
-    """Take `qty` (or all, when qty is None) of a type out of a room."""
-    room, t = _room(db, room_id), _type(db, type_id)
-    if room is None or t is None:
+def remove_from_room(db: Session, room_id, item_id, *, actor: str, qty=None) -> dict:
+    """Take `qty` (or all, when qty is None) of an item out of a room."""
+    room, item = _room(db, room_id), _item(db, item_id)
+    if room is None or item is None:
         return _fail("NOT_FOUND", "That room or item no longer exists.")
-    row = _row(db, room.id, t.id)
+    row = _row(db, room.id, item.id)
     if row is None:
-        return _fail("NOT_FOUND", f"{t.name} is no longer in room {room.label}.")
+        return _fail("NOT_FOUND", f"{item.name} is no longer in room {room.label}.")
     take = row.qty if qty is None else qty
     bad = _valid_qty(take)
     if bad:
         return bad
     if take > row.qty:
-        return _fail("NOT_ENOUGH", f"Room {room.label} only has {row.qty} × {t.name}.")
+        return _fail("NOT_ENOUGH", f"Room {room.label} only has {row.qty} × {item.name}.")
     left = row.qty - take
     if left == 0:
         db.delete(row)
     else:
         row.qty = left
     db.flush()
-    _audit(db, "room_remove", actor, {"room": room.label, "floor": room.floor, "type": t.name, "qty": take, "left": left})
+    _audit(db, "room_remove", actor, {"room": room.label, "floor": room.floor, "type": item.name, "sku": item.sku, "qty": take, "left": left})
     return {"ok": True, "qty": left}
 
 
-def move_between_rooms(db: Session, from_room_id, to_room_id, type_id, *, actor: str, qty: int, expected_from_qty=None) -> dict:
-    """MOVE `qty` of a type from one room to another — all or nothing."""
-    src, dst, t = _room(db, from_room_id), _room(db, to_room_id), _type(db, type_id)
-    if src is None or dst is None or t is None:
+def move_between_rooms(db: Session, from_room_id, to_room_id, item_id, *, actor: str, qty: int, expected_from_qty=None) -> dict:
+    """MOVE `qty` of an item from one room to another — all or nothing."""
+    src, dst, item = _room(db, from_room_id), _room(db, to_room_id), _item(db, item_id)
+    if src is None or dst is None or item is None:
         return _fail("NOT_FOUND", "That room or item no longer exists.")
     if src.id == dst.id:
         return _fail("BAD_REQUEST", "Pick a different room to move it to.")
@@ -323,17 +360,17 @@ def move_between_rooms(db: Session, from_room_id, to_room_id, type_id, *, actor:
     first, second = sorted([(src.id, "src"), (dst.id, "dst")], key=lambda p: str(p[0]))
     rows = {}
     for rid, tag in (first, second):
-        rows[tag] = _row(db, rid, t.id)
+        rows[tag] = _row(db, rid, item.id)
     src_row, dst_row = rows["src"], rows["dst"]
     if src_row is None:
-        return _fail("NOT_FOUND", f"{t.name} is no longer in room {src.label}.")
+        return _fail("NOT_FOUND", f"{item.name} is no longer in room {src.label}.")
     if expected_from_qty is not None and expected_from_qty != src_row.qty:
         return {
             "ok": False, "code": "CONFLICT", "quantity": src_row.qty,
-            "error": f"Someone else changed {t.name} in {src.label} to {src_row.qty} while you were choosing. The latest number is shown — check it and try again.",
+            "error": f"Someone else changed {item.name} in {src.label} to {src_row.qty} while you were choosing. The latest number is shown — check it and try again.",
         }
     if qty > src_row.qty:
-        return _fail("NOT_ENOUGH", f"Room {src.label} only has {src_row.qty} × {t.name}.")
+        return _fail("NOT_ENOUGH", f"Room {src.label} only has {src_row.qty} × {item.name}.")
     carried = src_row.comment if qty == src_row.qty else None   # moving the last ones takes the note along
     left = src_row.qty - qty
     if left == 0:
@@ -341,47 +378,219 @@ def move_between_rooms(db: Session, from_room_id, to_room_id, type_id, *, actor:
     else:
         src_row.qty = left
     if dst_row is None:
-        dst_row = FurnitureRoomStock(room_id=dst.id, type_id=t.id, qty=qty, comment=carried)
+        dst_row = FurnitureRoomItem(room_id=dst.id, item_id=item.id, qty=qty, comment=carried)
         db.add(dst_row)
     else:
         dst_row.qty += qty
         if carried and not dst_row.comment:
             dst_row.comment = carried
     db.flush()
-    _audit(db, "room_move", actor, {"type": t.name, "from_room": src.label, "from_floor": src.floor, "to_room": dst.label,
+    _audit(db, "room_move", actor, {"type": item.name, "sku": item.sku, "from_room": src.label, "from_floor": src.floor, "to_room": dst.label,
                                     "to_floor": dst.floor, "qty": qty, "from_left": left, "to_now": dst_row.qty})
     return {"ok": True, "from_left": left, "to_now": dst_row.qty}
 
 
-# ------------------------------------------------------------- first-run import
-def import_seed(db: Session, data: dict, actor: str = "import") -> dict:
-    types: dict = {}
-    for t in data.get("types", []):
-        row = FurnitureRoomType(name=t["name"], measure=t.get("measure"), note=t.get("note"), photo=t.get("photo"))
-        db.add(row)
-        types[t["name"]] = row
+# ----------------------------------------------------------- merge two items
+def merge_items(db: Session, source_id, target_id, *, actor: str) -> dict:
+    """The SOURCE item is the same thing as the TARGET: its rooms and building counts move onto the target
+    and the source leaves the catalog. Nothing is lost, nothing is counted twice."""
+    src, dst = _item(db, source_id), _item(db, target_id)
+    if src is None or dst is None:
+        return _fail("NOT_FOUND", "That item no longer exists.")
+    if src.id == dst.id:
+        return _fail("BAD_REQUEST", "Pick a different item to merge into.")
+    moved_rooms = moved_units = 0
+    for row in db.execute(select(FurnitureRoomItem).where(FurnitureRoomItem.item_id == src.id).with_for_update()).scalars().all():
+        existing = _row(db, row.room_id, dst.id)
+        qty, comment = row.qty, row.comment
+        db.delete(row)
+        db.flush()
+        if existing is None:
+            db.add(FurnitureRoomItem(room_id=row.room_id, item_id=dst.id, qty=qty, comment=comment))
+        else:
+            existing.qty += qty
+            if comment and comment not in (existing.comment or ""):
+                existing.comment = f"{existing.comment} · {comment}" if existing.comment else comment
+        moved_rooms += 1
+        moved_units += qty
+    building_units = 0
+    for s in db.execute(select(FurnitureStock).where(FurnitureStock.item_id == src.id)).scalars().all():
+        if s.qty > 0:
+            t = db.get(FurnitureStock, (dst.id, s.location_id))
+            if t is None:
+                db.add(FurnitureStock(item_id=dst.id, location_id=s.location_id, qty=s.qty))
+            else:
+                t.qty += s.qty
+            building_units += s.qty
+        s.qty = 0
+    src.is_active = False
     db.flush()
-    n_rooms = n_rows = units = 0
-    for r in data.get("rooms", []):
+    _audit(db, "merge", actor, {"source": {"sku": src.sku, "name": src.name}, "target": {"sku": dst.sku, "name": dst.name},
+                                "rooms": moved_rooms, "room_units": moved_units, "building_units": building_units})
+    return {"ok": True, "target_id": str(dst.id), "rooms_moved": moved_rooms, "units_moved": moved_units}
+
+
+# ------------------------------------------------ catalog linking (import + migration)
+_CATEGORY_GUESS = [
+    (r"robot|franka|pedestal|embodiment", "Robots & Stations"), (r"printer|monitor|screen|pc\b|keyboard|mouse", "IT"),
+    (r"whiteboard|\btv\b|partition", "Whiteboards & Displays"), (r"chair|stool|sofa|couch|bench", "Chairs & Seating"),
+    (r"shelf|cabinet|locker|wardrobe", "Storage & Shelving"), (r"desk|table", "Tables & Desks"),
+    (r"kitchen|fridge|coffee|kettle|microwave", "Kitchen & Appliances"), (r"trolley|pallet|platform", "Transport & Logistics"),
+]
+
+
+def guess_category(name: str) -> str:
+    n = str(name or "").lower()
+    for pattern, category in _CATEGORY_GUESS:
+        if re.search(pattern, n):
+            return category
+    return "Office Essentials"
+
+
+def _load_seed() -> dict | None:
+    if not SEED_FILE.exists():
+        return None
+    return json.loads(SEED_FILE.read_text(encoding="utf-8"))
+
+
+class _Resolver:
+    """Turns survey kinds / catalog SKUs into catalog items: links to what exists, creates only what does not."""
+
+    def __init__(self, db: Session, seed: dict, actor: str):
+        self.db, self.seed, self.actor = db, seed, actor
+        self.by_sku = {i.sku: i for i in db.execute(select(FurnitureItem).where(FurnitureItem.is_active.is_(True))).scalars().all()}
+        self.by_name = {i.name.lower(): i for i in self.by_sku.values()}
+        self.created: dict = {}
+        self.linked: set = set()
+
+    def _make(self, name: str, category: str, note: str | None) -> FurnitureItem:
+        res = furn.create_item(self.db, name=name, category=category, note=note, stock={}, actor=self.actor)
+        if not res.get("ok"):
+            raise RuntimeError(f"could not create catalog item {name!r}: {res}")
+        item = self.db.get(FurnitureItem, _uid(res["item"]["id"]))
+        self.by_sku[item.sku], self.by_name[item.name.lower()] = item, item
+        self.created[item.sku] = item
+        return item
+
+    def sku(self, sku: str) -> FurnitureItem:
+        item = self.by_sku.get(sku)
+        if item is None:  # the catalog item was deleted or never loaded: do not fail the import — make it from the hint in the seed
+            hint = (self.seed.get("catalog") or {}).get(sku) or {"name": sku, "category": "Office Essentials"}
+            item = self.by_name.get(hint["name"].lower()) or self._make(hint["name"], hint["category"], "Added from the room survey (its catalog entry was missing).")
+        if item.sku not in self.created:  # "linked" means it already existed; something we had to create counts as new, not as both
+            self.linked.add(item.sku)
+        return item
+
+    def kind(self, kind: str) -> FurnitureItem:
+        link = (self.seed.get("links") or {}).get(kind)
+        if link and link.get("sku"):
+            return self.sku(link["sku"])
+        spec = (self.seed.get("new_items") or {}).get(kind)
+        if spec:
+            item = self.by_name.get(spec["name"].lower())
+            if item is None:
+                return self._make(spec["name"], spec["category"], spec.get("note"))
+            if item.sku not in self.created:  # the catalog already has an item with this very name: link to it, never duplicate
+                self.linked.add(item.sku)
+            return item
+        # a kind the survey never had (e.g. typed in by someone on the first version): the same name in the catalog, or a new item
+        name = _clean(kind)
+        item = self.by_name.get(name.lower())
+        if item is not None:
+            self.linked.add(item.sku)
+            return item
+        return self._make(name[:1].upper() + name[1:], guess_category(name), "Added from the room survey. Check it is not a duplicate — if it is, use Merge.")
+
+
+class _Acc:
+    """One (room, item) line while importing: several survey lines can land on the same catalog item."""
+
+    def __init__(self):
+        self.qty, self.comments, self.variants = 0, [], collections.Counter()
+
+    def add(self, qty: int, comment: str | None, variant: str | None = None):
+        self.qty += qty
+        if comment and comment not in self.comments:
+            self.comments.append(comment)
+        if variant:
+            self.variants[variant] += qty
+
+    def comment(self) -> str | None:
+        parts = [f"{v} ×{n}" if len(self.variants) > 1 else v for v, n in self.variants.items()] + self.comments
+        return " · ".join(parts)[:300] or None
+
+
+def import_seed(db: Session, seed: dict, actor: str = "import") -> dict:
+    res = _Resolver(db, seed, actor)
+    n_rooms = units = n_rows = 0
+    for r in seed.get("rooms", []):
         room = FurnitureRoom(floor=r["floor"], label=r["label"], kind=r.get("kind", "room"), note=r.get("note"))
         db.add(room)
         db.flush()
         n_rooms += 1
+        acc: dict = {}
         for it in r.get("items", []):
-            db.add(FurnitureRoomStock(room_id=room.id, type_id=types[it["type"]].id, qty=it["qty"], comment=it.get("comment")))
+            item = res.sku(it["sku"]) if it.get("sku") else res.kind(it["new"])
+            acc.setdefault(item.id, _Acc()).add(it["qty"], it.get("comment"))
+        for item_id, a in acc.items():
+            db.add(FurnitureRoomItem(room_id=room.id, item_id=item_id, qty=a.qty, comment=a.comment()))
             n_rows += 1
-            units += it["qty"]
+            units += a.qty
     db.flush()
-    _audit(db, "room_import", actor, {"source": data.get("source"), "rooms": n_rooms, "types": len(types), "rows": n_rows, "units": units})
-    return {"rooms": n_rooms, "types": len(types), "rows": n_rows, "units": units}
+    stats = {"rooms": n_rooms, "rows": n_rows, "units": units, "linked_items": len(res.linked), "new_items": len(res.created)}
+    _audit(db, "room_import", actor, {"source": seed.get("source"), **stats})
+    return stats
+
+
+def migrate_legacy_rooms(db: Session, actor: str = "migration") -> dict:
+    """First version -> catalog items. Copies the CURRENT rooms/amounts/comments (so every edit people made is kept);
+    the old tables are left untouched as a backup."""
+    if db.execute(select(func.count()).select_from(FurnitureRoomItem)).scalar():
+        return {"skipped": True}
+    if db.execute(select(AuditEvent.id).where(AuditEvent.event_type == "furniture_room_migrate")).first():
+        return {"skipped": True}
+    legacy = db.execute(select(FurnitureRoomStock)).scalars().all()
+    if not legacy:
+        return {"skipped": True}
+    seed = _load_seed() or {}
+    types = {t.id: t for t in db.execute(select(FurnitureRoomType)).scalars().all()}
+    rooms = {r.id: r for r in db.execute(select(FurnitureRoom)).scalars().all()}
+    res = _Resolver(db, seed, actor)
+    overrides = seed.get("row_overrides") or {}
+    links = seed.get("links") or {}
+    acc: dict = {}
+    for row in legacy:
+        t, room = types.get(row.type_id), rooms.get(row.room_id)
+        if t is None or room is None:
+            continue
+        sku = overrides.get(f"{room.label}|{t.name}")
+        item = res.sku(sku) if sku else res.kind(t.name)
+        variant = (links.get(t.name) or {}).get("variant")
+        acc.setdefault((room.id, item.id), _Acc()).add(row.qty, row.comment, variant)
+    n_rows = units = 0
+    for (room_id, item_id), a in acc.items():
+        db.add(FurnitureRoomItem(room_id=room_id, item_id=item_id, qty=a.qty, comment=a.comment()))
+        n_rows += 1
+        units += a.qty
+    db.flush()
+    stats = {"rooms": len({k[0] for k in acc}), "rows": n_rows, "units": units, "from_rows": len(legacy), "linked_items": len(res.linked), "new_items": len(res.created)}
+    _audit(db, "room_migrate", actor, stats)
+    return stats
 
 
 def seed_rooms_if_empty(db: Session) -> dict:
-    """First start after this feature is deployed: load the spreadsheet's rooms. Never touches a database that already has rooms."""
-    if db.execute(select(func.count()).select_from(FurnitureRoom)).scalar():
-        return {"skipped": True}
-    if not SEED_FILE.exists():
-        return {"skipped": True, "reason": "no seed file"}
-    result = import_seed(db, json.loads(SEED_FILE.read_text(encoding="utf-8")))
-    db.commit()
-    return result
+    """Called at every start-up; safe to repeat. Never touches rooms that already use catalog items."""
+    try:
+        if not db.execute(select(func.count()).select_from(FurnitureRoom)).scalar():
+            seed = _load_seed()
+            if not seed:
+                return {"skipped": True, "reason": "no seed file"}
+            result = import_seed(db, seed)
+        else:
+            result = migrate_legacy_rooms(db)
+        db.commit()
+        return result
+    except Exception as exc:  # a problem here must never stop the app from starting
+        db.rollback()
+        logger.exception("Furniture rooms set-up failed")
+        return {"skipped": True, "error": str(exc)}

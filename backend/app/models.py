@@ -153,7 +153,7 @@ class FurnitureRoom(Base):
 
 
 class FurnitureRoomType(Base):
-    """What can stand in a room (chair, large cabinet, monitor …). Shared by all rooms; the name is unique."""
+    """LEGACY (first version of Browse by room): replaced by furniture_items. Kept only as a backup and as the source of the one-time migration."""
 
     __tablename__ = "furniture_room_types"
 
@@ -166,7 +166,7 @@ class FurnitureRoomType(Base):
 
 
 class FurnitureRoomStock(Base):
-    """How many of a type are in a room. A row exists only while at least one is there."""
+    """LEGACY (first version of Browse by room): replaced by furniture_room_items. Kept as a backup and as the source of the one-time migration."""
 
     __tablename__ = "furniture_room_stock"
     __table_args__ = (CheckConstraint("qty > 0", name="ck_furniture_room_stock_qty_positive"),)
@@ -176,6 +176,25 @@ class FurnitureRoomStock(Base):
     )
     type_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("furniture_room_types.id", ondelete="CASCADE"), primary_key=True
+    )
+    qty: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+
+
+class FurnitureRoomItem(Base):
+    """
+    How many of a CATALOG item (furniture_items) are in a room. A row exists only while at least one is there.
+    The same item can be in many rooms AND counted in the buildings — it is one record, never a copy.
+    """
+
+    __tablename__ = "furniture_room_items"
+    __table_args__ = (CheckConstraint("qty > 0", name="ck_furniture_room_items_qty_positive"),)
+
+    room_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("furniture_rooms.id", ondelete="CASCADE"), primary_key=True
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("furniture_items.id", ondelete="CASCADE"), primary_key=True
     )
     qty: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str | None] = mapped_column(Text)

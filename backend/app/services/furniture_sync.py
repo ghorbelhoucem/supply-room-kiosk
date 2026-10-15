@@ -145,7 +145,17 @@ def _room_history(kind: str, d: dict) -> tuple | None:
         det = "; ".join(f"{k}: {b.get(k) or '—'} → {a.get(k) or '—'}" for k in ("name", "measure", "note") if b.get(k) != a.get(k))
         return "Item type edited", a.get("name", ""), "", "", "", det
     if kind == "room_import":
-        return "Rooms imported", "", "", "", d.get("units", ""), f"{d.get('rooms')} rooms, {d.get('types')} item types, {d.get('units')} units from {d.get('source')}"
+        det = f"{d.get('rooms')} rooms, {d.get('units')} units from {d.get('source')}"
+        if "linked_items" in d:
+            det += f" — {d.get('linked_items')} existing items linked, {d.get('new_items')} new items"
+        else:
+            det = f"{d.get('rooms')} rooms, {d.get('types')} item types, {d.get('units')} units from {d.get('source')}"
+        return "Rooms imported", "", "", "", d.get("units", ""), det
+    if kind == "room_migrate":
+        return "Rooms linked to the catalog", "", "", "", d.get("units", ""), f"{d.get('from_rows')} room lines moved onto catalog items — {d.get('linked_items')} existing items linked, {d.get('new_items')} new items; amounts and edits kept"
+    if kind == "merge":
+        src, dst = d.get("source") or {}, d.get("target") or {}
+        return "Items merged", dst.get("name", ""), "", "", "", f"{src.get('name')} ({src.get('sku')}) is the same as {dst.get('name')} ({dst.get('sku')}): {d.get('rooms')} rooms ({d.get('room_units')} units) and {d.get('building_units')} building units moved"
     return None
 
 
@@ -227,14 +237,15 @@ def build_payload(db: Session) -> dict:
     }
 
 
-ROOMS_HEADERS = ["Floor", "Room", "Item", "Amount", "Size", "Comment"]
+ROOMS_HEADERS = ["Floor", "Room", "SKU", "Item", "Category", "Amount", "Comment"]
 
 
 def _rooms_rows(db: Session) -> list:
+    """One row per (room, catalog item) — the SKU ties each row back to the Inventory tab."""
     rs = rooms_svc.snapshot_rooms(db)
-    by_id = {t["id"]: t for t in rs["types"]}
+    by_id = {t["id"]: t for t in rs["items"]}
     return [
-        [r["floor"], _text_cell(r["label"]), _safe(by_id[i["type_id"]]["name"]), int(i["qty"]), _safe(by_id[i["type_id"]]["measure"] or ""), _safe(i["comment"] or "")]
+        [r["floor"], _text_cell(r["label"]), _safe(by_id[i["item_id"]]["sku"]), _safe(by_id[i["item_id"]]["name"]), _safe(by_id[i["item_id"]]["category"]), int(i["qty"]), _safe(i["comment"] or "")]
         for r in rs["rooms"]
         for i in r["items"]
     ]
