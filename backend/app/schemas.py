@@ -64,6 +64,7 @@ class ReceiveRequest(BaseModel):
     category: str | None = None  # required only when creating a brand-new item
     sop_status: str | None = None  # 'Active' or 'Non-Active', SOPs only
     shelf_location: str | None = Field(default=None, max_length=8)  # SOPs only, e.g. 'A3'
+    reorder_min: int | None = Field(default=None, ge=0, le=100000)  # only used when this creates a NEW Tool / Station Part
 
 
 class AdjustRequest(BaseModel):
@@ -71,6 +72,24 @@ class AdjustRequest(BaseModel):
     item: str
     qty_delta: int
     reason: str = Field(..., min_length=3)
+
+
+class UpdateItemRequest(BaseModel):
+    """Edit one item from the Manager Report. Only the fields that are sent (not null) are changed."""
+    client_request_id: str = Field(..., min_length=8)
+    item: str = Field(..., min_length=1, max_length=200)          # the item's CURRENT name
+    new_name: str | None = Field(default=None, max_length=200)
+    qty: int | None = Field(default=None, ge=0, le=100000)         # the new total (Tools/SOPs) or amount on hand (Station Parts)
+    expected_qty: int | None = Field(default=None, ge=0)           # what the person saw; a mismatch means someone else changed it
+    reorder_min: int | None = Field(default=None, ge=0, le=100000)
+    sop_status: str | None = Field(default=None, max_length=20)
+    shelf_location: str | None = Field(default=None, max_length=8)
+    reason: str | None = Field(default=None, max_length=200)
+
+
+class DeleteItemRequest(BaseModel):
+    client_request_id: str = Field(..., min_length=8)
+    item: str = Field(..., min_length=1, max_length=200)
 
 
 class InventoryRow(BaseModel):

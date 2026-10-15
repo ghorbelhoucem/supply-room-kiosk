@@ -158,8 +158,26 @@
             category: payload.category || null,
             sop_status: payload.sop_status || null,
             shelf_location: payload.shelf_location || null,
+            reorder_min: payload.reorder_min != null ? payload.reorder_min : null,
           },
           retry: false,
+        });
+      },
+      async updateItem(p) {
+        return requestJson('/inventory/update', {
+          method: 'POST', auth: true, retry: false,
+          body: {
+            client_request_id: p.client_request_id || newRequestId(), item: p.item,
+            new_name: p.new_name != null ? p.new_name : null, qty: p.qty != null ? p.qty : null,
+            expected_qty: p.expected_qty != null ? p.expected_qty : null, reorder_min: p.reorder_min != null ? p.reorder_min : null,
+            sop_status: p.sop_status || null, shelf_location: p.shelf_location || null, reason: p.reason || null,
+          },
+        });
+      },
+      async deleteItem(p) {
+        return requestJson('/inventory/delete', {
+          method: 'POST', auth: true, retry: false,
+          body: { client_request_id: p.client_request_id || newRequestId(), item: p.item },
         });
       },
       async warranty(payload) {

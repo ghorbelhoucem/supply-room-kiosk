@@ -17,7 +17,7 @@ router = APIRouter(tags=["reports"])
 
 @router.get("/reports/summary")
 def report_summary(db: Session = Depends(get_db), _user: User = Depends(require_report_access)):
-    items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
+    items = db.execute(select(InventoryItem).where(InventoryItem.is_active.is_(True)).order_by(InventoryItem.name)).scalars().all()
     open_tx = (
         db.execute(select(Checkout).where(Checkout.returned_at.is_(None))).scalars().all()
     )
@@ -59,7 +59,7 @@ def export_inventory_xlsx(db: Session = Depends(get_db), _user: User = Depends(r
     ws = wb.active
     ws.title = "Inventory"
     ws.append(["SKU", "Item", "Category", "Qty On Hand", "Available", "Reorder Min", "Below Min", "Barcode"])
-    items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
+    items = db.execute(select(InventoryItem).where(InventoryItem.is_active.is_(True)).order_by(InventoryItem.name)).scalars().all()
     for it in items:
         avail = available_qty(db, it)
         ws.append(

@@ -7,9 +7,11 @@ from app.database import get_db
 from app.models import Checkout, InventoryItem, ItemCategory, User, WarrantyReport
 from app.schemas import (
     AdjustRequest,
+    DeleteItemRequest,
     ReceiveRequest,
     ReturnBatchRequest,
     TakeBatchRequest,
+    UpdateItemRequest,
     WarrantyRequest,
 )
 from app.services import inventory as inv
@@ -102,7 +104,7 @@ def receive(
         return existing
 
     existing_item = db.execute(
-        select(InventoryItem).where(InventoryItem.name == body.item)
+        select(InventoryItem).where(InventoryItem.name == body.item, InventoryItem.is_active.is_(True))
     ).scalar_one_or_none()
 
     if existing_item:
@@ -123,7 +125,7 @@ def receive(
 
     actor = f"{user.name}/{user.role.value}"
     item_existed_before = existing_item is not None
-    result = inv.receive_stock(db, body.item, body.qty, actor, body.reason, category=body.category, sop_status=body.sop_status, shelf_location=body.shelf_location)
+    result = inv.receive_stock(db, body.item, body.qty, actor, body.reason, category=body.category, sop_status=body.sop_status, shelf_location=body.shelf_location, reorder_min=body.reorder_min)
     if not result.get("ok"):
         db.rollback()
         return result
@@ -158,6 +160,68 @@ def adjust(
     notify_transaction(f"⚙️ *{actor}* adjusted {body.item}: {sign}{body.qty_delta} (now {result.get('quantity')})")
     check_and_notify_purchase_alerts(db)
     db.commit()
+    return result
+
+
+@router.post("/inventory/update")
+def update_inventory_item(
+    body: UpdateItemRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Edit one item (name, quantity, reorder level, SOP status/shelf) — used by the Manager Report."""
+    existing = inv.get_idempotent(db, body.client_request_id)
+    if existing:
+        return existing
+    item = inv.find_active_item(db, body.item)
+    if item is None:
+        return {"ok": False, "error": f'Unknown item "{body.item}"', "code": "UNKNOWN_ITEM"}
+    # same authority as restocking: SOPs also allow Supervisors, Tools/Station Parts the stricter list
+    if not can_restock_category(user, item.category):
+        return {"ok": False, "error": "You don't have permission to edit this item.", "code": "FORBIDDEN"}
+    actor = f"{user.name}/{user.role.value}"
+    result = inv.update_item(
+        db, body.item, actor=actor, new_name=body.new_name, qty=body.qty, expected_qty=body.expected_qty,
+        reorder_min=body.reorder_min, sop_status=body.sop_status, shelf_location=body.shelf_location, reason=body.reason,
+    )
+    if not result.get("ok"):
+        db.rollback()
+        return result
+    inv.save_idempotent(db, body.client_request_id, "inventory_update", result)
+    db.commit()
+    if not result.get("unchanged"):
+        maybe_sync_after_mutation(db)
+        summary = ", ".join(f"{k}: {a} → {b}" for k, (a, b) in result["changes"].items())
+        notify_transaction(f"✏️ *{actor}* edited {body.item}: {summary}")
+        check_and_notify_purchase_alerts(db)
+        db.commit()
+    return result
+
+
+@router.post("/inventory/delete")
+def delete_inventory_item(
+    body: DeleteItemRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete (hide) one item — used by the Manager Report. The history is kept."""
+    existing = inv.get_idempotent(db, body.client_request_id)
+    if existing:
+        return existing
+    item = inv.find_active_item(db, body.item)
+    if item is None:
+        return {"ok": False, "error": f'Unknown item "{body.item}"', "code": "UNKNOWN_ITEM"}
+    if not can_restock_category(user, item.category):
+        return {"ok": False, "error": "You don't have permission to delete this item.", "code": "FORBIDDEN"}
+    actor = f"{user.name}/{user.role.value}"
+    result = inv.delete_item(db, body.item, actor=actor)
+    if not result.get("ok"):
+        db.rollback()
+        return result
+    inv.save_idempotent(db, body.client_request_id, "inventory_delete", result)
+    db.commit()
+    maybe_sync_after_mutation(db)
+    notify_transaction(f"🗑️ *{actor}* deleted {body.item}")
     return result
 
 

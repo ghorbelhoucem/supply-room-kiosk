@@ -212,6 +212,12 @@
   .shelf-btn.area{padding:10px 16px;}
   .shelf-hint{font-size:13px;color:var(--text-dim);margin-bottom:4px;}
 
+
+  /* ===== Manager Report: editable inventory rows ===== */
+  .stockbar.editable{cursor:pointer;justify-content:flex-start;transition:border-color 0.15s ease;}
+  .stockbar.editable > span:nth-child(2){margin-left:auto;}
+  .stockbar.editable::after{content:'✏️';font-size:13px;opacity:0.75;margin-left:8px;}
+  .stockbar.editable:hover{border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -565,7 +571,7 @@
   function itemThumbHTML(itemName, width, height){
     width = width || 30;
     height = height || width;
-    const photo = PHOTO_MAP[itemName];
+    const photo = PHOTO_MAP[itemName] || PHOTO_MAP[(inventoryMap[itemName] || {}).barcode];   // a renamed item keeps its photo via its barcode
     const fallbackIcon = iconForItem(itemName);
     if(photo){
       return `<img src="${photo}" alt="" style="width:${width}px;height:${height}px;object-fit:cover;border-radius:4px;vertical-align:middle;border:1px solid var(--border);background:#fff;" onerror="this.outerHTML='<span style=\\'font-size:${Math.round(Math.min(width,height)*0.72)}px;vertical-align:middle;\\'>${fallbackIcon}</span>'">`;
@@ -752,6 +758,9 @@
     else if(screen==='furnitureEditItem') stageFurnitureEditItem(stage, banner);
     else if(screen==='furnitureAdd') stageFurnitureAdd(stage, banner);
     else if(screen==='furnitureRemove') stageFurnitureRemove(stage, banner);
+    else if(screen==='itemEdit') stageItemEdit(stage, banner);
+    else if(screen==='itemAdd') stageItemAdd(stage, banner);
+    else if(screen==='itemDelete') stageItemDelete(stage, banner);
     updateReportBtn();
     updateSignOutBtn();
     saveSession();
@@ -2498,8 +2507,8 @@
     return m ? { rack:m[1], num:parseInt(m[2],10), area:null } : { rack:null, num:null, area:null };
   }
   // the code the picker currently stands for, or null while it is incomplete
-  function shelfChoice(){
-    return restockShelf.area || ((restockShelf.rack && restockShelf.num) ? restockShelf.rack + restockShelf.num : null);
+  function shelfChoice(st = restockShelf){
+    return st.area || ((st.rack && st.num) ? st.rack + st.num : null);
   }
   function initRestockShelf(itemName){
     if(itemName === NEW_ITEM_SENTINEL){ restockShelf = { rack:null, num:null, area:null, dirty:false }; return; }
@@ -2513,23 +2522,206 @@
     const n = document.getElementById('restockNewNameInput');
     if(n) restockNewItemName = n.value;
   }
-  function shelfPickerHTML(required){
-    const racks = sopLayout.map(r=>`<button type="button" class="shelf-btn ${restockShelf.rack===r.rack?'active':''}" data-shelf-rack="${esc(r.rack)}">${esc(r.rack)}</button>`).join('');
-    const areas = sopExtraLocations.map(a=>`<button type="button" class="shelf-btn area ${restockShelf.area===a?'active':''}" data-shelf-area="${esc(a)}">⬇️ ${esc(a)}</button>`).join('');
-    const nums = restockShelf.rack
-      ? Array.from({ length: shelfCountFor(restockShelf.rack) }, (_, i)=>i + 1)
-          .map(n=>`<button type="button" class="shelf-btn ${restockShelf.num===n?'active':''}" data-shelf-num="${n}">${n}</button>`).join('')
+  function shelfPickerHTML(required, st = restockShelf){
+    const racks = sopLayout.map(r=>`<button type="button" class="shelf-btn ${st.rack===r.rack?'active':''}" data-shelf-rack="${esc(r.rack)}">${esc(r.rack)}</button>`).join('');
+    const areas = sopExtraLocations.map(a=>`<button type="button" class="shelf-btn area ${st.area===a?'active':''}" data-shelf-area="${esc(a)}">⬇️ ${esc(a)}</button>`).join('');
+    const nums = st.rack
+      ? Array.from({ length: shelfCountFor(st.rack) }, (_, i)=>i + 1)
+          .map(n=>`<button type="button" class="shelf-btn ${st.num===n?'active':''}" data-shelf-num="${n}">${n}</button>`).join('')
       : '';
-    const chosen = shelfChoice();
+    const chosen = shelfChoice(st);
     const hint = chosen
-      ? (restockShelf.dirty || required ? `It will be stored at ${shelfChipHTML(chosen)}` : `Currently at ${shelfChipHTML(chosen)} — tap to move it`)
+      ? (st.dirty || required ? `It will be stored at ${shelfChipHTML(chosen)}` : `Currently at ${shelfChipHTML(chosen)} — tap to move it`)
       : (required ? `Choose where it goes (${locationRule()}) so people can find it.` : 'No location yet — choose one so people can find it.');
     return `<label>Location${required ? ' (required)' : ''}</label>
       <div class="shelf-picker" id="shelfPicker">
         <div class="shelf-row">${racks}${areas}</div>
-        ${restockShelf.rack ? `<div class="shelf-row">${nums}</div>` : ''}
+        ${st.rack ? `<div class="shelf-row">${nums}</div>` : ''}
         <div class="shelf-hint">${hint}</div>
       </div>`;
+  }
+
+  // ===== Manager Report: edit, add and delete items ==========================
+  // Opened from the Inventory Status tab (Storage Room AND SOP Room). Anyone who may restock
+  // in the current room may edit there (the server enforces the same rule).
+  let itemDraft = null;        // in-memory working copy of the open form
+  let itemFormError = null;
+  let reportNotice = null;     // one-shot green banner when we land back on the report
+
+  function invCanEdit(){ return canManageCurrentRoom(); }
+  function takeReportNotice(){
+    if(!reportNotice) return '';
+    const h = `<div class="banner-error" style="background:#1f3a24;border-color:var(--success);color:#bdf2c9;">✅ ${esc(reportNotice)}</div>`;
+    reportNotice = null;
+    return h;
+  }
+  function stockBarAttrs(it){
+    return invCanEdit() ? `class="stockbar editable" data-edit="${esc(it.item)}"` : 'class="stockbar"';
+  }
+  function checkedOutNow(name){
+    return historyRows.filter(h=>h.item === name && h.returnedAt === 'Not returned').reduce((s,h)=>s + (Number(h.qty) || 1), 0);
+  }
+  function itemQtyLabel(reference){ return reference === 'Station Parts' ? 'In stock now' : 'Owned (total)'; }
+  function backToReport(notice){
+    itemDraft = null; itemFormError = null;
+    if(notice) reportNotice = notice;
+    reportTab = 'stock'; screen = 'report'; renderStage();
+  }
+  function wireItemLoc(stage, st){
+    const again = ()=>{ itemFormError = null; renderStage(); };
+    stage.querySelectorAll('[data-shelf-rack]').forEach(b=>{ b.onclick = ()=>{ st.rack = b.getAttribute('data-shelf-rack'); st.num = null; st.area = null; st.dirty = true; again(); }; });
+    stage.querySelectorAll('[data-shelf-area]').forEach(b=>{ b.onclick = ()=>{ st.area = b.getAttribute('data-shelf-area'); st.rack = null; st.num = null; st.dirty = true; again(); }; });
+    stage.querySelectorAll('[data-shelf-num]').forEach(b=>{ b.onclick = ()=>{ st.num = parseInt(b.getAttribute('data-shelf-num'), 10); st.dirty = true; again(); }; });
+  }
+  const intOrZero = (v)=>{ const n = parseInt(v, 10); return (isNaN(n) || n < 0) ? 0 : n; };
+  const SOP_STATUS_OPTIONS = ['Active', 'Non-Active'];
+  const statusSelectHTML = (value)=>`<label>Status</label><select id="invStatus">${SOP_STATUS_OPTIONS.map(s=>`<option value="${s}" ${value===s?'selected':''}>${s}</option>`).join('')}</select>`;
+  const nameTaken = (name, except)=>Object.values(inventoryMap).some(x=>x.item !== except && x.item.toLowerCase() === name.toLowerCase());
+
+  function openItemEdit(name, error){
+    const it = inventoryMap[name];
+    if(!it) return;
+    const p = parseShelf(it.shelf);
+    itemDraft = {
+      mode:'edit', original:name, reference:it.reference, name,
+      qty:Number(it.quantity) || 0, expected:Number(it.quantity) || 0, reorder:Number(it.reorder_min != null ? it.reorder_min : 5),
+      status:it.sop_status || 'Active', shelf0:it.shelf || null, loc:{ rack:p.rack, num:p.num, area:p.area, dirty:false }, reason:''
+    };
+    itemFormError = error || null; screen = 'itemEdit'; renderStage();
+  }
+  function openItemAdd(){
+    itemDraft = { mode:'add', reference:roomCategories()[0], name:'', qty:1, reorder:5, status:'Active', loc:{ rack:null, num:null, area:null, dirty:false }, reason:'' };
+    itemFormError = null; screen = 'itemAdd'; renderStage();
+  }
+
+  function stageItemEdit(stage, banner){
+    const d = itemDraft, it = d && d.mode === 'edit' ? inventoryMap[d.original] : null;
+    if(!it){ backToReport(); return; }
+    const isSop = d.reference === 'SOPs', out = d.reference === 'Station Parts' ? 0 : checkedOutNow(d.original);
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="fz-head"><div class="fz-title">Edit item</div><div class="fz-sub">${esc(d.reference)}</div></div>
+      <div class="form-row" style="margin-top:0;">
+        <label>Name</label>
+        <input type="text" id="invName" maxlength="200" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.name)}" />
+        <label style="margin-top:14px;">${itemQtyLabel(d.reference)}</label>
+        ${furnStepperHTML('invQty', d.qty)}
+        ${out ? `<div class="fz-sub" style="margin:-6px 0 12px;">${out} checked out right now — the total can't go below that.</div>` : ''}
+        ${isSop ? `${statusSelectHTML(d.status)}${shelfPickerHTML(false, d.loc)}` : `
+          <label>Reorder at</label>
+          ${furnStepperHTML('invReorder', d.reorder)}
+          <div class="fz-sub" style="margin:-6px 0 12px;">It shows on the Purchase List at or below this number.</div>`}
+        <label style="margin-top:6px;">Reason (optional)</label>
+        <input type="text" id="invReason" maxlength="200" placeholder="e.g. counted again, broken ones thrown away" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.reason)}" />
+        ${itemFormError ? `<div class="error-msg">${esc(itemFormError)}</div>` : ''}
+        <button class="go-btn" id="invSave" style="width:100%;">Save changes</button>
+        <button class="btn-ghost" id="invDelete" style="width:100%;margin-top:14px;border-color:var(--danger);color:#f2b9b9;">🗑️ Delete this item</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>backToReport();
+    document.getElementById('invName').oninput = (e)=>{ d.name = e.target.value; };
+    document.getElementById('invQty').oninput = (e)=>{ d.qty = intOrZero(e.target.value); };
+    document.getElementById('invReason').oninput = (e)=>{ d.reason = e.target.value; };
+    if(isSop){ document.getElementById('invStatus').onchange = (e)=>{ d.status = e.target.value; }; wireItemLoc(stage, d.loc); }
+    else document.getElementById('invReorder').oninput = (e)=>{ d.reorder = intOrZero(e.target.value); };
+    document.getElementById('invDelete').onclick = ()=>{ itemFormError = null; screen = 'itemDelete'; renderStage(); };
+    document.getElementById('invSave').onclick = async ()=>{
+      const name = d.name.trim().replace(/\s+/g, ' ');
+      if(!name){ itemFormError = 'Give the item a name.'; renderStage(); return; }
+      if(name !== d.original && nameTaken(name, d.original)){ itemFormError = `There is already an item called "${name}". Use a different name.`; renderStage(); return; }
+      const body = { item:d.original, client_request_id:apiClient.newRequestId() };
+      if(name !== d.original) body.new_name = name;
+      if(d.qty !== d.expected){ body.qty = d.qty; body.expected_qty = d.expected; }
+      if(isSop){
+        if(d.status !== (it.sop_status || 'Active')) body.sop_status = d.status;
+        if(d.loc.dirty){
+          const choice = shelfChoice(d.loc);
+          if(!choice){ itemFormError = 'Pick the shelf number too.'; renderStage(); return; }
+          if(choice !== d.shelf0) body.shelf_location = choice;
+        }
+      }else if(d.reorder !== Number(it.reorder_min != null ? it.reorder_min : 5)) body.reorder_min = d.reorder;
+      if(Object.keys(body).length === 2){ itemFormError = 'Nothing changed yet.'; renderStage(); return; }
+      if(d.reason.trim()) body.reason = d.reason.trim().replace(/\s+/g, ' ');
+      setButtonBusy(document.getElementById('invSave'), true, 'Saving...');
+      const r = await apiClient.updateItem(body);
+      if(!r.ok){
+        const msg = (typeof r.error === 'string' && r.error) || 'Something went wrong. Check the connection and try again.';
+        if(r.code === 'CONFLICT'){ await refreshRemote(); openItemEdit(d.original, msg); return; }   // reload with the latest numbers
+        itemFormError = msg; renderStage(); return;
+      }
+      await refreshRemote();
+      backToReport(`Saved ${r.item.item}.`);
+    };
+  }
+
+  function stageItemAdd(stage, banner){
+    const d = itemDraft;
+    if(!d || d.mode !== 'add'){ backToReport(); return; }
+    const cats = roomCategories(), isSop = d.reference === 'SOPs';
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="fz-head"><div class="fz-title">${cats.length === 1 && isSop ? 'Add SOP' : 'Add item'}</div><div class="fz-sub">${esc(ROOM_LABELS[selectedRoom] || '')}</div></div>
+      <div class="form-row" style="margin-top:0;">
+        ${cats.length > 1 ? `<label>Category</label><select id="invCategory">${cats.map(c=>`<option value="${esc(c)}" ${d.reference===c?'selected':''}>${esc(c)}</option>`).join('')}</select>` : ''}
+        <label>Name</label>
+        <input type="text" id="invName" maxlength="200" placeholder="${isSop ? 'e.g. Fire drill SOP' : 'e.g. USB-C to USB-C Cable'}" style="font-family:'Inter',sans-serif;letter-spacing:normal;" value="${esc(d.name)}" />
+        <label style="margin-top:14px;">${d.reference === 'Station Parts' ? 'How many are you adding?' : 'How many do you own?'}</label>
+        ${furnStepperHTML('invQty', d.qty)}
+        ${isSop ? `${statusSelectHTML(d.status)}${shelfPickerHTML(true, d.loc)}` : `
+          <label>Reorder at</label>
+          ${furnStepperHTML('invReorder', d.reorder)}
+          <div class="fz-sub" style="margin:-6px 0 12px;">It shows on the Purchase List at or below this number.</div>`}
+        ${itemFormError ? `<div class="error-msg">${esc(itemFormError)}</div>` : ''}
+        <button class="go-btn" id="invSave" style="width:100%;">Add item</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>backToReport();
+    const cat = document.getElementById('invCategory');
+    if(cat) cat.onchange = (e)=>{ d.reference = e.target.value; itemFormError = null; renderStage(); };
+    document.getElementById('invName').oninput = (e)=>{ d.name = e.target.value; };
+    document.getElementById('invQty').oninput = (e)=>{ d.qty = intOrZero(e.target.value); };
+    if(isSop){ document.getElementById('invStatus').onchange = (e)=>{ d.status = e.target.value; }; wireItemLoc(stage, d.loc); }
+    else document.getElementById('invReorder').oninput = (e)=>{ d.reorder = intOrZero(e.target.value); };
+    document.getElementById('invSave').onclick = async ()=>{
+      const name = d.name.trim().replace(/\s+/g, ' ');
+      if(!name){ itemFormError = 'Give the item a name.'; renderStage(); return; }
+      if(nameTaken(name, null)){ itemFormError = `There is already an item called "${name}". Use a different name.`; renderStage(); return; }
+      if(d.qty < 1){ itemFormError = 'Enter a quantity of at least 1.'; renderStage(); return; }
+      const payload = { item:name, qty:d.qty, category:d.reference, reason:'New item added from the Manager Report', client_request_id:apiClient.newRequestId() };
+      if(isSop){
+        const choice = shelfChoice(d.loc);
+        if(!choice){ itemFormError = `Choose a location for the new SOP (${locationRule()}).`; renderStage(); return; }
+        payload.sop_status = d.status; payload.shelf_location = choice;
+      }else payload.reorder_min = d.reorder;
+      setButtonBusy(document.getElementById('invSave'), true, 'Saving...');
+      const r = await apiClient.receive(payload);
+      if(!r.ok){ itemFormError = (typeof r.error === 'string' && r.error) || 'Something went wrong. Check the connection and try again.'; renderStage(); return; }
+      await refreshRemote();
+      backToReport(`Added ${name}.`);
+    };
+  }
+
+  function stageItemDelete(stage, banner){
+    const d = itemDraft, it = d && d.mode === 'edit' ? inventoryMap[d.original] : null;
+    if(!it){ backToReport(); return; }
+    const out = d.reference === 'Station Parts' ? 0 : checkedOutNow(d.original);
+    stage.innerHTML = banner + `
+      <span class="back-link" id="back">&larr; Cancel</span>
+      <div class="confirm-box">
+        <div class="icon" style="font-size:52px;">🗑️</div>
+        <div class="msg">Delete ${esc(d.original)}?</div>
+        <div class="detail">${out
+          ? `${out} still checked out — get ${out === 1 ? 'it' : 'them'} returned first, then delete it.`
+          : `It disappears from every list and from the Google Sheet. The history is kept, so an admin can bring it back later.`}</div>
+        ${itemFormError ? `<div class="error-msg" style="margin-top:14px;">${esc(itemFormError)}</div>` : ''}
+        <button class="go-btn" id="invConfirmDelete" style="margin-top:26px;background:var(--danger);color:#fff;" ${out ? 'disabled' : ''}>Yes, delete it</button>
+      </div>`;
+    document.getElementById('back').onclick = ()=>{ itemFormError = null; screen = 'itemEdit'; renderStage(); };
+    document.getElementById('invConfirmDelete').onclick = async ()=>{
+      setButtonBusy(document.getElementById('invConfirmDelete'), true, 'Deleting...');
+      const r = await apiClient.deleteItem({ item:d.original, client_request_id:apiClient.newRequestId() });
+      if(!r.ok){ itemFormError = (typeof r.error === 'string' && r.error) || 'Something went wrong. Check the connection and try again.'; renderStage(); return; }
+      await refreshRemote();
+      backToReport(`Deleted ${d.original}.`);
+    };
   }
 
   function stageReturn(stage, banner){
@@ -2815,7 +3007,7 @@
     else if(reportTab==='all') rows = allTx;
 
     const backLabel = '← Back';
-    stage.innerHTML = banner + `
+    stage.innerHTML = banner + takeReportNotice() + `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
         <span class="back-link" id="reportBack">${backLabel}</span>
         <span style="font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);">Manager Report</span>
@@ -2834,9 +3026,11 @@
       </div>
       ${reportTab==='stock' ? `
         <div>
-          <div class="form-row" style="margin-top:0;margin-bottom:16px;max-width:none;">
-            <input type="text" id="reportStockSearchInput" placeholder="Search inventory…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;" value="${esc(reportStockSearchQuery)}" />
+          <div class="form-row" style="margin-top:0;margin-bottom:16px;max-width:none;display:flex;gap:10px;align-items:center;">
+            <input type="text" id="reportStockSearchInput" placeholder="Search inventory…" style="font-family:'Inter',sans-serif;letter-spacing:normal;margin-bottom:0;flex:1;" value="${esc(reportStockSearchQuery)}" />
+            ${invCanEdit() ? `<button class="nav-btn" id="invAddBtn" style="white-space:nowrap;">➕ Add item</button>` : ''}
           </div>
+          ${invCanEdit() ? `<div class="fz-sub" style="margin:-6px 0 12px;">Tap an item to edit or delete it.</div>` : ''}
           ${roomCategories().includes('Tools') ? `
           <div style="font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin:0 0 8px;">Tools</div>
           ${(()=>{
@@ -2845,7 +3039,7 @@
             if(!filteredTools.length) return `<div class="empty-note">${toolItems.length ? 'No tools match your search.' : 'No tools yet.'}</div>`;
             return `<div class="stock-grid">${filteredTools.map(it=>{
               const toolLow = Number(it.quantity) <= Number(it.reorder_min || 5);
-              return `<div class="stockbar">
+              return `<div ${stockBarAttrs(it)}>
               <span>${iconForRef('Tools')} ${esc(it.item)}</span>
               <span class="stock ${toolLow || String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
             </div>`;
@@ -2860,7 +3054,7 @@
             if(!filteredParts.length) return `<div class="empty-note">${partItems.length ? 'No parts match your search.' : 'No station parts yet.'}</div>`;
             return `<div class="stock-grid">${filteredParts.map(it=>{
               const low = Number(it.quantity) <= Number(it.reorder_min || 5);
-              return `<div class="stockbar">
+              return `<div ${stockBarAttrs(it)}>
                 <span>${iconForRef('Station Parts')} ${esc(it.item)}</span>
                 <span class="stock ${low?'low':''}">${it.quantity!=null?it.quantity:'—'} left ${it.availability==='X'?'— OUT':''}</span>
               </div>`;
@@ -2875,7 +3069,7 @@
             if(!filteredSops.length) return `<div class="empty-note">${sopItems.length ? 'No SOPs match your search.' : 'No SOPs yet.'}</div>`;
             return `<div class="stock-grid">${filteredSops.map(it=>{
               const statusBadge = it.sop_status ? ` <span class="tag">${esc(it.sop_status)}</span>` : '';
-              return `<div class="stockbar">
+              return `<div ${stockBarAttrs(it)}>
               <span>${iconForRef('SOPs')} ${esc(it.item)}${statusBadge} ${shelfChipHTML(it.shelf, true)}</span>
               <span class="stock ${String(it.availability||'').includes('missing') ? 'low':''}">${it.quantity!=null?it.quantity:'—'} owned · ${esc(it.availability||'—')}</span>
             </div>`;
@@ -3029,6 +3223,9 @@
         },0);
       };
     }
+    stage.querySelectorAll('.stockbar[data-edit]').forEach(el=>{ el.onclick = ()=>openItemEdit(el.getAttribute('data-edit')); });
+    const invAddBtn = document.getElementById('invAddBtn');
+    if(invAddBtn) invAddBtn.onclick = openItemAdd;
     const weekPrevBtn = document.getElementById('weekPrevBtn');
     if(weekPrevBtn) weekPrevBtn.onclick = ()=>{ reportWeekOffset -= 1; renderStage(); };
     const weekNextBtn = document.getElementById('weekNextBtn');
@@ -3115,7 +3312,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · furniture renamed';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · inventory edit';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session

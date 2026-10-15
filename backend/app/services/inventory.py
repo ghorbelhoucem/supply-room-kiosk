@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
+    AuditEvent,
     Checkout,
     IdempotencyKey,
     InventoryItem,
@@ -104,26 +106,30 @@ def save_idempotent(db: Session, client_request_id: str, action: str, response: 
     )
 
 
+def inventory_row(db: Session, it: InventoryItem) -> dict:
+    return {
+        "reference": it.category.value,
+        "item": it.name,
+        "quantity": it.qty_on_hand,
+        "availability": availability_label(db, it),
+        "barcode": it.barcode,
+        "reorder_min": it.reorder_min,
+        "sop_status": it.sop_status,
+        "shelf": it.shelf_location,
+    }
+
+
 def snapshot(db: Session) -> dict:
-    items = db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
+    items = db.execute(
+        select(InventoryItem).where(InventoryItem.is_active.is_(True)).order_by(InventoryItem.name)
+    ).scalars().all()
     checkouts = db.execute(select(Checkout).order_by(Checkout.taken_at.desc())).scalars().all()
-    inventory = []
-    for it in items:
-        inventory.append(
-            {
-                "reference": it.category.value,
-                "item": it.name,
-                "quantity": it.qty_on_hand,
-                "availability": availability_label(db, it),
-                "barcode": it.barcode,
-                "reorder_min": it.reorder_min,
-                "sop_status": it.sop_status,
-                "shelf": it.shelf_location,
-            }
-        )
+    inventory = [inventory_row(db, it) for it in items]
     history = []
     for c in checkouts:
         item = db.get(InventoryItem, c.item_id)
+        if item is not None and not item.is_active:
+            continue  # a deleted item's history stays in the database but out of the lists
         if c.returned_by == "N/A":
             returned_at = "N/A"
         elif c.returned_at:
@@ -155,12 +161,15 @@ def snapshot(db: Session) -> dict:
         .all()
     )
     for m in other_moves:
+        owner = db.get(InventoryItem, m.item_id) if m.item_id else None
+        if owner is not None and not owner.is_active:
+            continue
         label = "Restock" if m.movement_type.value == "receive" else "Adjustment"
         history.append(
             {
                 "timestamp": m.created_at.isoformat() if m.created_at else "",
                 "personRole": m.actor,
-                "item": m.item_name,
+                "item": owner.name if owner is not None else m.item_name,   # the CURRENT name, so history follows a rename
                 "expectedReturn": label,
                 "returnedAt": "N/A",
                 "returnedBy": None,
@@ -217,7 +226,7 @@ def take_batch(db: Session, person: str, role: str, items: list[dict]) -> dict:
             continue
 
         item = db.execute(
-            select(InventoryItem).where(InventoryItem.name == name).with_for_update()
+            select(InventoryItem).where(InventoryItem.name == name, InventoryItem.is_active.is_(True)).with_for_update()
         ).scalar_one_or_none()
         if not item:
             return {"ok": False, "error": f'Unknown item "{name}"', "code": "UNKNOWN_ITEM"}
@@ -337,13 +346,14 @@ def receive_stock(
     category: str | None = None,
     sop_status: str | None = None,
     shelf_location: str | None = None,
+    reorder_min: int | None = None,
 ) -> dict:
     try:
         shelf = normalize_shelf(shelf_location)
     except ValueError as exc:
         return {"ok": False, "error": str(exc), "code": "BAD_SHELF"}
     item = db.execute(
-        select(InventoryItem).where(InventoryItem.name == item_name).with_for_update()
+        select(InventoryItem).where(InventoryItem.name == item_name, InventoryItem.is_active.is_(True)).with_for_update()
     ).scalar_one_or_none()
 
     if not item:
@@ -368,7 +378,7 @@ def receive_stock(
             name=item_name,
             category=item_category,
             qty_on_hand=0,
-            reorder_min=5,
+            reorder_min=reorder_min if (reorder_min is not None and item_category != ItemCategory.sops) else 5,
             barcode=item_name,
             sop_status=sop_status if item_category == ItemCategory.sops else None,
             shelf_location=shelf if item_category == ItemCategory.sops else None,
@@ -400,7 +410,7 @@ def adjust_stock(
     db: Session, item_name: str, qty_delta: int, actor: str, reason: str
 ) -> dict:
     item = db.execute(
-        select(InventoryItem).where(InventoryItem.name == item_name).with_for_update()
+        select(InventoryItem).where(InventoryItem.name == item_name, InventoryItem.is_active.is_(True)).with_for_update()
     ).scalar_one_or_none()
     if not item:
         return {"ok": False, "error": f'Unknown item "{item_name}"', "code": "UNKNOWN_ITEM"}
@@ -424,3 +434,172 @@ def adjust_stock(
         )
     )
     return {"ok": True, "quantity": item.qty_on_hand}
+
+
+# ---- Editing items from the Manager Report ----------------------------------------------
+SOP_STATUSES = ("Active", "Non-Active")
+
+
+def _clean_name(raw) -> str:
+    return " ".join(str(raw or "").split())
+
+
+def find_active_item(db: Session, name: str, lock: bool = False) -> InventoryItem | None:
+    q = select(InventoryItem).where(InventoryItem.name == name, InventoryItem.is_active.is_(True))
+    if lock:
+        q = q.with_for_update()
+    return db.execute(q).scalar_one_or_none()
+
+
+def checked_out_qty(db: Session, item: InventoryItem) -> int:
+    """How many are out right now. Station Parts are one-time use, so never 'out'."""
+    if item.category == ItemCategory.station_parts:
+        return 0
+    rows = db.execute(
+        select(Checkout).where(Checkout.item_id == item.id, Checkout.returned_at.is_(None))
+    ).scalars().all()
+    return sum(c.qty for c in rows)
+
+
+def _name_in_use(db: Session, name: str, exclude_id) -> bool:
+    return (
+        db.execute(
+            select(InventoryItem.id).where(func.lower(InventoryItem.name) == name.lower(), InventoryItem.id != exclude_id)
+        ).first()
+        is not None
+    )
+
+
+def _audit(db: Session, event_type: str, actor: str, detail: dict) -> None:
+    db.add(AuditEvent(event_type=event_type, actor=actor, detail=json.dumps(detail, ensure_ascii=False)))
+
+
+def update_item(
+    db: Session,
+    item_name: str,
+    *,
+    actor: str,
+    new_name: str | None = None,
+    qty: int | None = None,
+    expected_qty: int | None = None,
+    reorder_min: int | None = None,
+    sop_status: str | None = None,
+    shelf_location: str | None = None,
+    reason: str | None = None,
+) -> dict:
+    """
+    Change what is sent (anything left as None is untouched):
+      new_name        rename. The BARCODE never changes, so printed QR labels keep scanning.
+      qty             the new total (Tools/SOPs) or amount on hand (Station Parts). If expected_qty
+                      is given and the stored number differs, nothing is saved (CONFLICT).
+      reorder_min     Tools / Station Parts only.
+      sop_status, shelf_location   SOPs only.
+    """
+    item = find_active_item(db, item_name, lock=True)
+    if item is None:
+        return {"ok": False, "error": f'Unknown item "{item_name}"', "code": "UNKNOWN_ITEM"}
+    is_sop = item.category == ItemCategory.sops
+    changes: dict = {}
+
+    if new_name is not None:
+        name = _clean_name(new_name)
+        if not name:
+            return {"ok": False, "error": "Give the item a name.", "code": "BAD_REQUEST"}
+        if len(name) > 200:
+            return {"ok": False, "error": "That name is too long (200 characters max).", "code": "BAD_REQUEST"}
+        if name != item.name:
+            if _name_in_use(db, name, item.id):
+                return {"ok": False, "error": f'There is already an item called "{name}". Use a different name.', "code": "DUPLICATE_NAME"}
+            changes["name"] = [item.name, name]
+
+    if qty is not None:
+        if expected_qty is not None and expected_qty != item.qty_on_hand:
+            return {
+                "ok": False, "code": "CONFLICT", "quantity": item.qty_on_hand,
+                "error": f"Someone else changed the quantity to {item.qty_on_hand} while you were editing. "
+                         "The latest number is shown — check it and save again.",
+            }
+        if qty != item.qty_on_hand:
+            out = checked_out_qty(db, item)
+            if qty < out:
+                return {
+                    "ok": False, "code": "BELOW_CHECKED_OUT",
+                    "error": f"{out} are checked out right now, so the total can't be below {out}. Get them returned first, or enter {out} or more.",
+                }
+            changes["qty"] = [item.qty_on_hand, qty]
+
+    if reorder_min is not None and not is_sop and reorder_min != item.reorder_min:
+        changes["reorder_min"] = [item.reorder_min, reorder_min]
+
+    if is_sop:
+        if sop_status:
+            if sop_status not in SOP_STATUSES:
+                return {"ok": False, "error": 'Status must be "Active" or "Non-Active".', "code": "BAD_REQUEST"}
+            if sop_status != item.sop_status:
+                changes["sop_status"] = [item.sop_status, sop_status]
+        try:
+            shelf = normalize_shelf(shelf_location)
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc), "code": "BAD_SHELF"}
+        if shelf and shelf != item.shelf_location:
+            changes["shelf"] = [item.shelf_location, shelf]
+
+    if not changes:
+        return {"ok": True, "unchanged": True, "changes": {}, "item": inventory_row(db, item)}
+
+    old_name = item.name
+    reason = " ".join((reason or "").split())[:200] or None
+    if "name" in changes:
+        if item.barcode is None and not _barcode_taken(db, old_name, item.id):
+            item.barcode = old_name  # keep the old QR label working
+        item.name = changes["name"][1]
+    if "qty" in changes:
+        before, after = changes["qty"]
+        item.qty_on_hand = after
+        db.add(
+            Movement(
+                movement_type=MovementType.adjust, item_id=item.id, item_name=item.name,
+                qty=after - before, actor=actor, reason=reason or "Edited in Manager Report",
+            )
+        )
+    if "reorder_min" in changes:
+        item.reorder_min = changes["reorder_min"][1]
+    if "sop_status" in changes:
+        item.sop_status = changes["sop_status"][1]
+    if "shelf" in changes:
+        item.shelf_location = changes["shelf"][1]
+    db.flush()
+    _audit(db, "inventory_edit", actor, {"item": old_name, "sku": item.sku, "category": item.category.value, "changes": changes, "reason": reason})
+    return {"ok": True, "changes": changes, "item": inventory_row(db, item)}
+
+
+def _barcode_taken(db: Session, code: str, exclude_id) -> bool:
+    return db.execute(select(InventoryItem.id).where(InventoryItem.barcode == code, InventoryItem.id != exclude_id)).first() is not None
+
+
+def delete_item(db: Session, item_name: str, *, actor: str) -> dict:
+    """
+    SOFT delete. The item disappears from every list, the Sheets and the low-stock alerts, but its
+    history stays in the database. Its name gets a '(deleted …)' tail and its barcode is cleared,
+    so the same name can be used again for a brand-new item.
+    """
+    item = find_active_item(db, item_name, lock=True)
+    if item is None:
+        return {"ok": False, "error": f'Unknown item "{item_name}"', "code": "UNKNOWN_ITEM"}
+    out = checked_out_qty(db, item)
+    if out:
+        return {"ok": False, "code": "STILL_CHECKED_OUT", "error": f"{out} still checked out — get it returned first, then delete it."}
+
+    old_name = item.name
+    tail = f" (deleted {datetime.now(timezone.utc):%Y-%m-%d %H%M})"
+    new_name, n = old_name[: 200 - len(tail)] + tail, 1
+    while _name_in_use(db, new_name, item.id):
+        n += 1
+        new_name = f"{old_name[: 190 - len(tail)]}{tail} #{n}"
+    item.name = new_name
+    item.barcode = None
+    item.is_active = False
+    item.needs_purchase_alerted = False
+    db.flush()
+    _audit(db, "inventory_delete", actor, {"item": old_name, "sku": item.sku, "category": item.category.value, "qty_on_hand": item.qty_on_hand})
+    return {"ok": True, "deleted": old_name}

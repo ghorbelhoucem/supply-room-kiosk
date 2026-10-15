@@ -11,9 +11,10 @@ from __future__ import annotations
 
 from sqlalchemy import inspect, text
 
-# (table, column, SQL type) — always nullable, always additive
+# (table, column, SQL type) — additive; a NOT NULL column must carry a DEFAULT so existing rows get a value
 PATCHES = [
     ("inventory_items", "shelf_location", "VARCHAR(8)"),
+    ("inventory_items", "is_active", "BOOLEAN NOT NULL DEFAULT TRUE"),
 ]
 
 

@@ -16,6 +16,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.sql import true as sql_true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -87,6 +88,9 @@ class InventoryItem(Base):
     # SOP Room only: where the SOP sits, rack letter + shelf number ("A1" … "F6").
     # Plain string, not an enum, for the same reason as sop_status.
     shelf_location: Mapped[str | None] = mapped_column(String(8))
+    # Soft delete: a deleted item vanishes from every list, the Sheets and the alerts, but its
+    # history stays. (Its name is changed on delete so the name can be reused.)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=sql_true())
     barcode: Mapped[str | None] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

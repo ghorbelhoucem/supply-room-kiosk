@@ -49,7 +49,7 @@ def check_and_notify_purchase_alerts(db: Session) -> None:
     # SOPs are deliberately excluded — no reorder-point/low-stock concept
     # applies to them, only Tools and Station Parts.
     items = db.execute(
-        select(InventoryItem).where(InventoryItem.category != ItemCategory.sops)
+        select(InventoryItem).where(InventoryItem.category != ItemCategory.sops, InventoryItem.is_active.is_(True))
     ).scalars().all()
     newly_low = []
     for it in items:

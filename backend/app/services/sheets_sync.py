@@ -67,9 +67,10 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
     items = [
         it
         for it in db.execute(select(InventoryItem).order_by(InventoryItem.name)).scalars().all()
-        if it.category in categories
+        if it.category in categories and it.is_active
     ]
     item_ids = {it.id for it in items}
+    names_by_id = {it.id: it.name for it in items}
 
     open_qty_by_item: dict = {}
     open_checkouts = db.execute(
@@ -148,7 +149,7 @@ def _build_payload_for_categories(db: Session, categories: set) -> dict:
             [
                 _fmt(m.created_at),
                 m.actor,
-                m.item_name,
+                names_by_id.get(m.item_id, m.item_name),   # the item's CURRENT name, so history follows a rename
                 label,
                 "N/A",
                 m.related_tx_id or "",

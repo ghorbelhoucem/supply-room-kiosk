@@ -29,7 +29,10 @@
     returnScanPrompt: ["return", "returnBasketReview"],
     returnBasketReview: ["return", "menu", "confirm"],
     confirm: ["roomSelect", "idle", "menu"],
-    report: ["roomSelect", "idle", "menu", "return", "restockCategory", "takeCategory", "scanPrompt"],
+    report: ["roomSelect", "idle", "menu", "return", "restockCategory", "takeCategory", "scanPrompt", "itemEdit", "itemAdd"],
+    itemEdit: ["report", "itemDelete"],
+    itemAdd: ["report"],
+    itemDelete: ["itemEdit", "report"],
   };
 
   function createSupplyMachine() {
