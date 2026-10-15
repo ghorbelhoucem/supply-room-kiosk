@@ -255,7 +255,7 @@
     sop: ['SOPs'],
     furniture: [],   // furniture has its own tables/screens — it never uses the shared inventory
   };
-  const ROOM_LABELS = { storage: 'Storage Room', sop: 'SOP Room', furniture: 'Furniture Room' };
+  const ROOM_LABELS = { storage: 'Storage Room', sop: 'SOP Room', furniture: 'Furniture' };
   function roomCategories(){ return ROOM_CATEGORIES[selectedRoom] || ROOM_CATEGORIES.storage; }
   function inRoom(reference){ return roomCategories().includes(reference); }
 
@@ -263,7 +263,7 @@
   // (The server enforces the same rule; this is the friendly front door, not the lock.)
   const FURNITURE_ROLES = ['Management', 'Maintenance', 'Devs'];
   function furnRoleAllowed(role){ return FURNITURE_ROLES.includes(role); }
-  const FURN_BLOCKED_MSG = 'The Furniture Room is only for Management, Maintenance and Devs.';
+  const FURN_BLOCKED_MSG = 'Furniture is only for Management, Maintenance and Devs.';
   let roomBlockedNotice = null;
 
   // Storage Room: Maintenance/Management/Devs only. SOP Room additionally
@@ -1238,7 +1238,7 @@
           </div>
           <div class="menu-card" data-room="furniture" style="grid-column:1/-1;">
             <div class="big">🪑</div>
-            <div class="label">Furniture Room</div>
+            <div class="label">Furniture</div>
             <div class="sub">Furniture &amp; fixtures across buildings</div>
           </div>
         </div>
@@ -3115,7 +3115,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · sop basement';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · furniture renamed';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session
