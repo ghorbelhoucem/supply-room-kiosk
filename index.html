@@ -729,7 +729,89 @@
     await fn();
   }
 
+  // ===== Scroll memory ==========================================================
+  // Tap Back (or finish a form that returns you to a list) and you are exactly where you were on that
+  // screen. Opening a NEW screen starts at the top. Re-drawing the SAME screen (picking an item,
+  // an error message, data arriving) keeps your place too. The scrolling item lists and the report
+  // tab strip are remembered the same way.
+  const NAV_MAX = 60;
+  let navStack = [];             // one entry per screen you passed through: { key, pos }
+  let lastRenderedKey = null;
+  let scrollRestore = null;      // { y, els, done, at } — applied as soon as the screen is tall enough
+  let renderDepth = 0;
+
+  // a screen's identity: its name plus whatever makes two views of it different (which list, which room …)
+  function screenKey(){
+    const base = `${screen}|${selectedRoom}`;
+    switch(screen){
+      case 'take': return `${base}|${takeCategory}|${takeSopFilter || ''}`;
+      case 'restockPick': return `${base}|${restockCategory}|${restockSopFilter || ''}`;
+      case 'report': return `${base}|${reportTab}`;
+      case 'furnitureItems': return `${base}|${furnState.source}|${furnState.category || ''}|${furnState.locationId || ''}`;
+      case 'furnitureItem': return `${base}|${furnState.itemId || ''}`;
+      case 'furnitureRooms': return `${base}|${roomState.floor}`;
+      case 'furnitureRoom': return `${base}|${roomState.roomId || ''}`;
+      case 'furnitureRoomItem': return `${base}|${roomState.roomId || ''}|${roomState.typeId || ''}`;
+      default: return base;
+    }
+  }
+  const scrollEls = ()=>[...document.querySelectorAll('.item-list, .report-tabs')];
+  function captureScroll(){
+    return { y:window.scrollY || document.documentElement.scrollTop || 0, els:scrollEls().map(el=>({ t:el.scrollTop, l:el.scrollLeft })) };
+  }
+  function tryApplyScroll(){
+    const t = scrollRestore;
+    if(!t || t.done) return;
+    let ready = true;
+    const els = scrollEls();
+    t.els.forEach((pos, i)=>{
+      const el = els[i];
+      if(!el || (!pos.t && !pos.l)) return;
+      el.scrollTop = pos.t; el.scrollLeft = pos.l;
+      if(pos.t > 0 && el.scrollHeight - el.clientHeight < pos.t - 2) ready = false;     // the list is not long enough yet
+    });
+    const current = window.scrollY || document.documentElement.scrollTop || 0;
+    if(!(t.y === 0 && current === 0)){
+      if(t.y > 0 && document.documentElement.scrollHeight - window.innerHeight < t.y - 2) ready = false;   // still loading: try again shortly
+      try{ window.scrollTo({ top:t.y, left:0, behavior:'instant' }); }catch(e){ window.scrollTo(0, t.y); }
+    }
+    if(ready) t.done = true;
+  }
+  function resetScrollMemory(){ navStack = []; lastRenderedKey = null; scrollRestore = null; }
+  // touching the screen yourself always wins over a pending restore
+  ['wheel', 'touchstart', 'keydown'].forEach(ev=>window.addEventListener(ev, ()=>{ if(scrollRestore) scrollRestore.done = true; }, { passive:true }));
+
   function renderStage(){
+    if(renderDepth > 0){ renderStageCore(); return; }       // a redirect inside a screen: the outer call handles the scrolling
+    const here = captureScroll(), previousKey = lastRenderedKey;
+    renderDepth++;
+    try{ renderStageCore(); } finally { renderDepth--; }
+    const key = screenKey(), now = Date.now();
+    if(navStack.length) navStack[navStack.length - 1].pos = here;       // where you were on the screen you just left
+    if(key === previousKey && navStack.length){
+      // the same screen again: stay put — unless a "back" restore is still waiting for the screen to finish loading
+      if(!(scrollRestore && !scrollRestore.done && now - scrollRestore.at < 2500)) scrollRestore = { y:here.y, els:here.els, done:false, at:now };
+    }else{
+      let found = -1;
+      for(let i = navStack.length - 2; i >= 0; i--){ if(navStack[i].key === key){ found = i; break; } }
+      if(found >= 0){                                                    // BACK to a screen you came from: put you where you were
+        navStack.length = found + 1;
+        const pos = navStack[found].pos || { y:0, els:[] };
+        scrollRestore = { y:pos.y, els:pos.els, done:false, at:now };
+      }else{                                                             // a NEW screen: start at the top
+        navStack.push({ key, pos:null });
+        if(navStack.length > NAV_MAX) navStack.shift();
+        scrollRestore = { y:0, els:[], done:false, at:now };
+      }
+    }
+    lastRenderedKey = key;
+    tryApplyScroll();
+    requestAnimationFrame(tryApplyScroll);
+    setTimeout(tryApplyScroll, 120);
+    setTimeout(tryApplyScroll, 450);
+  }
+
+  function renderStageCore(){
     const stage = document.getElementById('stage');
     stage.style.opacity = '0';
     let banner = '';
@@ -801,7 +883,7 @@
   let furnitureLoadError = null;
   let furnLoading = false;
 
-  function furnForget(){ roomBlockedNotice = null; furnitureData = null; furnitureLoadError = null; furnDraft = null; furnFormError = null; furnNotice = null; furnRooms = null; furnRoomsError = null; roomDraft = null; roomFormError = null; roomState = Object.assign({}, ROOM_DEFAULT_STATE); }
+  function furnForget(){ roomBlockedNotice = null; furnitureData = null; furnitureLoadError = null; furnDraft = null; furnFormError = null; furnNotice = null; furnRooms = null; furnRoomsError = null; roomDraft = null; roomFormError = null; roomState = Object.assign({}, ROOM_DEFAULT_STATE); resetScrollMemory(); }
 
   async function refreshFurniture(){
     const r = await apiClient.loadFurniture();
@@ -3736,7 +3818,7 @@
   });
 
   (async function init(){
-    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · furniture rooms';
+    (function(){ const t = document.createElement('div'); t.id = 'buildTag'; t.textContent = 'build · scroll memory';
       t.style.cssText = "position:fixed;right:10px;bottom:6px;font:10px 'IBM Plex Mono',monospace;color:#6b7075;opacity:.75;pointer-events:none;z-index:5;";
       document.body.appendChild(t); })();
     const restored = loadPersistedSessionEarly(); // must happen before render() — render() itself triggers a draw that would otherwise wipe an unrestored session
