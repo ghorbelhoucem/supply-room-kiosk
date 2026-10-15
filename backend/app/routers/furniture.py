@@ -21,7 +21,7 @@ def require_furniture_access(user: User = Depends(get_current_user)) -> User:
     if user.role not in FURNITURE_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Management, Maintenance or Devs can use the Furniture Room.",
+            detail="Only Management, Maintenance or Devs can use Furniture.",
         )
     return user
 
